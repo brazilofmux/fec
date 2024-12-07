@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <cstdint>
+#include <random>
 #include "rs.h"
 
 enum class Verbosity {
@@ -103,6 +104,9 @@ GF data[MAX_KK];
 GF recd[nn];
 GF bb[2*MAX_TT];
 RS_ENCODER *prs;
+std::mt19937 rng;  // Mersenne Twister
+std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
+std::uniform_int_distribution<int> byte_dist(1, 255);
 
 int mode = 0;
 #define ENCODING 1
@@ -129,7 +133,7 @@ RsTestConfig parse_args(int argc, char* argv[]) {
     }
 
     // Parse mode first
-    if (argv[1][0] != '-' || (argv[1][1] != 'e' && argv[1][1] != 'E' && 
+    if (argv[1][0] != '-' || (argv[1][1] != 'e' && argv[1][1] != 'E' &&
                              argv[1][1] != 'd' && argv[1][1] != 'D')) {
         printf("First argument must be -e or -d\n");
         exit(1);
@@ -326,10 +330,7 @@ int main(int argc, char *argv[])
             exit(0);
         }
         kk_short = kk - (nn-nn_short); /* compute dimension of shortened code */
-        //printf("The (%d,%d) %d-error correcting RS code\n",nn_short,kk_short,tt);
-        //printf("Enter a random positive integer\n");
-        seed = 1093; //scanf("%ld",&seed);
-        srand(seed);
+        rng.seed(config.random_seed);
 
         no_cws = 10000; // printf("Enter no of codewords \n"); scanf("%d",&no_cws);
 
@@ -350,11 +351,11 @@ int main(int argc, char *argv[])
             no_ch_errs = 0;
             for (i=0;i < nn_short;i++)
             {
-                x = erand48();
+                x = uniform_dist(rng);
                 print_debug(config, "Random value: %f vs threshold: %f\n", x, config.error_rate);
                 if (x < config.error_rate)
                 {
-                    error_byte = (int) (nrand48() % 255) + 1;
+                    error_byte = byte_dist(rng);
                     print_debug(config, "Injecting error: %d\n", error_byte);
                     received[i] = cw[i] ^ error_byte;
                     ++no_ch_errs;
@@ -405,7 +406,7 @@ int main(int argc, char *argv[])
             }
             if (no_ch_errs > tt) {
                 stats.uncorrectable_errors++;
-            }        
+            }
 
             if (decode_flag == RS_ERROR_LAMDA_ERROR && no_ch_errs <= tt)
             {
@@ -432,17 +433,25 @@ int main(int argc, char *argv[])
             }
 
         }
-        /* closing iteration loop */
+
         print_progress(config, "\nDecoding Summary:\n");
         print_progress(config, "Total codewords processed: %d\n", stats.total_codewords);
-        print_progress(config, "Total errors injected: %d (avg %.2f per codeword)\n", 
-            stats.total_errors_injected, 
-            (double)stats.total_errors_injected / stats.total_codewords);
-        print_progress(config, "Successful corrections: %d\n", stats.errors_corrected);
-        if (stats.decode_failures > 0) {
-            print_progress(config, "Decoder failures: %d\n", stats.decode_failures);
+        print_progress(config, "Total errors injected: %d (avg %.2f per codeword, max correctable: %d)\n",
+            stats.total_errors_injected,
+            (double)stats.total_errors_injected / stats.total_codewords,
+            tt);
+
+        // Add error distribution
+        print_progress(config, "\nError distribution:\n");
+        for (int i = 0; i <= tt*2 && i < MAX_TT; i++) {  // Show up to 2*tt errors
+            if (stats.errors_by_count[i] > 0) {
+                print_progress(config, "%d errors: %d times (%d%% %s)\n",
+                    i,
+                    stats.errors_by_count[i],
+                    (stats.errors_by_count[i] * 100) / stats.total_codewords,
+                    i <= tt ? "correctable" : "uncorrectable");
+            }
         }
-        print_progress(config, "Uncorrectable error patterns: %d\n", stats.uncorrectable_errors);
     }
     return 0;
 }

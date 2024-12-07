@@ -66,7 +66,7 @@ static void RSGenField(void)
     // Handle special infinite case
     //
     Pow2Poly[n-1] = 0;
-    Poly2Pow[0]  = INFINITY;
+    Poly2Pow[0]  = GF_INFINITY;
 
     // Handle Pow2Poly[0..n-2] and Poly2Pow[1..n-1]
     //
@@ -217,7 +217,7 @@ void RS_ENCODER::RSGenTable(void)
 #endif
 #ifdef SYMMETRICAL_GENERATOR
         {
-            if (gg[j+1] != INFINITY && feedback != INFINITY)
+            if (gg[j+1] != GF_INFINITY && feedback != GF_INFINITY)
             {
                 iMod = gg[j+1]+feedback;
                 MOD_NN(iMod);
@@ -240,7 +240,7 @@ void RS_ENCODER::RSGenTable(void)
         }
 #else
         {
-            if (gg[j] != INFINITY && feedback != INFINITY)
+            if (gg[j] != GF_INFINITY && feedback != GF_INFINITY)
             {
                 iMod = gg[j]+feedback;
                 MOD_NN(iMod);
@@ -909,7 +909,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
     printf("The Syndromes of the received vector in power-form are:\n");
     for (i = 1; i <= nn-kk; i++)
     {
-        if (s[i] == INFINITY)
+        if (s[i] == GF_INFINITY)
         {
             printf("s(%d) = 0 ", i);
         }
@@ -945,7 +945,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
         elp[1][0] = 1;      /* polynomial form */
         for (i = 1; i < nn-kk; i++)
         {
-            elp[0][i] = INFINITY;   /* power form */
+            elp[0][i] = GF_INFINITY;   /* power form */
             elp[1][i] = 0;   /* polynomial form */
         }
         l[0] = 0;
@@ -957,7 +957,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
         do
         {
             u++;
-            if (d[u]==INFINITY)
+            if (d[u]==GF_INFINITY)
             {
                 l[u+1] = l[u];
                 for (i=0; i<=l[u]; i++)
@@ -970,7 +970,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
             /* search for words with greatest u_lu[q] for which d[q]!=0 */
             {
                 q = u-1;
-                while ((d[q] == INFINITY) && (q>0))
+                while ((d[q] == GF_INFINITY) && (q>0))
                     q--;
 
                 /* have found first non-zero d[q]  */
@@ -980,7 +980,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                     do
                     {
                         j--;
-                        if ((d[j] != INFINITY) && (u_lu[q]<u_lu[j]))
+                        if ((d[j] != GF_INFINITY) && (u_lu[q]<u_lu[j]))
                             q = j;
                     } while (j>0);
                 }
@@ -996,7 +996,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                 for (i = 0; i < nn-kk; i++)
                     elp[u+1][i] = 0;
                 for (i=0; i<=l[q]; i++)
-                    if (elp[q][i] != INFINITY)
+                    if (elp[q][i] != GF_INFINITY)
                     {
                         iMod = d[u]-d[q]+elp[q][i];
                         MOD_NN(iMod);
@@ -1016,7 +1016,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                 d[u+1] = Pow2Poly[s[u+1]];
                 for (i = 1; i <= l[u+1]; i++)
                 {
-                    if ((s[u+1-i] != INFINITY) && (elp[u+1][i] != 0))
+                    if ((s[u+1-i] != GF_INFINITY) && (elp[u+1][i] != 0))
                     {
                         iMod = s[u+1-i]+Poly2Pow[elp[u+1][i]];
                         MOD_NN(iMod);
@@ -1070,7 +1070,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                 q = 1;
                 for (j = 1; j <= l[u]; j++)
                 {
-                    if (reg[j] != INFINITY)
+                    if (reg[j] != GF_INFINITY)
                     {
                         iMod = reg[j]+j;
                         MOD_NN(iMod);
@@ -1107,7 +1107,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                     GF zi = Pow2Poly[s[i]] ^ Pow2Poly[elp[u][i]];
                     for (j=1; j<i; j++)
                     {
-                        if ((s[j] != INFINITY) && (elp[u][i-j] != INFINITY))
+                        if ((s[j] != GF_INFINITY) && (elp[u][i-j] != GF_INFINITY))
                         {
                             iMod = elp[u][i-j] + s[j];
                             MOD_NN(iMod);
@@ -1159,7 +1159,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                     err[loc[i]] = 1;       /* accounts for z[0] */
                     for (j=1; j<=l[u]; j++)
                     {
-                        if (z[j] != INFINITY)
+                        if (z[j] != GF_INFINITY)
                         {
                             iMod = z[j]+jPow;
                             MOD_NN(iMod);
@@ -1324,7 +1324,7 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
             q = 1;
             for (j=1; j <= no_eras; j++)
             {
-                if (reg[j] != INFINITY)
+                if (reg[j] != GF_INFINITY)
                 {
                     iMod = reg[j]+j;
                     MOD_NN(iMod);
@@ -1465,7 +1465,7 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
             discr_r = 0;
             for (i=0;i < 2*tt+1;i++)
             {
-                if ((lambda[i] != 0) && (s[r-i] != INFINITY))
+                if ((lambda[i] != 0) && (s[r-i] != GF_INFINITY))
                 {
                     iMod = Poly2Pow[lambda[i]]+s[r-i];
                     MOD_NN(iMod);
@@ -1540,7 +1540,7 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
     
         /* Compute deg(lambda(x)) */
         deg_lambda = 2*tt;
-        while ((lambda[deg_lambda] == INFINITY) && (deg_lambda > 0)) 
+        while ((lambda[deg_lambda] == GF_INFINITY) && (deg_lambda > 0)) 
             --deg_lambda;
 
         if (deg_lambda <= 2*tt)
@@ -1555,7 +1555,7 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
             {
                 q = 1;
                 for (j=1; j <= deg_lambda; j++)
-                    if (reg[j] != INFINITY)
+                    if (reg[j] != GF_INFINITY)
                     {
                         iMod = reg[j]+j;
                         MOD_NN(iMod);
@@ -1590,7 +1590,7 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
                     omega[i] = 0;
                     for (j=0;(j < deg_lambda+1) && (j < i+1);j++)
                     {
-                        if ((s[i+1-j] != INFINITY) && (lambda[j] != INFINITY))
+                        if ((s[i+1-j] != GF_INFINITY) && (lambda[j] != GF_INFINITY))
                         {
                             iMod = s[i+1-j]+lambda[j];
                             MOD_NN(iMod);
