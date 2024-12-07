@@ -341,9 +341,7 @@ int main(int argc, char *argv[])
 #else
             decode_flag = rs.RSDecodeErasures(recd, 0, 0);
 #endif
-#ifndef NO_PRINT
-            printf("decode_rs() returned %d\n", decode_flag);
-#endif
+            print_debug(config, "decode_rs() returned %d\n", decode_flag);
             error_flag = 0;
             for (i=0; i < kk_short; i++)
             {
