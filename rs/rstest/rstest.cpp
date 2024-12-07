@@ -8,6 +8,7 @@
 #include <stdarg.h>
 #include <cstdint>
 #include <random>
+#include <chrono>
 #include "rs.h"
 
 enum class Verbosity {
@@ -98,6 +99,70 @@ bool rs_fopen(FILE** pFile, const char* filename, const char* mode)
     return false;
 }
 
+void run_benchmarks() {
+    const int tt_values[] = {1,2,3,4,5,6,7,8,16,24,32,40,48,56,64};
+    const int iterations = 100000;  // Adjustable based on speed needed
+
+    // Pre-allocate our buffers
+    GF data[MAX_KK];
+    GF recd[nn];
+    GF bb[2*MAX_TT];
+
+    // Fill data buffer with some pattern
+    for (int i = 0; i < MAX_KK; i++) {
+        data[i] = i & 0xFF;
+    }
+
+    printf("//             ---Errors Only---  -Errors+Erasures-\n");
+    printf("//             ----Decoding-----  ----Decoding-----\n");
+    printf("// tt  Encode  w/errors  without  w/errors  without\n");
+
+    for (const int tt_val : tt_values) {
+        RS_ENCODER rs(tt_val);
+        const int kk = nn - 2*tt_val;
+        double encode_time = 0.0;
+        double decode_time_clean = 0.0;
+        double decode_time_errors = 0.0;
+
+        // Time encoding
+        auto start = std::chrono::high_resolution_clock::now();
+        for (int i = 0; i < iterations; i++) {
+            rs.RSEncode(data, bb);
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+        encode_time = std::chrono::duration<double, std::micro>(end - start).count() / iterations;
+
+        // Time decoding without errors
+        memcpy(recd, bb, 2*tt_val);        // Copy parity
+        memcpy(recd + nn - kk, data, kk);  // Copy data
+
+        start = std::chrono::high_resolution_clock::now();
+        for (int i = 0; i < iterations; i++) {
+            rs.RSDecode(recd);
+        }
+        end = std::chrono::high_resolution_clock::now();
+        decode_time_clean = std::chrono::duration<double, std::micro>(end - start).count() / iterations;
+
+        // Time decoding with errors
+        memcpy(recd, bb, 2*tt_val);        // Copy parity
+        memcpy(recd + nn - kk, data, kk);  // Copy data
+        // Inject tt_val/2 errors at fixed positions
+        for (int i = 0; i < tt_val/2; i++) {
+            recd[i*2] ^= 0xFF;
+        }
+
+        start = std::chrono::high_resolution_clock::now();
+        for (int i = 0; i < iterations; i++) {
+            rs.RSDecode(recd);
+        }
+        end = std::chrono::high_resolution_clock::now();
+        decode_time_errors = std::chrono::duration<double, std::micro>(end - start).count() / iterations;
+
+        printf("%3d  %6.2f  %8.2f  %8.2f    -----    -----\n",
+               tt_val, encode_time, decode_time_errors, decode_time_clean);
+    }
+}
+
 int tt;
 int kk;
 GF data[MAX_KK];
@@ -109,8 +174,9 @@ std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
 std::uniform_int_distribution<int> byte_dist(1, 255);
 
 int mode = 0;
-#define ENCODING 1
-#define DECODING 2
+#define ENCODING  1
+#define DECODING  2
+#define BENCHMARK 3
 
 RsTestConfig parse_args(int argc, char* argv[]) {
     RsTestConfig config = {
@@ -122,9 +188,39 @@ RsTestConfig parse_args(int argc, char* argv[]) {
         .verify_correction = true
     };
 
-    if (argc < 3) {
-        printf("Usage: rstest [-e|-d] tt [-v level] [-n count] [-s seed] [-r rate]\n");
+    // Parse mode first
+    bool needTT = false;
+    if (2 <= argc && argv[1][0] == '-')
+    {
+        switch (argv[1][1])
+        {
+            case 'e':
+            case 'E':
+                mode = ENCODING;
+		needTT = true;
+                break;
+
+            case 'd':
+            case 'D':
+                mode = DECODING;
+		needTT = true;
+                break;
+
+            case 'b':
+            case 'B':
+                mode = BENCHMARK;
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    if (mode == 0 || (needTT && argc < 3))
+    {
+        printf("Usage: rstest [-e|-d|-b] tt [-v level] [-n count] [-s seed] [-r rate]\n");
         printf("  -e/-d tt    : encode/decode mode and error correction capacity\n");
+        printf("  -b          : Benchmarking\n");
         printf("  -v level    : verbosity (0=quiet, 1=normal, 2=debug)\n");
         printf("  -n count    : number of codewords (default: 10000)\n");
         printf("  -s seed     : random seed (default: 1093)\n");
@@ -132,24 +228,19 @@ RsTestConfig parse_args(int argc, char* argv[]) {
         exit(1);
     }
 
-    // Parse mode first
-    if (argv[1][0] != '-' || (argv[1][1] != 'e' && argv[1][1] != 'E' &&
-                             argv[1][1] != 'd' && argv[1][1] != 'D')) {
-        printf("First argument must be -e or -d\n");
-        exit(1);
-    }
-    mode = (argv[1][1] == 'e' || argv[1][1] == 'E') ? ENCODING : DECODING;
-
     // Parse tt
-    config.tt = tt = atoi(argv[2]);
-    if (config.tt < MIN_TT || config.tt > MAX_TT) {
-        printf("tt must be between %d and %d\n", MIN_TT, MAX_TT);
-        exit(1);
+    if (needTT)
+    {
+        config.tt = tt = atoi(argv[2]);
+        if (config.tt < MIN_TT || config.tt > MAX_TT) {
+            printf("tt must be between %d and %d\n", MIN_TT, MAX_TT);
+            exit(1);
+        }
     }
 
     // Parse optional arguments
     int v;
-    for (int i = 3; i < argc; i++) {
+    for (int i = needTT ? 3 : 2; i < argc; i++) {
         if (argv[i][0] != '-' || strlen(argv[i]) != 2) {
             printf("Invalid option: %s\n", argv[i]);
             exit(1);
@@ -276,7 +367,7 @@ int main(int argc, char *argv[])
         no_cws = 10000;
 
 #ifndef PROFILE
-    	if (!rs_fopen(&fp_out, cw_file, "wb") || nullptr == fp_out)
+        if (!rs_fopen(&fp_out, cw_file, "wb") || nullptr == fp_out)
         {
             printf("Could not open %s\n", cw_file);
             exit(0);
@@ -452,6 +543,10 @@ int main(int argc, char *argv[])
                     i <= tt ? "correctable" : "uncorrectable");
             }
         }
+    }
+    else if (mode == BENCHMARK)
+    {
+        run_benchmarks();
     }
     return 0;
 }

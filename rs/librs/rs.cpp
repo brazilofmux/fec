@@ -27,6 +27,27 @@
 //
 // A codeword is 255 bytes. The number of parity bytes is 2*tt, and the
 // number of data bytes is 255-2*tt.
+//
+// For Chromebook Atom:
+//
+//             ---Errors Only---  -Errors+Erasures-
+//             ----Decoding-----  ----Decoding-----
+// tt  Encode  w/errors  without  w/errors  without
+//  1    1.78      4.13      4.14    -----    -----
+//  2    1.90      6.81      6.97    -----    -----
+//  3    2.82      9.57      9.44    -----    -----
+//  4    2.77     12.44     12.59    -----    -----
+//  5    2.93     15.82     15.79    -----    -----
+//  6    3.67     19.09     19.08    -----    -----
+//  7    3.41     22.41     22.36    -----    -----
+//  8    4.58     25.72     25.76    -----    -----
+// 16    3.41     54.33     52.36    -----    -----
+// 24    6.62     78.77     79.59    -----    -----
+// 32    4.06    105.56    105.28    -----    -----
+// 40    6.32    134.79    134.81    -----    -----
+// 48    6.47    157.48    157.56    -----    -----
+// 56    6.49    184.78    184.57    -----    -----
+// 64    4.13    215.03    211.15    -----    -----
 
 #include "pch.h"
 
@@ -429,7 +450,7 @@ void RS_ENCODER::RSEncodeGeneral(GF data[MAX_KK], GF bb[2*MAX_TT])
                 DO8(16)
 
                 DO4(24)
-                
+
                 DO1(28)
                 DO1(29)
                 DO1(30)
@@ -448,7 +469,7 @@ void RS_ENCODER::RSEncodeGeneral(GF data[MAX_KK], GF bb[2*MAX_TT])
                 DO8(0)
                 DO8(8)
                 DO8(16)
-                
+
                 DO1(24)
                 DO1(25)
                 DO1(26)
@@ -647,7 +668,7 @@ void RS_ENCODER::RSEncode64(GF data[MAX_KK], GF bb[2*MAX_TT])
         {
             DO8(j)
         }
-        
+
         DO4( 120)
 
         DO1(124)
@@ -820,7 +841,7 @@ void RS_ENCODER::RSEncode1(GF data[MAX_KK], GF bb[2*MAX_TT])
 // writes the codeword into recd[] itself. Otherwise recd[] is unaltered.  If
 // channel caused no more than "tt" errors, the tranmitted codeword will be
 // recovered.
-// 
+//
 int RS_ENCODER::RSDecode(GF recd[nn])
 {
     // RSDecode variables
@@ -924,7 +945,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
         printf("s(%d) = %#x ", i, Pow2Poly[s[i]]);
     }
     printf("\n NOTE: The basis is {@^7,...,@,1}\n");
-#endif   
+#endif
 
 
 #ifdef DECODER_DEBUG
@@ -939,7 +960,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
         {
             printf("s(%d) = @^%d ", i, s[i]);
         }
-    } 
+    }
     printf("\n---------------------------------------------------------------\n");
 #endif
 
@@ -958,7 +979,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
 // step number and the degree of the elp.
 //
 // The notation is the same as that in Lin and Costello's book; pages 155-156
-// and 175. 
+// and 175.
 //
 /* initialise table entries */
         d[0] = 0;           /* power form */
@@ -1076,7 +1097,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                 printf("%d x^%d + ",elp[u][i],i);
                 if (i && (i % 6 == 0))
                     printf("\n"); /* 7 coefficients per line */
-            }  
+            }
             printf("%d x^%d",elp[u][i],i);
             printf("\n");
             printf("---------------------------------------------------------------\n");
@@ -1122,7 +1143,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                 for (i=0;i < count;i++)
                     printf("%d ",root[i]);
                 printf("\n");
-#endif 
+#endif
                 /* form polynomial z(x) */
                 for (i = 1; i <= l[u]; i++) /* Z[0] = 1 always - do not need */
                 {
@@ -1161,7 +1182,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                     printf("%#x x^%d + ",z[i],i);
                     if (i && (i % 6 == 0))
                         printf("\n"); /* 7 coefficients per line */
-                }  
+                }
                 printf("%#x x^%d",z[i],i);
                 printf("\n");
                 printf("---------------------------------------------------------------\n");
@@ -1252,7 +1273,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
 #endif
     }
     else
-    {   
+    {
         /* no non-zero syndromes => no errors: output received codeword */
 #ifdef DECODER_DEBUG
         printf("Received vector is a codeword. Channel has presumably caused no error\n");
@@ -1303,13 +1324,13 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
     // Maximum # ch errs correctable after "no_eras" erasures.
     //
     //int t_after_eras = (2*tt - no_eras)/2;
-    
+
     // Compute erasure locator polynomial phi[x].
     //
     for (i=0;i < nn-kk+1;i++)
         tmp_pol[i] = 0;
     for (i=0;i < nn-kk+1;i++)
-        phi[i] = 0; 
+        phi[i] = 0;
     if (no_eras > 0)
     {
         phi[0] = 1; /* power form */
@@ -1365,7 +1386,7 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
         {
             printf("\n phi(x) is WRONG\n"); exit(1);
         }
-#ifndef NO_PRINT 
+#ifndef NO_PRINT
         printf("\n Erasure positions as determined by roots of Eras Loc Poly:\n");
         for (i = 0; i < count; i++)
             printf("%d ",loc[i]);
@@ -1540,12 +1561,12 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
                         }
                     }
                     for (i=0;i < 2*tt+1;i++)
-                        lambda[i] = T[i]; 
+                        lambda[i] = T[i];
                 }
                 else
                 {
                     for (i=0;i < 2*tt+1;i++)
-                        lambda[i] = T[i]; 
+                        lambda[i] = T[i];
                     // 3 lines below: B(x) <-- x*B(x)
                     //
                     for (i = 2*tt; i > 0; i--)
@@ -1559,10 +1580,10 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
         /* Put lambda(x) into power form */
         for (i=0; i < 2*tt+1; i++)
             lambda[i] = Poly2Pow[lambda[i]];
-    
+
         /* Compute deg(lambda(x)) */
         deg_lambda = 2*tt;
-        while ((lambda[deg_lambda] == INFINITY) && (deg_lambda > 0)) 
+        while ((lambda[deg_lambda] == INFINITY) && (deg_lambda > 0))
             --deg_lambda;
 
         if (deg_lambda <= 2*tt)
@@ -1596,7 +1617,7 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
             for (i=0;i < count;i++)
                 printf("%d ",loc[i]);
             printf("\n");
-#endif 
+#endif
             // BUG!: If we didn't find as many roots as we expected, then
             // some of the erasures were false indicators. If deg_lamba > count
             // we may need to recompute lambda
@@ -1631,14 +1652,14 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
                     lambda_pr[i] = Pow2Poly[lambda[i+1]];
                 }
                 lambda_pr[2*tt] = 0;
-                
+
                 /* Compute deg(omega(x)) */
                 deg_omega = 2*tt;
-                while ((omega[deg_omega] == 0) && (deg_omega > 0)) 
+                while ((omega[deg_omega] == 0) && (deg_omega > 0))
                     --deg_omega;
 
                 // Compute error values in polynomial form.
-                // num1 = omega(inv(X(l))), 
+                // num1 = omega(inv(X(l))),
                 // num2 = inv(X(l))^(b0-1) and den = lambda_pr(inv(X(l))) all
                 // in polynomial form.
                 //
@@ -1650,7 +1671,7 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
                     iPow0 = 0;
                     for (i=0;i < deg_omega+1;i++)
                     {
-                        if (omega[i] != 0) 
+                        if (omega[i] != 0)
                         {
                             iMod = Poly2Pow[omega[i]]+iPow0;
                             MOD_NN(iMod);
