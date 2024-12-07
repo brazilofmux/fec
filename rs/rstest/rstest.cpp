@@ -63,17 +63,15 @@ void print_debug(const RsTestConfig& config, const char* msg, ...) {
     va_end(args);
 }
 
-#if 1
-long int nrand48(unsigned short seed[3])
+long int nrand48()
 {
     return rand();
 }
 
-double erand48(unsigned short seed[3])
+double erand48()
 {
-    return ((double)rand())/0xFFFFUL;
+    return ((double)rand())/((double)RAND_MAX);
 }
-#endif
 
 bool rs_fopen(FILE** pFile, const char* filename, const char* mode)
 {
@@ -121,26 +119,76 @@ RsTestConfig parse_args(int argc, char* argv[]) {
     };
 
     if (argc < 3) {
-        printf("Usage: rstest [-e|-d] tt [-n num_codewords] [-v level] [-s seed]\n");
+        printf("Usage: rstest [-e|-d] tt [-v level] [-n count] [-s seed] [-r rate]\n");
+        printf("  -e/-d tt    : encode/decode mode and error correction capacity\n");
+        printf("  -v level    : verbosity (0=quiet, 1=normal, 2=debug)\n");
+        printf("  -n count    : number of codewords (default: 10000)\n");
+        printf("  -s seed     : random seed (default: 1093)\n");
+        printf("  -r rate     : error injection rate (default: 0.01)\n");
         exit(1);
     }
 
-    // Parse basic mode and tt first
-    if (argv[1][0] == '-') {
-        if (argv[1][1] == 'e' || argv[1][1] == 'E') {
-            mode = ENCODING;
-        } else if (argv[1][1] == 'd' || argv[1][1] == 'D') {
-            mode = DECODING;
-        } else {
-            printf("Unknown mode %s\n", argv[1]);
-            exit(1);
-        }
+    // Parse mode first
+    if (argv[1][0] != '-' || (argv[1][1] != 'e' && argv[1][1] != 'E' && 
+                             argv[1][1] != 'd' && argv[1][1] != 'D')) {
+        printf("First argument must be -e or -d\n");
+        exit(1);
     }
+    mode = (argv[1][1] == 'e' || argv[1][1] == 'E') ? ENCODING : DECODING;
 
-    config.tt = tt = atoi(argv[2]);  // Set both config and global tt
+    // Parse tt
+    config.tt = tt = atoi(argv[2]);
     if (config.tt < MIN_TT || config.tt > MAX_TT) {
         printf("tt must be between %d and %d\n", MIN_TT, MAX_TT);
         exit(1);
+    }
+
+    // Parse optional arguments
+    int v;
+    for (int i = 3; i < argc; i++) {
+        if (argv[i][0] != '-' || strlen(argv[i]) != 2) {
+            printf("Invalid option: %s\n", argv[i]);
+            exit(1);
+        }
+
+        switch (argv[i][1]) {
+            case 'v':
+                if (i + 1 >= argc) {
+                    printf("Missing value for -v\n");
+                    exit(1);
+                }
+                v = atoi(argv[++i]);
+                config.verbose_level = static_cast<Verbosity>(v);
+                break;
+
+            case 'n':
+                if (i + 1 >= argc) {
+                    printf("Missing value for -n\n");
+                    exit(1);
+                }
+                config.num_codewords = atoi(argv[++i]);
+                break;
+
+            case 's':
+                if (i + 1 >= argc) {
+                    printf("Missing value for -s\n");
+                    exit(1);
+                }
+                config.random_seed = atoi(argv[++i]);
+                break;
+
+            case 'r':
+                if (i + 1 >= argc) {
+                    printf("Missing value for -r\n");
+                    exit(1);
+                }
+                config.error_rate = atof(argv[++i]);
+                break;
+
+            default:
+                printf("Unknown option: -%c\n", argv[i][1]);
+                exit(1);
+        }
     }
 
     return config;
@@ -165,9 +213,7 @@ int main(int argc, char *argv[])
     const char* cw_file = "cws.txt";
     const char* file_in = "cws.txt";;
     FILE *fp_out, *fp;
-    /**** Storage for random seed ****/
-    unsigned short int store[3];
-    double x, prob_symb_err;
+    double x;
 
 #ifdef DEBUG
     printf("Look-up tables for GF(2^8)\n");
@@ -224,10 +270,6 @@ int main(int argc, char *argv[])
         /* compute dimension of shortened code */
         kk_short = kk - (nn-nn_short);
         no_cws = 10000;
-        for (i=0;i < 3;i++)
-        {
-            store[i] = 109-i*5; // store[i] = tmp;
-        }
 
 #ifndef PROFILE
     	if (!rs_fopen(&fp_out, cw_file, "wb") || nullptr == fp_out)
@@ -243,7 +285,7 @@ int main(int argc, char *argv[])
         for (i = 0; i < no_cws; i++)
         {
             for ( j = 0; j < (int)kk_short; j++)
-                data[j] = (int) (nrand48(store) % 256);
+                data[j] = (int) (nrand48() % 256);
 
             prs->RSEncode(data, bb);
 
@@ -265,8 +307,19 @@ int main(int argc, char *argv[])
     }
     else if (DECODING == mode)
     {
-        // printf("Enter length of the shortened code\n");
-        nn_short = 255; // scanf("%d",&nn_short);
+        DecodingStats stats = {
+            .total_codewords = 0,
+            .total_errors_injected = 0,
+            .errors_corrected = 0,
+            .decode_failures = 0,
+            .uncorrectable_errors = 0
+        };
+        memset(stats.errors_by_count, 0, sizeof(stats.errors_by_count));
+
+        config.error_rate = config.error_rate > 0 ? config.error_rate : 0.01;
+        print_debug(config, "Error rate set to: %f\n", config.error_rate);
+
+        nn_short = 255;
         if ((nn_short < 2*tt) || (nn_short > nn))
         {
             printf("Invalid entry %d for shortened length\n",nn_short);
@@ -286,44 +339,31 @@ int main(int argc, char *argv[])
             exit(0);
         }
 
-        prob_symb_err = (double)tt/ (8.0 * (double)nn_short);
-        /* CHANGE above probablity of symbol error if desired */
-        /* printf("Probability of symbol error = %6e\n",prob_symb_err);*/
-
         no_decoder_errors = 0;
         iter = -1;
-        while (++iter < no_cws)
-        {
+        while (++iter < no_cws) {
+            stats.total_codewords++;
             fread(cw, sizeof(GF), nn_short, fp);
-#if 0
-            /* read in codewords from file */
-            for (i=0;i < nn_short;i++)
-            {
-                fscanf(fp,"%02x ",&byte);
-                cw[i] = byte;
-            }
-            /* printf("The Transmitted Codeword\n");
-            for (i=0;i < nn_short;i++) printf("%02x ",cw[i]); printf("\n");*/
-#endif
 
             print_debug(config, "\n\n\n\n Transmitting codeword %d \n", iter);
             print_debug(config, "Channel caused following errors Location (Error): \n");
             no_ch_errs = 0;
             for (i=0;i < nn_short;i++)
             {
-#if 1
-                x = erand48(store);
-                if (x < prob_symb_err)
+                x = erand48();
+                print_debug(config, "Random value: %f vs threshold: %f\n", x, config.error_rate);
+                if (x < config.error_rate)
                 {
-                    error_byte = (int) (nrand48(store) % 255) + 1;
+                    error_byte = (int) (nrand48() % 255) + 1;
+                    print_debug(config, "Injecting error: %d\n", error_byte);
                     received[i] = cw[i] ^ error_byte;
                     ++no_ch_errs;
-                    print_debug(config, "%d (%#x) ", i, error_byte);
                 }
                 else
-#endif
                     received[i] = cw[i];
             }
+            stats.total_errors_injected += no_ch_errs;
+            stats.errors_by_count[no_ch_errs]++;
             print_debug(config, "Channel caused %d errors\n", no_ch_errs);
 
             // Pad with zeros and decode as if was a (255,kk) tt-error correcting
@@ -357,6 +397,16 @@ int main(int argc, char *argv[])
                 }
             }
 
+            if (decode_flag == 0) {
+                stats.errors_corrected++;
+            }
+            if (error_flag == 1 && no_ch_errs <= tt) {
+                stats.decode_failures++;
+            }
+            if (no_ch_errs > tt) {
+                stats.uncorrectable_errors++;
+            }        
+
             if (decode_flag == RS_ERROR_LAMDA_ERROR && no_ch_errs <= tt)
             {
                 printf("%d ch errs  <=  max # correctable errs but \n", no_ch_errs);
@@ -381,11 +431,18 @@ int main(int argc, char *argv[])
 #endif
             }
 
-        } /* closing iteration loop */
-        if (no_decoder_errors > 0)
-            printf("The number of decoder errors were %d\n",no_decoder_errors);
-        else
-            printf("Decoder corrected all occurrences of %d or less errors\n", tt);
+        }
+        /* closing iteration loop */
+        print_progress(config, "\nDecoding Summary:\n");
+        print_progress(config, "Total codewords processed: %d\n", stats.total_codewords);
+        print_progress(config, "Total errors injected: %d (avg %.2f per codeword)\n", 
+            stats.total_errors_injected, 
+            (double)stats.total_errors_injected / stats.total_codewords);
+        print_progress(config, "Successful corrections: %d\n", stats.errors_corrected);
+        if (stats.decode_failures > 0) {
+            print_progress(config, "Decoder failures: %d\n", stats.decode_failures);
+        }
+        print_progress(config, "Uncorrectable error patterns: %d\n", stats.uncorrectable_errors);
     }
     return 0;
 }
