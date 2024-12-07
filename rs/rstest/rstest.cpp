@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include <cstdint>
 #include "rs.h"
 
@@ -39,6 +40,28 @@ struct DecodingStats {
     int errors_by_count[MAX_TT + 1];  // Distribution of error counts
     int uncorrectable_errors;         // When errors > tt
 };
+
+void print_progress(const RsTestConfig& config, const char* msg, ...) {
+    if (config.verbose_level == Verbosity::Quiet) {
+        return;
+    }
+
+    va_list args;
+    va_start(args, msg);
+    vprintf(msg, args);
+    va_end(args);
+}
+
+void print_debug(const RsTestConfig& config, const char* msg, ...) {
+    if (config.verbose_level != Verbosity::Debug) {
+        return;
+    }
+
+    va_list args;
+    va_start(args, msg);
+    vprintf(msg, args);
+    va_end(args);
+}
 
 #if 1
 long int nrand48(unsigned short seed[3])
@@ -283,10 +306,8 @@ int main(int argc, char *argv[])
             for (i=0;i < nn_short;i++) printf("%02x ",cw[i]); printf("\n");*/
 #endif
 
-#ifndef NO_PRINT
-            printf("\n\n\n\n Transmitting codeword %d \n",iter);
-            printf("Channel caused following errors Location (Error): \n");
-#endif
+            print_debug(config, "\n\n\n\n Transmitting codeword %d \n", iter);
+            print_debug(config, "Channel caused following errors Location (Error): \n");
             no_ch_errs = 0;
             for (i=0;i < nn_short;i++)
             {
@@ -297,19 +318,13 @@ int main(int argc, char *argv[])
                     error_byte = (int) (nrand48(store) % 255) + 1;
                     received[i] = cw[i] ^ error_byte;
                     ++no_ch_errs;
-#ifndef NO_PRINT
-                    printf("%d (%#x) ", i, error_byte);
-#endif
+                    print_debug(config, "%d (%#x) ", i, error_byte);
                 }
                 else
 #endif
                     received[i] = cw[i];
             }
-#ifndef NO_PRINT
-            printf("\n");
-            printf("Channel caused %d errors\n", no_ch_errs);
-            /* for (i=0;i < nn_short;i++) printf("%02x ",received[i]); printf("\n");*/
-#endif
+            print_debug(config, "Channel caused %d errors\n", no_ch_errs);
 
             // Pad with zeros and decode as if was a (255,kk) tt-error correcting
             // code.
