@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <random>
 #include <chrono>
+#include <algorithm>
 #include "rs.h"
 
 enum class Verbosity {
@@ -24,6 +25,7 @@ struct RsTestConfig {
     unsigned int random_seed;   // For reproducibility
     double error_rate;          // Override default tt/(8*nn_short)
     bool verify_correction;     // Extra validation
+    unsigned int erasures;
 };
 
 struct RsTestFileHeader {
@@ -41,6 +43,7 @@ struct DecodingStats {
     int decode_failures;
     int errors_by_count[MAX_TT + 1];  // Distribution of error counts
     int uncorrectable_errors;         // When errors > tt
+    int total_erasures_used;
 };
 
 void print_progress(const RsTestConfig& config, const char* msg, ...) {
@@ -185,7 +188,8 @@ RsTestConfig parse_args(int argc, char* argv[]) {
         .verbose_level = Verbosity::Normal,
         .random_seed = 1093,
         .error_rate = 0.0,
-        .verify_correction = true
+        .verify_correction = true,
+        .erasures = 0
     };
 
     // Parse mode first
@@ -197,13 +201,13 @@ RsTestConfig parse_args(int argc, char* argv[]) {
             case 'e':
             case 'E':
                 mode = ENCODING;
-		needTT = true;
+                needTT = true;
                 break;
 
             case 'd':
             case 'D':
                 mode = DECODING;
-		needTT = true;
+                needTT = true;
                 break;
 
             case 'b':
@@ -225,6 +229,7 @@ RsTestConfig parse_args(int argc, char* argv[]) {
         printf("  -n count    : number of codewords (default: 10000)\n");
         printf("  -s seed     : random seed (default: 1093)\n");
         printf("  -r rate     : error injection rate (default: 0.01)\n");
+        printf("  -a rate     : erasure injection rate (default: 0.01)\n");
         exit(1);
     }
 
@@ -278,6 +283,14 @@ RsTestConfig parse_args(int argc, char* argv[]) {
                     exit(1);
                 }
                 config.error_rate = atof(argv[++i]);
+                break;
+
+            case 'a':  // For erAsures
+                if (i + 1 >= argc) {
+                    printf("Missing value for -a\n");
+                    exit(1);
+                }
+                config.erasures = atoi(argv[++i]);
                 break;
 
             default:
@@ -344,7 +357,7 @@ int main(int argc, char *argv[])
     printf("\nCoefficient in polynomial form {@^7,...,@,1}\n");
     for (i = 0; i <= nn-kk; i++)
     {
-        printf("0x%02x x^%02d ", Pow2Poly[gg[i]], i);
+        printf("0x%02X x^%02d ", Pow2Poly[gg[i]], i);
         if (i < nn-kk)
             printf("+ ");
         if (i && ((i+1) % 6 == 0))
@@ -431,29 +444,56 @@ int main(int argc, char *argv[])
             exit(0);
         }
 
+        // Generate erasure positions if requested
+        int erasure_pos[2*MAX_TT];
+        std::uniform_int_distribution<int> pos_dist(0, nn_short-1);
+
         no_decoder_errors = 0;
+        int positions_used[nn] = {0};
+        int erasure_count = 0;
+
         iter = -1;
         while (++iter < no_cws) {
             stats.total_codewords++;
             fread(cw, sizeof(GF), nn_short, fp);
 
             print_debug(config, "\n\n\n\n Transmitting codeword %d \n", iter);
+
+            // Generate random erasure positions if using erasures
+            if (config.erasures > 0) {
+                // Generate unique positions
+                while (erasure_count < config.erasures) {
+                    int pos = pos_dist(rng);
+                    if (!positions_used[pos]) {
+                        erasure_pos[erasure_count++] = pos;
+                        positions_used[pos] = 1;
+                        received[pos] = 0;  // Erase the position
+                    }
+                }
+
+                // Sort positions for consistent testing
+                std::sort(erasure_pos, erasure_pos + erasure_count);
+            }
+
             print_debug(config, "Channel caused following errors Location (Error): \n");
             no_ch_errs = 0;
-            for (i=0;i < nn_short;i++)
+            for (i = 0; i < nn_short; i++)
             {
-                x = uniform_dist(rng);
-                print_debug(config, "Random value: %f vs threshold: %f\n", x, config.error_rate);
-                if (x < config.error_rate)
-                {
-                    error_byte = byte_dist(rng);
-                    print_debug(config, "Injecting error: %d\n", error_byte);
-                    received[i] = cw[i] ^ error_byte;
-                    ++no_ch_errs;
+                if (config.erasures == 0 || !positions_used[i]) {
+                    x = uniform_dist(rng);
+                    print_debug(config, "Random value: %f vs threshold: %f\n", x, config.error_rate);
+                    if (x < config.error_rate)
+                    {
+                        error_byte = byte_dist(rng);
+                        print_debug(config, "Injecting error: %d\n", error_byte);
+                        received[i] = cw[i] ^ error_byte;
+                        ++no_ch_errs;
+                    }
+                    else
+                        received[i] = cw[i];
                 }
-                else
-                    received[i] = cw[i];
             }
+
             stats.total_errors_injected += no_ch_errs;
             stats.errors_by_count[no_ch_errs]++;
             print_debug(config, "Channel caused %d errors\n", no_ch_errs);
@@ -468,11 +508,12 @@ int main(int argc, char *argv[])
             for (i=nn-kk+kk_short;i < nn;i++)
                 recd[i] = 0; /* zero padding */
 
-#if 1
-            decode_flag = prs->RSDecode(recd);
-#else
-            decode_flag = rs.RSDecodeErasures(recd, 0, 0);
-#endif
+            if (config.erasures > 0) {
+                decode_flag = prs->RSDecodeErasures(recd, erasure_pos, config.erasures);
+            } else {
+                decode_flag = prs->RSDecode(recd);
+            }
+
             print_debug(config, "decode_rs() returned %d\n", decode_flag);
             error_flag = 0;
             for (i=0; i < kk_short; i++)
@@ -481,7 +522,7 @@ int main(int argc, char *argv[])
                 {
                     if (no_ch_errs <= tt)
                     {
-                        printf("Position %d miscorrected %x,%x=%x.\n", i+nn-kk,
+                        printf("Position %d miscorrected 0x%02X, 0x%02X = 0x%02X.\n", i+nn-kk,
                         recd[i+nn-kk], cw[i+nn-kk], recd[i+nn-kk]^cw[i+nn-kk]);
                     }
                     error_flag = 1;
@@ -498,6 +539,10 @@ int main(int argc, char *argv[])
             if (no_ch_errs > tt) {
                 stats.uncorrectable_errors++;
             }
+
+            stats.total_errors_injected += no_ch_errs;
+            stats.total_erasures_used += config.erasures;
+            stats.errors_by_count[no_ch_errs]++;
 
             if (decode_flag == RS_ERROR_LAMDA_ERROR && no_ch_errs <= tt)
             {
@@ -518,7 +563,7 @@ int main(int argc, char *argv[])
 #ifndef NO_PRINT
                 printf("The Transmitted Codeword\n");
                 for (i = 0; i < nn_short; i++)
-                    printf("%02x ", cw[i]);
+                    printf("%02X ", cw[i]);
                 printf("\n");
 #endif
             }
