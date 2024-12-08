@@ -12,7 +12,7 @@
 #define MIN_KK (1)      // Minimum number of data symbols (nn-2*TT_MAX).
 typedef unsigned char GF;
 
-static const GF INFINITY = nn;
+static const GF GF_INFINITY = nn;
 
 #define DLLExport   __declspec( dllexport )
 
