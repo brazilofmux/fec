@@ -7,7 +7,8 @@ static GF Pow2Poly[n], Poly2Pow[n];
 
 // Simple modulo function for GF operations
 static inline void MOD_NN(int& x) {
-    x = ((x) >= nn) ? ((x) - nn) : (x);
+    x = x % nn;
+    if (x < 0) x += nn;  // Handle negative case just to be thorough
 }
 
 // Generate GF(2^8) from the primitive polynomial
