@@ -22,6 +22,9 @@ public:
     static uint32_t calculate_crc32(const void* data, size_t length);
     static void verify_tables();
     static void verify_generator(const GF* gg, int tt);
+    static void verify_syndromes(const GF* syndromes, int tt);
+    static void verify_lambda(const GF* lambda, int deg_lambda);
+    static void verify_received_word(const GF* recd, int nn_arg);
 private:
     static uint32_t crc32_table[256];
     static bool table_initialized;

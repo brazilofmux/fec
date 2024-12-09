@@ -302,7 +302,7 @@ int main(int argc, char *argv[])
 
     GF error_byte;
     GF received[1000], cw[1000];
-    int i, j, no_cws, nn_short, kk_short, no_ch_errs, iter, error_flag;
+    int i, j, nn_short, kk_short, no_ch_errs, iter, error_flag;
     int decode_flag, no_decoder_errors;
     const char* cw_file = "cws.txt";
     const char* file_in = "cws.txt";;
@@ -363,7 +363,6 @@ int main(int argc, char *argv[])
 
         /* compute dimension of shortened code */
         kk_short = kk - (nn-nn_short);
-        no_cws = 10000;
 
 #ifndef PROFILE
         if (!rs_fopen(&fp_out, cw_file, "wb") || nullptr == fp_out)
@@ -376,7 +375,7 @@ int main(int argc, char *argv[])
         /**** BEGIN: Encoding random information vectors ****/
         /* Pad with zeros rightmost (kk-kk_short) positions */
         memset(data + kk_short, 0, kk - kk_short);
-        for (i = 0; i < no_cws; i++)
+        for (i = 0; i < config.num_codewords; i++)
         {
             for ( j = 0; j < (int)kk_short; j++)
                 data[j] = (int) (nrand48() % 256);
@@ -422,8 +421,6 @@ int main(int argc, char *argv[])
         kk_short = kk - (nn-nn_short); /* compute dimension of shortened code */
         rng.seed(config.random_seed);
 
-        no_cws = 10000; // printf("Enter no of codewords \n"); scanf("%d",&no_cws);
-
         if (!rs_fopen(&fp, file_in, "rb") || nullptr == fp)
         {
             printf("Could not open %s\n", file_in);
@@ -432,7 +429,7 @@ int main(int argc, char *argv[])
 
         no_decoder_errors = 0;
         iter = -1;
-        while (++iter < no_cws) {
+        while (++iter < config.num_codewords) {
             stats.total_codewords++;
             fread(cw, sizeof(GF), nn_short, fp);
 

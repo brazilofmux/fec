@@ -107,6 +107,7 @@ void RS_ENCODER::RSEncode(GF data[MAX_KK], GF bb[2*MAX_TT]) {
 
 int RS_ENCODER::RSDecode(GF recd[nn]) {
     RsDebug::init(true);  // Enable debugging
+    RsVerify::verify_received_word(recd, nn);
 
     GF syndromes[2*MAX_TT+1];    // Syndromes
     GF lambda[2*MAX_TT+1];       // Error locator polynomial
@@ -121,16 +122,23 @@ int RS_ENCODER::RSDecode(GF recd[nn]) {
     memset(syndromes, 0, sizeof(syndromes));
 
     // For each position in received word
+    int iPowInit = 0, iPow0;
     for (int j = 0; j < nn; j++) {
-        if (recd[j] != 0) {
-            // For each syndrome
-            int iPow0 = Poly2Pow[recd[j]];
-            for (int i = 1; i <= 2*tt; i++) {
-                int iMod = iPow0 + j*i;
-                MOD_NN(iMod);
-                syndromes[i] ^= Pow2Poly[iMod];
+        GF RECD = recd[j];
+        if (RECD != 0) {
+            iPow0 = iPowInit + Poly2Pow[RECD];
+            MOD_NN(iPow0);
+            for (int i = 1; i <= 2*tt; i+=2) {
+                MOD_NN(iPow0);
+                syndromes[i] ^= Pow2Poly[iPow0];
+                iPow0 += j;
+                MOD_NN(iPow0);
+                syndromes[i+1] ^= Pow2Poly[iPow0];
+                iPow0 += j;
             }
         }
+        iPowInit += b0;
+        MOD_NN(iPowInit);
     }
 
     // Convert syndromes to power form and check for errors
@@ -140,6 +148,7 @@ int RS_ENCODER::RSDecode(GF recd[nn]) {
         }
         syndromes[i] = Poly2Pow[syndromes[i]];
     }
+    RsVerify::verify_syndromes(syndromes, tt);
     RsDebug::print_syndromes("Initial", syndromes, tt);
 
     if (syn_error) {  // If errors, attempt to correct
@@ -201,6 +210,7 @@ int RS_ENCODER::RSDecode(GF recd[nn]) {
         while (deg_lambda > 0 && lambda[deg_lambda] == GF_INFINITY) {
             deg_lambda--;
         }
+	RsVerify::verify_lambda(lambda, deg_lambda);
 
         if (deg_lambda <= 2*tt) {
             // Find roots of error locator polynomial using Chien search

@@ -845,6 +845,9 @@ void RS_ENCODER::RSEncode1(GF data[MAX_KK], GF bb[2*MAX_TT])
 //
 int RS_ENCODER::RSDecode(GF recd[nn])
 {
+    RsDebug::init(true);  // Enable debugging
+    RsVerify::verify_received_word(recd, nn);
+
     // RSDecode variables
     //
     GF root[n];     // must be big enough for all the errors (tt or 2*tt)
@@ -937,6 +940,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
         //
         s[i] = Poly2Pow[s[i]];
     }
+    RsVerify::verify_syndromes(s, tt);
 
 #ifdef DECODER_DEBUG
     printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
@@ -1316,7 +1320,7 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
     GF discr_r;
 
     GF U;
-    int deg_phi, deg_lambda,L, deg_omega;
+    int deg_phi, deg_lambda = 0, L, deg_omega;
     int syn_error = 0;
     int i, j, r;
     int iMod;
@@ -1581,6 +1585,7 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
         /* Put lambda(x) into power form */
         for (i=0; i < 2*tt+1; i++)
             lambda[i] = Poly2Pow[lambda[i]];
+	RsVerify::verify_lambda(lambda, deg_lambda);
 
         /* Compute deg(lambda(x)) */
         deg_lambda = 2*tt;
