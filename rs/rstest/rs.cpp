@@ -72,6 +72,7 @@
 
 #include <stdlib.h>
 #include <memory.h>
+#include <cstdio>
 #include "projdefs.h"
 #include "rs.h"
 #include "rs_debug.h"
@@ -941,6 +942,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
         s[i] = Poly2Pow[s[i]];
     }
     RsVerify::verify_syndromes(s, tt);
+    RsDebug::print_syndromes("Initial", s, tt);
 
 #ifdef DECODER_DEBUG
     printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
@@ -1073,9 +1075,12 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                 }
                 d[u+1] = Poly2Pow[d[u+1]];    /* put d[u+1] into power form */
             }
+	    RsDebug::print_berlekamp_step(u, d[u], l[u], elp[u], l[u]);
         } while ((u < nn-kk) && (l[u+1] <= tt));
 
         u++;
+	RsVerify::verify_lambda(elp[u], l[u]);
+
         if (l[u] <= tt)         /* can correct error */
         {
 #ifdef DECODER_DEBUG
@@ -1139,6 +1144,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                 printf("%d ", loc[i]);
             printf("\n");
 #endif
+	    printf("(count, l[u]) = (%d, %d)\n", count, l[u]);
             if (count == l[u])    /* no. roots = degree of elp hence <= tt errors */
             {
 #ifdef DECODER_DEBUG
@@ -1240,6 +1246,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                         MOD_NN(iMod);
                         err[loc[i]] = Pow2Poly[iMod];
                         recd[loc[i]] ^= err[loc[i]];  /*recd[i] must be in polynomial form */
+			RsDebug::print_error_location(loc[i], err[loc[i]], recd[loc[i]] ^ err[loc[i]], recd[loc[i]]);
                     }
                 }
 #ifdef DECODER_DEBUG
