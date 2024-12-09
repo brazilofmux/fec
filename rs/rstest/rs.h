@@ -1,3 +1,6 @@
+#ifndef RS_H
+#define RS_H
+
 // Implementation of Reed-Solomon Error Correcting Codes including
 // Errors only and Errors+Erasures decoding.
 // Copyright (C) 1996-1997 Solid Vertical Domains, Ltd. All right reserved.
@@ -11,7 +14,7 @@
 #define MAX_KK (253)    // Maximum number of data symbols (nn-2*TT_MIN).
 #define MIN_KK (1)      // Minimum number of data symbols (nn-2*TT_MAX).
 typedef unsigned char GF;
-
+extern GF Pow2Poly[n], Poly2Pow[n];
 static const GF GF_INFINITY = nn;
 
 #define DLLExport   __declspec( dllexport )
@@ -96,3 +99,5 @@ private:
 };
 
 void RS_Init(void);
+
+#endif // RS_H

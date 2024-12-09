@@ -1,8 +1,10 @@
 #include "rs.h"
 #include <string.h>
+#include <stdio.h>
+#include "rs_debug.h"
 
 // Tables for converting between power form and polynomial form
-static GF Pow2Poly[n], Poly2Pow[n];
+GF Pow2Poly[n], Poly2Pow[n];
 #define PrimitivePolynomial  0x1D    // [x^8] + x^4 + x^3 + x^2 + 1
 
 // Simple modulo function for GF operations
@@ -37,6 +39,7 @@ void RS_Init(void)
     if (!initialized) {
         initialized = true;
         RSGenField();
+	RsVerify::verify_tables();
     }
 }
 
@@ -47,6 +50,7 @@ RS_ENCODER::RS_ENCODER(int CorrectableErrors) {
     // Choose generator polynomial starting power
     b0 = (kk+1)/2;
     RSGenPoly();
+    RsVerify::verify_generator(gg, tt);
 }
 
 RS_ENCODER::~RS_ENCODER(void) {
@@ -63,8 +67,8 @@ void RS_ENCODER::RSGenPoly(void) {
     for (i = 2; i <= 2*tt; i++) {
         gg[i] = 1;
         for (j = i-1; j > 0; j--) {
-            if (gg[j-1] != 0) {
-                iMod = Poly2Pow[gg[j-1]]+b0+i-1;
+            if (gg[j] != 0) {
+                iMod = Poly2Pow[gg[j]]+b0+i-1;
                 MOD_NN(iMod);
                 gg[j] = gg[j-1]^Pow2Poly[iMod];
             } else {
@@ -102,13 +106,14 @@ void RS_ENCODER::RSEncode(GF data[MAX_KK], GF bb[2*MAX_TT]) {
 }
 
 int RS_ENCODER::RSDecode(GF recd[nn]) {
+    RsDebug::init(true);  // Enable debugging
+
     GF syndromes[2*MAX_TT+1];    // Syndromes
     GF lambda[2*MAX_TT+1];       // Error locator polynomial
-    GF omega[2*MAX_TT+1];        // Error evaluator polynomial
     GF root[MAX_TT];             // Error locations
     GF loc[MAX_TT];              // Error position indices
     GF reg[2*MAX_TT+1];          // Scratch space for Chien search
-    int deg_lambda;              // Degree of error locator polynomial
+    int deg_lambda = 0;          // Degree of error locator polynomial
     int syn_error = 0;
     int count = 0;               // Number of errors found
 
@@ -135,6 +140,7 @@ int RS_ENCODER::RSDecode(GF recd[nn]) {
         }
         syndromes[i] = Poly2Pow[syndromes[i]];
     }
+    RsDebug::print_syndromes("Initial", syndromes, tt);
 
     if (syn_error) {  // If errors, attempt to correct
         // Initialize for Berlekamp-Massey algorithm
@@ -181,6 +187,8 @@ int RS_ENCODER::RSDecode(GF recd[nn]) {
             } else {
                 k++;
             }
+
+            RsDebug::print_berlekamp_step(r, d, L, lambda, deg_lambda);
         }
 
         // Convert lambda to power form
@@ -230,7 +238,9 @@ int RS_ENCODER::RSDecode(GF recd[nn]) {
                         }
                     }
                     if (err != 0) {
+                        GF original = recd[pos];
                         recd[pos] ^= err;  // Correct the error
+                        RsDebug::print_error_location(pos, err, original, recd[pos]);
                     }
                 }
                 return count;  // Return number of corrections

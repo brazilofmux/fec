@@ -304,7 +304,6 @@ int main(int argc, char *argv[])
     GF received[1000], cw[1000];
     int i, j, no_cws, nn_short, kk_short, no_ch_errs, iter, error_flag;
     int decode_flag, no_decoder_errors;
-    long seed;
     const char* cw_file = "cws.txt";
     const char* file_in = "cws.txt";;
     FILE *fp_out, *fp;
@@ -515,7 +514,7 @@ int main(int argc, char *argv[])
             {
                 printf("DECODER FAILED TO CORRECT %d ERRORS\n", no_ch_errs);
                 ++no_decoder_errors;
-#ifndef NO_PRINT
+#ifdef DEBUG
                 printf("The Transmitted Codeword\n");
                 for (i = 0; i < nn_short; i++)
                     printf("%02x ", cw[i]);

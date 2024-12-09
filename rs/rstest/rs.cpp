@@ -74,6 +74,7 @@
 #include <memory.h>
 #include "projdefs.h"
 #include "rs.h"
+#include "rs_debug.h"
 
 #define NO_PRINT
 
@@ -93,7 +94,7 @@ static GF *pModTable;
 // addition/subtraction and multiplication/division Galois field operations
 // easier.
 //
-static GF Pow2Poly[n], Poly2Pow[n];
+GF Pow2Poly[n], Poly2Pow[n];
 
 // generate GF(2^m) from the irreducible polynomial p(X) in p[0]..p[m]
 // lookup tables:
@@ -149,6 +150,7 @@ RS_ENCODER::RS_ENCODER(int CorrectableErrors)
 
     RSGenPoly();
     RSGenTable();
+    RsVerify::verify_generator(gg, tt);
 }
 
 RS_ENCODER::~RS_ENCODER(void)
@@ -1750,5 +1752,6 @@ void RS_Init(void)
         }
 
         RSGenField();
+	RsVerify::verify_tables();
     }
 }
