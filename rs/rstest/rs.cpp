@@ -1746,13 +1746,14 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
     }
 }
 
-static BOOL bInitialized = FALSE;
+bool RS_ENCODER::bInitialized = false;
 
 void RS_Init(void)
 {
-    if (!bInitialized)
+    if (!RS_ENCODER::bInitialized)
     {
-        bInitialized = TRUE;
+	printf("Boom\n");
+        RS_ENCODER::bInitialized = TRUE;
 
         // Create Modulus Table
         //

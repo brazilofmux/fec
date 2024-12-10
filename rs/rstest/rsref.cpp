@@ -35,9 +35,9 @@ static void RSGenField(void) {
 
 void RSRef_Init(void)
 {
-    static bool initialized = false;
-    if (!initialized) {
-        initialized = true;
+    if (!RS_ENCODER_REF::bInitialized) {
+	printf("Boom REF\n");
+        RS_ENCODER_REF::bInitialized = true;
         RSGenField();
         RsVerify::verify_tables();
     }
@@ -367,3 +367,5 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
         return 0;
     }
 }
+
+bool RS_ENCODER_REF::bInitialized = false;

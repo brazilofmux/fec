@@ -228,7 +228,7 @@ RsTestConfig parse_args(int argc, char* argv[]) {
     if (mode == 0 || (needTT && argc < 3))
     {
         printf("Usage: rstest [-e|-d|-b] tt [-v level] [-n count] [-s seed] [-r rate]\n");
-        printf("  -e/-d tt    : encode/decode mode and error correction capacity\n");
+        printf("  -e/-d/-c tt : encode/decode/compare mode and error correction capacity\n");
         printf("  -b          : Benchmarking\n");
         printf("  -v level    : verbosity (0=quiet, 1=normal, 2=debug)\n");
         printf("  -n count    : number of codewords (default: 10000)\n");
@@ -389,25 +389,56 @@ bool compare_verify_results(const RsVerify::VerifyResults& orig, const RsVerify:
     return match;
 }
 
-void compare_implementations(int tt, bool verbose = false) {
+void compare_implementations(int tt) {
+    // Create instances of both implementations
+    RS_ENCODER rs_orig(tt);
+    RS_ENCODER_REF rs_ref(tt);
+    
+    // Create results structures
     RsDebug::DebugResults orig_debug, ref_debug;
     RsVerify::VerifyResults orig_verify, ref_verify;
+
+    // Generate test data
+    GF data[MAX_KK];
+    GF recd[nn];
+    GF bb[2*MAX_TT];
     
-    // Run original implementation
-    RS_ENCODER rs_orig(tt);
+    // Fill data with test pattern
+    for (int i = 0; i < MAX_KK; i++) {
+        data[i] = i & 0xFF;
+    }
+
+    // Test encoding
+    rs_orig.RSEncode(data, bb);
+    
+    // Copy parity and data into received word
+    const int kk = nn - 2*tt;
+    memcpy(recd, bb, 2*tt);        // Copy parity
+    memcpy(recd + nn - kk, data, kk);  // Copy data
+    
+    // Inject some test errors
+    for (int i = 0; i < tt/2; i++) {
+        recd[i*2] ^= 0xFF;  // Flip some bits
+    }
+
+    // Run both decoders with debug/verify capture
     RsDebug::init(true, &orig_debug);
     RsVerify::init(&orig_verify);
-    // Run test case...
-    
-    // Run reference implementation 
-    RS_ENCODER_REF rs_ref(tt);
+    int orig_result = rs_orig.RSDecode(recd);
+
     RsDebug::init(true, &ref_debug);
     RsVerify::init(&ref_verify);
-    // Run same test case...
-    
+    int ref_result = rs_ref.RSDecode(recd);
+
     // Compare results
-    compare_debug_results(orig_debug, ref_debug, verbose);
-    compare_verify_results(orig_verify, ref_verify, verbose);
+    bool debug_match = compare_debug_results(orig_debug, ref_debug, false);
+    bool verify_match = compare_verify_results(orig_verify, ref_verify, false);
+    bool decode_match = (orig_result == ref_result);
+
+    if (!debug_match || !verify_match || !decode_match) {
+        printf("FAIL: Implementations do not match\n");
+        exit(1);
+    }
 }
 
 int main(int argc, char *argv[])
@@ -417,10 +448,12 @@ int main(int argc, char *argv[])
 
     RS_Init();
     RSRef_Init();
+    printf("A\n");
 
     /* Generate the Galois field GF(2^8) */
     // printf("Generating the Galois field GF(%d)\n\n", n);
     prs = new RS_ENCODER(tt);
+    printf("B\n");
 
     GF error_byte;
     GF received[1000], cw[1000];
@@ -668,7 +701,7 @@ int main(int argc, char *argv[])
     }
     else if (mode == COMPARISON)
     {
-        compare_implementations(tt, true);
+        compare_implementations(tt);
     }
     return 0;
 }

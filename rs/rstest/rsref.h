@@ -61,6 +61,8 @@ public:
         );
     ~RS_ENCODER_REF(void);
 
+    static bool bInitialized;
+
 private:
 
     void RSGenPoly(void);
