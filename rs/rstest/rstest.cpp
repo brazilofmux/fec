@@ -10,6 +10,8 @@
 #include <random>
 #include <chrono>
 #include "rs.h"
+#include "rsref.h"
+#include "rs_debug.h"
 
 enum class Verbosity {
     Quiet,      // Summary only
@@ -174,9 +176,10 @@ std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
 std::uniform_int_distribution<int> byte_dist(1, 255);
 
 int mode = 0;
-#define ENCODING  1
-#define DECODING  2
-#define BENCHMARK 3
+#define ENCODING    1
+#define DECODING    2
+#define COMPARISON  3
+#define BENCHMARK   4
 
 RsTestConfig parse_args(int argc, char* argv[]) {
     RsTestConfig config = {
@@ -203,6 +206,12 @@ RsTestConfig parse_args(int argc, char* argv[]) {
             case 'd':
             case 'D':
                 mode = DECODING;
+		needTT = true;
+                break;
+
+            case 'c':
+            case 'C':
+                mode = COMPARISON;
 		needTT = true;
                 break;
 
@@ -289,12 +298,125 @@ RsTestConfig parse_args(int argc, char* argv[]) {
     return config;
 }
 
+bool compare_debug_results(const RsDebug::DebugResults& orig, const RsDebug::DebugResults& ref, bool verbose) {
+    bool match = true;
+    
+    // Compare syndrome counts and contents
+    if (orig.syndromes.size() != ref.syndromes.size()) {
+        printf("ERROR: Syndrome count mismatch - orig: %zu, ref: %zu\n", 
+               orig.syndromes.size(), ref.syndromes.size());
+        match = false;
+    } else {
+        for (size_t i = 0; i < orig.syndromes.size(); i++) {
+            if (orig.syndromes[i] != ref.syndromes[i]) {
+                printf("ERROR: Syndrome %zu mismatch:\n", i);
+                printf("  orig: %s\n", orig.syndromes[i].c_str());
+                printf("   ref: %s\n", ref.syndromes[i].c_str());
+                match = false;
+            } else if (verbose) {
+                printf("Syndrome %zu matches: %s\n", i, orig.syndromes[i].c_str());
+            }
+        }
+    }
+
+    // Compare Berlekamp step counts and contents
+    if (orig.berlekamp_steps.size() != ref.berlekamp_steps.size()) {
+        printf("ERROR: Berlekamp step count mismatch - orig: %zu, ref: %zu\n",
+               orig.berlekamp_steps.size(), ref.berlekamp_steps.size());
+        match = false;
+    } else {
+        for (size_t i = 0; i < orig.berlekamp_steps.size(); i++) {
+            if (orig.berlekamp_steps[i] != ref.berlekamp_steps[i]) {
+                printf("ERROR: Berlekamp step %zu mismatch:\n", i);
+                printf("  orig: %s\n", orig.berlekamp_steps[i].c_str());
+                printf("   ref: %s\n", ref.berlekamp_steps[i].c_str());
+                match = false;
+            } else if (verbose) {
+                printf("Berlekamp step %zu matches: %s\n", i, orig.berlekamp_steps[i].c_str());
+            }
+        }
+    }
+
+    // Compare error location counts and contents
+    if (orig.error_locations.size() != ref.error_locations.size()) {
+        printf("ERROR: Error location count mismatch - orig: %zu, ref: %zu\n",
+               orig.error_locations.size(), ref.error_locations.size());
+        match = false;
+    } else {
+        for (size_t i = 0; i < orig.error_locations.size(); i++) {
+            if (orig.error_locations[i] != ref.error_locations[i]) {
+                printf("ERROR: Error location %zu mismatch:\n", i);
+                printf("  orig: %s\n", orig.error_locations[i].c_str());
+                printf("   ref: %s\n", ref.error_locations[i].c_str());
+                match = false;
+            } else if (verbose) {
+                printf("Error location %zu matches: %s\n", i, orig.error_locations[i].c_str());
+            }
+        }
+    }
+
+    return match;
+}
+
+bool compare_verify_results(const RsVerify::VerifyResults& orig, const RsVerify::VerifyResults& ref, bool verbose) {
+    bool match = true;
+
+    // Compare all hashes
+    struct {
+        const char* name;
+        uint32_t orig;
+        uint32_t ref;
+    } hashes[] = {
+        {"Pow2Poly", orig.pow2poly_hash, ref.pow2poly_hash},
+        {"Poly2Pow", orig.poly2pow_hash, ref.poly2pow_hash},
+        {"Generator", orig.generator_hash, ref.generator_hash},
+        {"Received Word", orig.received_word_hash, ref.received_word_hash},
+        {"Syndrome", orig.syndrome_hash, ref.syndrome_hash},
+        {"Lambda", orig.lambda_hash, ref.lambda_hash}
+    };
+
+    for (const auto& hash : hashes) {
+        if (hash.orig != hash.ref) {
+            printf("ERROR: %s hash mismatch:\n", hash.name);
+            printf("  orig: 0x%08X\n", hash.orig);
+            printf("   ref: 0x%08X\n", hash.ref);
+            match = false;
+        } else if (verbose) {
+            printf("%s hash matches: 0x%08X\n", hash.name, hash.orig);
+        }
+    }
+
+    return match;
+}
+
+void compare_implementations(int tt, bool verbose = false) {
+    RsDebug::DebugResults orig_debug, ref_debug;
+    RsVerify::VerifyResults orig_verify, ref_verify;
+    
+    // Run original implementation
+    RS_ENCODER rs_orig(tt);
+    RsDebug::init(true, &orig_debug);
+    RsVerify::init(&orig_verify);
+    // Run test case...
+    
+    // Run reference implementation 
+    RS_ENCODER_REF rs_ref(tt);
+    RsDebug::init(true, &ref_debug);
+    RsVerify::init(&ref_verify);
+    // Run same test case...
+    
+    // Compare results
+    compare_debug_results(orig_debug, ref_debug, verbose);
+    compare_verify_results(orig_verify, ref_verify, verbose);
+}
+
 int main(int argc, char *argv[])
 {
     RsTestConfig config = parse_args(argc, argv);
     kk = nn - 2*tt;
 
     RS_Init();
+    RSRef_Init();
 
     /* Generate the Galois field GF(2^8) */
     // printf("Generating the Galois field GF(%d)\n\n", n);
@@ -543,6 +665,10 @@ int main(int argc, char *argv[])
     else if (mode == BENCHMARK)
     {
         run_benchmarks();
+    }
+    else if (mode == COMPARISON)
+    {
+        compare_implementations(tt, true);
     }
     return 0;
 }

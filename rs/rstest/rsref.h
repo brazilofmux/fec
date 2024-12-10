@@ -1,5 +1,5 @@
-#ifndef RS_H
-#define RS_H
+#ifndef RSREF_H
+#define RSREF_H
 
 // Implementation of Reed-Solomon Error Correcting Codes including
 // Errors only and Errors+Erasures decoding.
@@ -15,7 +15,7 @@
 #define MIN_KK (1)      // Minimum number of data symbols (nn-2*TT_MAX).
 typedef unsigned char GF;
 extern GF Pow2Poly[n], Poly2Pow[n];
-static const GF GF_INFINITY = nn;
+//static const GF GF_INFINITY = nn;
 
 #define DLLExport   __declspec( dllexport )
 
@@ -47,10 +47,10 @@ static const GF GF_INFINITY = nn;
 #define RS_ERROR_CHIEN_SEARCH -2 // Roots of lamda (by Chien Search) not equal to degree of lamda.
 #define RS_ERROR_LAMDA_ERROR  -3 // Degree of lamda too high to yield necessary number of roots.
 
-class RS_ENCODER
+class RS_ENCODER_REF
 {
 public:
-    RS_ENCODER(int CorrectableErrors);
+    RS_ENCODER_REF(int CorrectableErrors);
     void RSEncode(GF data[MAX_KK], GF bb[2*MAX_TT]);
     int  RSDecode(GF recd[nn]);
     int  RSDecodeErasures
@@ -59,7 +59,7 @@ public:
             int eras_pos[2*MAX_TT],
             int no_eras
         );
-    ~RS_ENCODER(void);
+    ~RS_ENCODER_REF(void);
 
 private:
 
@@ -98,6 +98,6 @@ private:
     int kk;   // Number of data symbols per codeword.
 };
 
-void RS_Init(void);
+void RSRef_Init(void);
 
-#endif // RS_H
+#endif // RSREF_H

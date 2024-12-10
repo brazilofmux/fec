@@ -2,18 +2,19 @@
 #include "rs.h"
 #include "rs_debug.h"
 
-void RsDebug::init(bool enabled) {
+void RsDebug::init(bool enabled, DebugResults* results) {
     debug_enabled = enabled;
+    current_results = results;
 }
-    
+
 void RsDebug::print_syndromes(const char* prefix, GF* syndromes, int tt) {
     if (!debug_enabled) return;
-    
+
     printf("\n%s Syndromes:\n", prefix);
     for (int i = 1; i <= 2*tt; i++) {
-        printf("s[%d] = %02X (power form: %d)\n", 
-               i, 
-               Pow2Poly[syndromes[i]], 
+        printf("s[%d] = %02X (power form: %d)\n",
+               i,
+               Pow2Poly[syndromes[i]],
                syndromes[i]);
     }
     printf("\n");
@@ -21,7 +22,7 @@ void RsDebug::print_syndromes(const char* prefix, GF* syndromes, int tt) {
 
 void RsDebug::print_berlekamp_step(int step, GF d, int L, GF* lambda, int deg_lambda) {
     if (!debug_enabled) return;
-    
+
     printf("\nBerlekamp Step %d:\n", step);
     printf("  Discrepancy d = %02X (power: %d)\n", Pow2Poly[d], d);
     printf("  L = %d\n", L);
@@ -35,7 +36,7 @@ void RsDebug::print_berlekamp_step(int step, GF d, int L, GF* lambda, int deg_la
 
 void RsDebug::print_error_location(int loc, GF error_value, GF original, GF corrected) {
     if (!debug_enabled) return;
-    
+
     printf("Error at position %d:\n", loc);
     printf("  Error value: %02X\n", error_value);
     printf("  Original value: %02X\n", original);
@@ -43,3 +44,4 @@ void RsDebug::print_error_location(int loc, GF error_value, GF original, GF corr
 }
 
 bool RsDebug::debug_enabled = false;
+RsDebug::DebugResults * RsDebug::current_results = nullptr;

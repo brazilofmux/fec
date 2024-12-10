@@ -1,10 +1,10 @@
-#include "rs.h"
+#include "rsref.h"
 #include <string.h>
 #include <stdio.h>
 #include "rs_debug.h"
 
 // Tables for converting between power form and polynomial form
-GF Pow2Poly[n], Poly2Pow[n];
+//GF Pow2Poly[n], Poly2Pow[n];
 #define PrimitivePolynomial  0x1D    // [x^8] + x^4 + x^3 + x^2 + 1
 
 // Simple modulo function for GF operations
@@ -33,7 +33,7 @@ static void RSGenField(void) {
     }
 }
 
-void RS_Init(void)
+void RSRef_Init(void)
 {
     static bool initialized = false;
     if (!initialized) {
@@ -43,7 +43,7 @@ void RS_Init(void)
     }
 }
 
-RS_ENCODER::RS_ENCODER(int CorrectableErrors) {
+RS_ENCODER_REF::RS_ENCODER_REF(int CorrectableErrors) {
     tt = CorrectableErrors;
     kk = nn-2*tt;
 
@@ -53,10 +53,10 @@ RS_ENCODER::RS_ENCODER(int CorrectableErrors) {
     RsVerify::verify_generator(gg, tt);
 }
 
-RS_ENCODER::~RS_ENCODER(void) {
+RS_ENCODER_REF::~RS_ENCODER_REF(void) {
 }
 
-void RS_ENCODER::RSGenPoly(void) {
+void RS_ENCODER_REF::RSGenPoly(void) {
     // Generate the generator polynomial
     int i, j, iMod;
 
@@ -86,7 +86,7 @@ void RS_ENCODER::RSGenPoly(void) {
     }
 }
 
-void RS_ENCODER::RSEncode(GF data[MAX_KK], GF bb[2*MAX_TT]) {
+void RS_ENCODER_REF::RSEncode(GF data[MAX_KK], GF bb[2*MAX_TT]) {
     // Simple systematic encoder without optimization tricks
     memset(bb, 0, 2*tt);
 
@@ -104,8 +104,7 @@ void RS_ENCODER::RSEncode(GF data[MAX_KK], GF bb[2*MAX_TT]) {
         bb[2*tt-1] = feedback;
     }
 }
-int RS_ENCODER::RSDecode(GF recd[nn]) {
-    RsDebug::init(true);  // Enable debugging
+int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
     RsVerify::verify_received_word(recd, nn);
 
     // Declare all variables up front

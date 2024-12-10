@@ -846,7 +846,6 @@ void RS_ENCODER::RSEncode1(GF data[MAX_KK], GF bb[2*MAX_TT])
 //
 int RS_ENCODER::RSDecode(GF recd[nn])
 {
-    RsDebug::init(true);  // Enable debugging
     RsVerify::verify_received_word(recd, nn);
 
     // RSDecode variables
