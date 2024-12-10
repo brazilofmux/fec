@@ -113,11 +113,11 @@ int RS_ENCODER::RSDecode(GF recd[nn]) {
     int u = 0;  // We already had this
 
     GF syndromes[2*MAX_TT+1];    // Syndromes
-    GF lambda[2*MAX_TT+1];       // Error locator polynomial
     GF root[MAX_TT];             // Error locations
+    GF z[MAX_TT+2];              // must be at least tt+1
     GF loc[MAX_TT];              // Error position indices
+    GF err[n];                   // must be at least nn
     GF reg[2*MAX_TT+1];          // Scratch space for Chien search
-    int deg_lambda = 0;          // Degree of error locator polynomial
     int syn_error = 0;
     int count = 0;               // Number of errors found
 
@@ -155,13 +155,6 @@ int RS_ENCODER::RSDecode(GF recd[nn]) {
     RsDebug::print_syndromes("Initial", syndromes, tt);
 
     if (syn_error) {  // If errors, attempt to correct
-        // Initialize for Berlekamp-Massey algorithm
-        lambda[0] = 1;
-        lambda[1] = Pow2Poly[syndromes[1]];
-        for (int i = 2; i <= 2*tt; i++) {
-            lambda[i] = 0;
-        }
-
         // Initialize arrays for Berlekamp-Massey
         GF d[2*MAX_TT+2];        // Like rs.cpp
         int l[2*MAX_TT+2];       // Degree of each elp
@@ -256,67 +249,122 @@ int RS_ENCODER::RSDecode(GF recd[nn]) {
         } while ((u < nn-kk) && (l[u+1] <= tt));
 
         u++;
+        RsVerify::verify_lambda(elp[u], l[u]);
 
-        // Convert lambda to power form
-        for (int i = 0; i <= 2*tt; i++) {
-            lambda[i] = Poly2Pow[lambda[i]];
-        }
+        if (l[u] <= tt)         /* can correct error */
+        {
+            /* put elp into power form */
+            for (i=0; i<=l[u]; i++)
+                elp[u][i] = Poly2Pow[elp[u][i]];
 
-        // Find degree of lambda
-        deg_lambda = 2*tt;
-        while (deg_lambda > 0 && lambda[deg_lambda] == GF_INFINITY) {
-            deg_lambda--;
-        }
-        RsVerify::verify_lambda(lambda, deg_lambda);
-
-        if (deg_lambda <= 2*tt) {
-            // Find roots of error locator polynomial using Chien search
-            memcpy(reg, lambda, sizeof(reg));
+            /* find roots of the error location polynomial */
+            for (i=1; i <= l[u]; i++)
+                reg[i] = elp[u][i];
             count = 0;
-
-            for (int i = 1; i <= nn; i++) {
-                GF q = 1;
-                for (int j = 1; j <= deg_lambda; j++) {
-                    if (reg[j] != GF_INFINITY) {
-                        int iMod = reg[j] + j;
+            for (i=1; i <= nn; i++)
+            {
+                q = 1;
+                for (j = 1; j <= l[u]; j++)
+                {
+                    if (reg[j] != GF_INFINITY)
+                    {
+                        iMod = reg[j]+j;
                         MOD_NN(iMod);
                         q ^= Pow2Poly[iMod];
                         reg[j] = iMod;
                     }
                 }
-                if (q == 0) {
+                if (!q)  /* store root and error location number indices */
+                {
                     root[count] = i;
-                    loc[count] = nn - i;
+                    loc[count] = nn-i;
                     count++;
                 }
             }
-
-            if (count == deg_lambda) {
-                // Calculate error values
-                for (int i = 0; i < count; i++) {
-                    GF err = 0;
-                    int pos = loc[i];
-                    // Compute error value at position
-                    for (int j = 0; j <= deg_lambda; j++) {
-                        if (lambda[j] != GF_INFINITY) {
-                            int iMod = j * root[i];
+            printf("(count, l[u]) = (%d, %d)\n", count, l[u]);
+            if (count == l[u])    /* no. roots = degree of elp hence <= tt errors */
+            {
+                /* form polynomial z(x) */
+                for (i = 1; i <= l[u]; i++) /* Z[0] = 1 always - do not need */
+                {
+                    GF zi = Pow2Poly[syndromes[i]] ^ Pow2Poly[elp[u][i]];
+                    for (j=1; j<i; j++)
+                    {
+                        if ((syndromes[j] != GF_INFINITY) && (elp[u][i-j] != GF_INFINITY))
+                        {
+                            iMod = elp[u][i-j] + syndromes[j];
                             MOD_NN(iMod);
-                            err ^= Pow2Poly[iMod];
+                            zi ^= Pow2Poly[iMod];
                         }
                     }
-                    if (err != 0) {
-                        GF original = recd[pos];
-                        recd[pos] ^= err;  // Correct the error
-                        RsDebug::print_error_location(pos, err, original, recd[pos]);
+                    z[i] = Poly2Pow[zi];         /* put into power form */
+                }
+
+                // Evaluate errors at locations given by error location
+                // numbers loc[i]
+                //
+                for (i = 0; i < nn; i++)
+                    err[i] = 0;
+
+                // Compute numerator of error term first
+                //
+                for (i=0; i < l[u]; i++)
+                {
+                    int jPow = root[i];
+                    err[loc[i]] = 1;       /* accounts for z[0] */
+                    for (j=1; j<=l[u]; j++)
+                    {
+                        if (z[j] != GF_INFINITY)
+                        {
+                            iMod = z[j]+jPow;
+                            MOD_NN(iMod);
+                            err[loc[i]] ^= Pow2Poly[iMod];
+                        }
+                        jPow += root[i]; // jPow = root[i]*j;
+                        MOD_NN(jPow);
+                    } /* z(x) evaluated at X(l)^(-1) */
+
+                    // term X(l)^(1-b0)
+                    //
+                    if (err[loc[i]] != 0)
+                    {
+                        err[loc[i]] = Pow2Poly[(Poly2Pow[err[loc[i]]]+root[i]*(b0+nn-1))%nn];
+                    }
+                    if (err[loc[i]] != 0)
+                    {
+                        err[loc[i]] = Poly2Pow[err[loc[i]]];
+                        q = 0;     /* form denominator of error term */
+                        for (j = 0; j < l[u]; j++)
+                            if (j != i)
+                            {
+                                iMod = loc[j]+root[i];
+                                MOD_NN(iMod);
+                                q += Poly2Pow[1^Pow2Poly[iMod]];
+                                MOD_NN(q);
+                            }
+                        // q = q % nn;
+                        iMod = err[loc[i]]-q;
+                        MOD_NN(iMod);
+                        err[loc[i]] = Pow2Poly[iMod];
+                        recd[loc[i]] ^= err[loc[i]];  /*recd[i] must be in polynomial form */
+                        RsDebug::print_error_location(loc[i], err[loc[i]], recd[loc[i]] ^ err[loc[i]], recd[loc[i]]);
                     }
                 }
-                return count;  // Return number of corrections
+                return count; // Number of corrections.
             }
-            else {
-                return -2;  // Number of roots != degree of lambda
+            else
+            {    /* no. roots != degree of elp => >tt errors and cannot solve */
+                return -2; // NOT ENOUGH ROOTS BY CHIEN SEARCH
             }
         }
-        return -3;  // deg_lambda > tt
+        else
+        {         /* elp has degree has degree >tt hence cannot solve */
+            return -3; // LAMDA DEGREE TOO HIGH
+        }
     }
-    return 0;  // No errors found
+    else
+    {
+        /* no non-zero syndromes => no errors: output received codeword */
+        return 0;
+    }
 }
