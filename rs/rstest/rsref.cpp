@@ -39,7 +39,7 @@ void RS_Init(void)
     if (!initialized) {
         initialized = true;
         RSGenField();
-	RsVerify::verify_tables();
+        RsVerify::verify_tables();
     }
 }
 
@@ -267,7 +267,7 @@ int RS_ENCODER::RSDecode(GF recd[nn]) {
         while (deg_lambda > 0 && lambda[deg_lambda] == GF_INFINITY) {
             deg_lambda--;
         }
-	RsVerify::verify_lambda(lambda, deg_lambda);
+        RsVerify::verify_lambda(lambda, deg_lambda);
 
         if (deg_lambda <= 2*tt) {
             // Find roots of error locator polynomial using Chien search
