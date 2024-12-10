@@ -50,6 +50,8 @@ static const GF GF_INFINITY = nn;
 class RS_ENCODER
 {
 public:
+    static void Init(void);
+
     RS_ENCODER(int CorrectableErrors);
     void RSEncode(GF data[MAX_KK], GF bb[2*MAX_TT]);
     int  RSDecode(GF recd[nn]);
@@ -64,9 +66,17 @@ public:
     static bool bInitialized;
 
 private:
+    static GF ModTable[4*nn+1];
+    static GF *pModTable;
+
+    GF *ptable;
+    void RSGenTable(void);
+
+    static GF Pow2Poly[n];
+    static GF Poly2Pow[n];
+    static void RSGenField(void);
 
     void RSGenPoly(void);
-    void RSGenTable(void);
 
     // Special case encoders.
     //
@@ -80,7 +90,6 @@ private:
     void RSEncode2(GF data[MAX_KK], GF bb[2*MAX_TT]);
     void RSEncode1(GF data[MAX_KK], GF bb[2*MAX_TT]);
 
-    GF *ptable;
 
     // Generator polynomial along with the power of the first root. RS codes only
     // require that the root are sequential not that they start at @^0. This
@@ -99,7 +108,5 @@ private:
     int tt;   // Number of errors that can be corrected.
     int kk;   // Number of data symbols per codeword.
 };
-
-void RS_Init(void);
 
 #endif // RS_H

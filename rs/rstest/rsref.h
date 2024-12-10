@@ -50,6 +50,8 @@ extern GF Pow2Poly[n], Poly2Pow[n];
 class RS_ENCODER_REF
 {
 public:
+    static void Init(void);
+
     RS_ENCODER_REF(int CorrectableErrors);
     void RSEncode(GF data[MAX_KK], GF bb[2*MAX_TT]);
     int  RSDecode(GF recd[nn]);
@@ -64,9 +66,11 @@ public:
     static bool bInitialized;
 
 private:
+    static GF Pow2Poly[n];
+    static GF Poly2Pow[n];
+    static void RSGenField(void);
 
     void RSGenPoly(void);
-    void RSGenTable(void);
 
     // Special case encoders.
     //
@@ -99,7 +103,5 @@ private:
     int tt;   // Number of errors that can be corrected.
     int kk;   // Number of data symbols per codeword.
 };
-
-void RSRef_Init(void);
 
 #endif // RSREF_H

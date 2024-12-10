@@ -446,14 +446,12 @@ int main(int argc, char *argv[])
     RsTestConfig config = parse_args(argc, argv);
     kk = nn - 2*tt;
 
-    RS_Init();
-    RSRef_Init();
-    printf("A\n");
+    RS_ENCODER::Init();
+    RS_ENCODER_REF::Init();
 
     /* Generate the Galois field GF(2^8) */
     // printf("Generating the Galois field GF(%d)\n\n", n);
     prs = new RS_ENCODER(tt);
-    printf("B\n");
 
     GF error_byte;
     GF received[1000], cw[1000];

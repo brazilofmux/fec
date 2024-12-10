@@ -87,22 +87,23 @@
 #define MIN_KK (1)      // Minimum number of data symbols (nn-2*TT_MAX).
 #define PrimitivePolynomial  0x1D    // [x^8] + x^4 + x^3 + x^2 + 1
 
-static GF ModTable[4*nn+1];
-static GF *pModTable;
+GF RS_ENCODER::ModTable[4*nn+1];
+GF *RS_ENCODER::pModTable;
 #define MOD_NN(x) { x = pModTable[x]; }
 
 // Tables for converting between power form and polynomial form to make
 // addition/subtraction and multiplication/division Galois field operations
 // easier.
 //
-GF Pow2Poly[n], Poly2Pow[n];
+GF RS_ENCODER::Pow2Poly[n];
+GF RS_ENCODER::Poly2Pow[n];
 
 // generate GF(2^m) from the irreducible polynomial p(X) in p[0]..p[m]
 // lookup tables:
 //    power->polynomial form Pow2Poly[i] contains j=@^i;
 //    polynomial form->power form Poly2Pow[j=@^i] = i
 //
-static void RSGenField(void)
+void RS_ENCODER::RSGenField(void)
 {
     int i;
     int iPoly = 1;
@@ -1748,16 +1749,15 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
 
 bool RS_ENCODER::bInitialized = false;
 
-void RS_Init(void)
+void RS_ENCODER::Init(void)
 {
-    if (!RS_ENCODER::bInitialized)
+    if (!bInitialized)
     {
-	printf("Boom\n");
-        RS_ENCODER::bInitialized = TRUE;
+        bInitialized = TRUE;
 
         // Create Modulus Table
         //
-        pModTable = ModTable+nn;
+	pModTable = ModTable+nn;
         for (int i = -nn; i <= 3*nn; i++)
         {
             pModTable[i] = (nn+i)%nn;

@@ -4,7 +4,8 @@
 #include "rs_debug.h"
 
 // Tables for converting between power form and polynomial form
-//GF Pow2Poly[n], Poly2Pow[n];
+GF RS_ENCODER_REF::Pow2Poly[n];
+GF RS_ENCODER_REF::Poly2Pow[n];
 #define PrimitivePolynomial  0x1D    // [x^8] + x^4 + x^3 + x^2 + 1
 
 // Simple modulo function for GF operations
@@ -14,7 +15,7 @@ static inline void MOD_NN(int& x) {
 }
 
 // Generate GF(2^8) from the primitive polynomial
-static void RSGenField(void) {
+void RS_ENCODER_REF::RSGenField(void) {
     int iPoly = 1;
 
     // Handle special infinite case
@@ -33,11 +34,10 @@ static void RSGenField(void) {
     }
 }
 
-void RSRef_Init(void)
+void RS_ENCODER_REF::Init(void)
 {
-    if (!RS_ENCODER_REF::bInitialized) {
-	printf("Boom REF\n");
-        RS_ENCODER_REF::bInitialized = true;
+    if (!bInitialized) {
+        bInitialized = true;
         RSGenField();
         RsVerify::verify_tables();
     }
