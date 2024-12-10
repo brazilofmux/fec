@@ -37,32 +37,40 @@ uint32_t RsVerify::calculate_crc32(const void* data, size_t length) {
 }
 
 void RsVerify::verify_tables() {
-    uint32_t pow2poly_hash = calculate_crc32(Pow2Poly, sizeof(Pow2Poly));
-    uint32_t poly2pow_hash = calculate_crc32(Poly2Pow, sizeof(Poly2Pow));
-
-    printf("Table Verification Hashes:\n");
-    printf("Pow2Poly: 0x%08X\n", pow2poly_hash);
-    printf("Poly2Pow: 0x%08X\n", poly2pow_hash);
+    if (current_results) {
+        uint32_t pow2poly_hash = calculate_crc32(Pow2Poly, sizeof(Pow2Poly));
+        uint32_t poly2pow_hash = calculate_crc32(Poly2Pow, sizeof(Poly2Pow));
+        current_results->pow2poly_hash = pow2poly_hash;
+        current_results->poly2pow_hash = poly2pow_hash;
+    }
 }
 
 void RsVerify::verify_generator(const GF* gg, int tt) {
-    uint32_t gg_hash = calculate_crc32(gg, (2*tt + 1) * sizeof(GF));
-    printf("Generator Polynomial Hash: 0x%08X\n", gg_hash);
+    if (current_results) {
+        uint32_t gg_hash = calculate_crc32(gg, (2*tt + 1) * sizeof(GF));
+        current_results->generator_hash = gg_hash;
+    }
 }
 
 void RsVerify::verify_syndromes(const GF* syndromes, int tt) {
-    uint32_t syndrome_hash = calculate_crc32(syndromes, (2*tt + 1) * sizeof(GF));
-    printf("Syndrome Array Hash: 0x%08X\n", syndrome_hash);
+    if (current_results) {
+        uint32_t syndrome_hash = calculate_crc32(syndromes, (2*tt + 1) * sizeof(GF));
+        current_results->syndrome_hash = syndrome_hash;
+    }
 }
 
 void RsVerify::verify_lambda(const GF* lambda, int deg_lambda) {
-    uint32_t lambda_hash = calculate_crc32(lambda, (deg_lambda + 1) * sizeof(GF));
-    printf("Lambda Array Hash: 0x%08X\n", lambda_hash);
+    if (current_results) {
+        uint32_t lambda_hash = calculate_crc32(lambda, (deg_lambda + 1) * sizeof(GF));
+        current_results->lambda_hash = lambda_hash;
+    }
 }
 
 void RsVerify::verify_received_word(const GF* recd, int nn_arg) {
-    uint32_t recd_hash = calculate_crc32(recd, nn_arg * sizeof(GF));
-    printf("Received Word Hash: 0x%08X\n", recd_hash);
+    if (current_results) {
+        uint32_t recd_hash = calculate_crc32(recd, nn_arg * sizeof(GF));
+        current_results->received_word_hash = recd_hash;
+    }
 }
 
 uint32_t RsVerify::crc32_table[256];
