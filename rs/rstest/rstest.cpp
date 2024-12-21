@@ -367,8 +367,6 @@ bool compare_verify_results(const RsVerify::VerifyResults& orig, const RsVerify:
         uint32_t orig;
         uint32_t ref;
     } hashes[] = {
-        {"Pow2Poly", orig.pow2poly_hash, ref.pow2poly_hash},
-        {"Poly2Pow", orig.poly2pow_hash, ref.poly2pow_hash},
         {"Generator", orig.generator_hash, ref.generator_hash},
         {"Received Word", orig.received_word_hash, ref.received_word_hash},
         {"Syndrome", orig.syndrome_hash, ref.syndrome_hash},

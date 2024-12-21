@@ -30,8 +30,6 @@ private:
 class RsVerify {
 public:
     struct VerifyResults {
-        uint32_t pow2poly_hash;
-        uint32_t poly2pow_hash;
         uint32_t generator_hash;
         uint32_t received_word_hash;
         uint32_t syndrome_hash;

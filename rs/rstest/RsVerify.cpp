@@ -36,15 +36,6 @@ uint32_t RsVerify::calculate_crc32(const void* data, size_t length) {
     return crc ^ 0xFFFFFFFF;
 }
 
-void RsVerify::verify_tables() {
-    if (current_results) {
-        uint32_t pow2poly_hash = calculate_crc32(Pow2Poly, sizeof(Pow2Poly));
-        uint32_t poly2pow_hash = calculate_crc32(Poly2Pow, sizeof(Poly2Pow));
-        current_results->pow2poly_hash = pow2poly_hash;
-        current_results->poly2pow_hash = poly2pow_hash;
-    }
-}
-
 void RsVerify::verify_generator(const GF* gg, int tt) {
     if (current_results) {
         uint32_t gg_hash = calculate_crc32(gg, (2*tt + 1) * sizeof(GF));

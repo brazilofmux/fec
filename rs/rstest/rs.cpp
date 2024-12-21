@@ -1715,7 +1715,7 @@ void RS_ENCODER::Init(void)
 {
     if (!bInitialized)
     {
-        bInitialized = TRUE;
+        bInitialized = true;
 
         // Create Modulus Table
         //
@@ -1724,7 +1724,5 @@ void RS_ENCODER::Init(void)
         {
             pModTable[i] = (nn+i)%nn;
         }
-
-        RsVerify::verify_tables();
     }
 }

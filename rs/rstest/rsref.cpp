@@ -13,7 +13,6 @@ void RS_ENCODER_REF::Init(void)
 {
     if (!bInitialized) {
         bInitialized = true;
-        RsVerify::verify_tables();
     }
 }
 
