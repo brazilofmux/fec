@@ -446,6 +446,7 @@ int main(int argc, char *argv[])
     RsTestConfig config = parse_args(argc, argv);
     kk = nn - 2*tt;
 
+    RS_Init();
     RS_ENCODER::Init();
     RS_ENCODER_REF::Init();
 
