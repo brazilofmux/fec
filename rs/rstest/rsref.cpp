@@ -1,27 +1,30 @@
-#include "rsref.h"
 #include <string.h>
 #include <stdio.h>
 #include "rs_debug.h"
 
-// Simple modulo function for GF operations
+// Simple helper function for Galois Field modulo operations
 static inline void MOD_NN(int& x) {
     while (x < 0) x += nn;
     x = x % nn;
 }
 
-void RS_ENCODER_REF::Init(void)
-{
+void RS_ENCODER_REF::Init(void) {
     if (!bInitialized) {
         bInitialized = true;
     }
 }
 
 RS_ENCODER_REF::RS_ENCODER_REF(int CorrectableErrors) {
-    tt = CorrectableErrors;
-    kk = nn-2*tt;
+    // Initialize key parameters
+    tt = CorrectableErrors;  // Number of correctable errors
+    kk = nn - 2*tt;         // Number of data symbols (message length)
 
     // Choose generator polynomial starting power
+    // For RS codes, we can choose b0 to make the generator polynomial symmetric
+    // This doesn't affect correctness but can simplify some implementations
     b0 = (kk+1)/2;
+
+    // Generate the generator polynomial
     RSGenPoly();
     RsVerify::verify_generator(gg, tt);
 }
@@ -30,53 +33,84 @@ RS_ENCODER_REF::~RS_ENCODER_REF(void) {
 }
 
 void RS_ENCODER_REF::RSGenPoly(void) {
-    // Generate the generator polynomial
+    // This function generates the generator polynomial for the RS code
+    // The generator polynomial g(x) is the product of (x + α^i) terms
+    // where i ranges from b0 to b0+2t-1
+
     int i, j, iMod;
 
-    gg[0] = Pow2Poly[b0];  // First root
-    gg[1] = 1;
+    // Initialize first term (x + α^b0)
+    gg[0] = Pow2Poly[b0];  // Constant term
+    gg[1] = 1;             // Coefficient of x
 
-    // Multiply by subsequent factors
+    // Multiply by subsequent terms (x + α^(b0+i))
     for (i = 2; i <= 2*tt; i++) {
         gg[i] = 1;
+
+        // Multiply current polynomial by (x + α^(b0+i-1))
         for (j = i-1; j > 0; j--) {
             if (gg[j] != 0) {
-                iMod = Poly2Pow[gg[j]]+b0+i-1;
+                iMod = Poly2Pow[gg[j]] + b0 + i-1;
                 MOD_NN(iMod);
-                gg[j] = gg[j-1]^Pow2Poly[iMod];
+                gg[j] = gg[j-1] ^ Pow2Poly[iMod];
             } else {
                 gg[j] = gg[j-1];
             }
         }
-        iMod = Poly2Pow[gg[0]]+b0+i-1;
+
+        // Handle constant term
+        iMod = Poly2Pow[gg[0]] + b0 + i-1;
         MOD_NN(iMod);
         gg[0] = Pow2Poly[iMod];
     }
 
-    // Convert to power form for encoding
+    // Convert generator polynomial coefficients to power form for encoding
     for (i = 0; i <= 2*tt; i++) {
         gg[i] = Poly2Pow[gg[i]];
     }
 }
 
 void RS_ENCODER_REF::RSEncode(GF data[MAX_KK], GF bb[2*MAX_TT]) {
-    // Simple systematic encoder without optimization tricks
+    // Systematic encoder for RS codes
+    // Input: data[0..kk-1] contains the message
+    // Output: bb[0..2*tt-1] contains the parity bytes
+    //
+    // The codeword is formed by:
+    // c(x) = m(x)*x^(n-k) + b(x)
+    // where m(x) is the message polynomial and b(x) is the remainder when
+    // m(x)*x^(n-k) is divided by g(x)
+
+    // Clear parity buffer
     memset(bb, 0, 2*tt);
 
+    // For each message byte
     for (int i = 0; i < kk; i++) {
-        GF feedback = bb[0]^data[i];
-        for (int j = 0; j < 2*tt-1; j++) {
-            if (gg[j] != GF_INFINITY && feedback != GF_INFINITY) {
-                int iMod = gg[j]+Poly2Pow[feedback];
-                MOD_NN(iMod);
-                bb[j] = bb[j+1]^Pow2Poly[iMod];
-            } else {
+        // Calculate feedback term
+        GF feedback = bb[0] ^ data[i];
+
+        // If feedback is non-zero, multiply feedback by each generator coefficient
+        // and add to the shift register
+        if (feedback != 0) {
+            for (int j = 0; j < 2*tt-1; j++) {
+                if (gg[j] != GF_INFINITY) {
+                    int iMod = gg[j] + Poly2Pow[feedback];
+                    MOD_NN(iMod);
+                    bb[j] = bb[j+1] ^ Pow2Poly[iMod];
+                } else {
+                    bb[j] = bb[j+1];
+                }
+            }
+            bb[2*tt-1] = feedback;
+        } else {
+            // Just shift if feedback is zero
+            for (int j = 0; j < 2*tt-1; j++) {
                 bb[j] = bb[j+1];
             }
+            bb[2*tt-1] = 0;
         }
-        bb[2*tt-1] = feedback;
     }
 }
+
 int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
     RsVerify::verify_received_word(recd, nn);
 
