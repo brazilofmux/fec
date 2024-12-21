@@ -85,48 +85,10 @@
 #define MIN_TT (1)      // minimum number of correctable errors (1).
 #define MAX_KK (253)    // Maximum number of data symbols (nn-2*TT_MIN).
 #define MIN_KK (1)      // Minimum number of data symbols (nn-2*TT_MAX).
-#define PrimitivePolynomial  0x1D    // [x^8] + x^4 + x^3 + x^2 + 1
 
 GF RS_ENCODER::ModTable[4*nn+1];
 GF *RS_ENCODER::pModTable;
 #define MOD_NN(x) { x = pModTable[x]; }
-
-// Tables for converting between power form and polynomial form to make
-// addition/subtraction and multiplication/division Galois field operations
-// easier.
-//
-GF RS_ENCODER::Pow2Poly[n];
-GF RS_ENCODER::Poly2Pow[n];
-
-// generate GF(2^m) from the irreducible polynomial p(X) in p[0]..p[m]
-// lookup tables:
-//    power->polynomial form Pow2Poly[i] contains j=@^i;
-//    polynomial form->power form Poly2Pow[j=@^i] = i
-//
-void RS_ENCODER::RSGenField(void)
-{
-    int i;
-    int iPoly = 1;
-
-    // Handle special infinite case
-    //
-    Pow2Poly[n-1] = 0;
-    Poly2Pow[0]  = GF_INFINITY;
-
-    // Handle Pow2Poly[0..n-2] and Poly2Pow[1..n-1]
-    //
-    for (i = 0; i < n-1; i++)
-    {
-        Pow2Poly[i] = iPoly;
-        Poly2Pow[iPoly] = i;
-        iPoly <<= 1;
-        if (iPoly > n-1)
-        {
-            iPoly ^= PrimitivePolynomial;
-            iPoly &= 0xFF;
-        }
-    }
-}
 
 RS_ENCODER::RS_ENCODER(int CorrectableErrors)
 {
@@ -1763,7 +1725,6 @@ void RS_ENCODER::Init(void)
             pModTable[i] = (nn+i)%nn;
         }
 
-        RSGenField();
         RsVerify::verify_tables();
     }
 }
