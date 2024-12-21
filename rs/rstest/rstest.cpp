@@ -300,10 +300,10 @@ RsTestConfig parse_args(int argc, char* argv[]) {
 
 bool compare_debug_results(const RsDebug::DebugResults& orig, const RsDebug::DebugResults& ref, bool verbose) {
     bool match = true;
-    
+
     // Compare syndrome counts and contents
     if (orig.syndromes.size() != ref.syndromes.size()) {
-        printf("ERROR: Syndrome count mismatch - orig: %zu, ref: %zu\n", 
+        printf("ERROR: Syndrome count mismatch - orig: %zu, ref: %zu\n",
                orig.syndromes.size(), ref.syndromes.size());
         match = false;
     } else {
@@ -387,50 +387,76 @@ bool compare_verify_results(const RsVerify::VerifyResults& orig, const RsVerify:
     return match;
 }
 
-void compare_implementations(int tt) {
-    // Create results structures
-    RsDebug::DebugResults orig_debug, ref_debug;
-    RsVerify::VerifyResults orig_verify, ref_verify;
-
-    // Generate test data
-    GF data[MAX_KK];
+// Test context structure to hold all test-related data
+struct EncoderTestContext {
+    RsDebug::DebugResults debug;
+    RsVerify::VerifyResults verify;
     GF recd[nn];
+    int decode_result;
+};
+
+// Helper to prepare test data with injected errors
+void prepare_test_data(GF* recd, int tt) {
+    GF data[MAX_KK];
     GF bb[2*MAX_TT];
-    
+
     // Fill data with test pattern
     for (int i = 0; i < MAX_KK; i++) {
         data[i] = i & 0xFF;
     }
 
-    // Test encoding
+    // Initial encoding
     RS_ENCODER rs0(tt);
     rs0.RSEncode(data, bb);
-    
+
     // Copy parity and data into received word
     const int kk = nn - 2*tt;
     memcpy(recd, bb, 2*tt);        // Copy parity
     memcpy(recd + nn - kk, data, kk);  // Copy data
-    
-    // Inject some test errors
+
+    // Inject errors
     for (int i = 0; i < tt/2; i++) {
         recd[i*2] ^= 0xFF;  // Flip some bits
     }
+}
 
-    // Run both decoders with debug/verify capture
-    RsDebug::init(true, &orig_debug);
-    RsVerify::init(&orig_verify);
-    RS_ENCODER rs_orig(tt);
-    int orig_result = rs_orig.RSDecode(recd);
+// Set up and run a single encoder test
+EncoderTestContext setup_and_run_encoder(int tt, bool use_reference, const GF* test_data) {
+    EncoderTestContext ctx;
 
-    RsDebug::init(true, &ref_debug);
-    RsVerify::init(&ref_verify);
-    RS_ENCODER_REF rs_ref(tt);
-    int ref_result = rs_ref.RSDecode(recd);
+    // Initialize verification infrastructure
+    RsDebug::init(true, &ctx.debug);
+    RsVerify::init(&ctx.verify);
+
+    // Copy test data
+    memcpy(ctx.recd, test_data, nn);
+
+    // Create and run appropriate encoder
+    if (use_reference) {
+        RS_ENCODER_REF encoder(tt);
+        ctx.decode_result = encoder.RSDecode(ctx.recd);
+    } else {
+        RS_ENCODER encoder(tt);
+        ctx.decode_result = encoder.RSDecode(ctx.recd);
+    }
+
+    return ctx;
+}
+
+// Main comparison function
+void compare_implementations(int tt) {
+    // Prepare test data
+    GF test_data[nn];
+    prepare_test_data(test_data, tt);
+
+    // Run both implementations
+    EncoderTestContext orig = setup_and_run_encoder(tt, false, test_data);
+    EncoderTestContext ref = setup_and_run_encoder(tt, true, test_data);
 
     // Compare results
-    bool debug_match = compare_debug_results(orig_debug, ref_debug, false);
-    bool verify_match = compare_verify_results(orig_verify, ref_verify, false);
-    bool decode_match = (orig_result == ref_result);
+    bool debug_match = compare_debug_results(orig.debug, ref.debug, false);
+    bool verify_match = compare_verify_results(orig.verify, ref.verify, false);
+    bool decode_match = (orig.decode_result == ref.decode_result);
 
     if (!debug_match || !verify_match || !decode_match) {
         printf("FAIL: Implementations do not match\n");
