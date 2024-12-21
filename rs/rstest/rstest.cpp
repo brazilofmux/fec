@@ -388,10 +388,6 @@ bool compare_verify_results(const RsVerify::VerifyResults& orig, const RsVerify:
 }
 
 void compare_implementations(int tt) {
-    // Create instances of both implementations
-    RS_ENCODER rs_orig(tt);
-    RS_ENCODER_REF rs_ref(tt);
-    
     // Create results structures
     RsDebug::DebugResults orig_debug, ref_debug;
     RsVerify::VerifyResults orig_verify, ref_verify;
@@ -407,7 +403,8 @@ void compare_implementations(int tt) {
     }
 
     // Test encoding
-    rs_orig.RSEncode(data, bb);
+    RS_ENCODER rs0(tt);
+    rs0.RSEncode(data, bb);
     
     // Copy parity and data into received word
     const int kk = nn - 2*tt;
@@ -422,10 +419,12 @@ void compare_implementations(int tt) {
     // Run both decoders with debug/verify capture
     RsDebug::init(true, &orig_debug);
     RsVerify::init(&orig_verify);
+    RS_ENCODER rs_orig(tt);
     int orig_result = rs_orig.RSDecode(recd);
 
     RsDebug::init(true, &ref_debug);
     RsVerify::init(&ref_verify);
+    RS_ENCODER_REF rs_ref(tt);
     int ref_result = rs_ref.RSDecode(recd);
 
     // Compare results
