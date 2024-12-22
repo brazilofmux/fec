@@ -2,39 +2,18 @@
 // Stephen V. Dennis <brazilofmux@gmail.com>
 //
 
+#include <chrono>
+#include <cstdint>
+#include <iostream>
+#include <random>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
-#include <cstdint>
-#include <random>
-#include <chrono>
 #include "rs.h"
 #include "rsref.h"
 #include "rs_debug.h"
-
-enum class Verbosity {
-    Quiet,      // Summary only
-    Normal,     // Basic progress
-    Debug       // Full details (old behavior)
-};
-
-struct RsTestConfig {
-    int tt;                     // Error correction capacity
-    int num_codewords;          // Default 10000
-    Verbosity verbose_level;
-    unsigned int random_seed;   // For reproducibility
-    double error_rate;          // Override default tt/(8*nn_short)
-    bool verify_correction;     // Extra validation
-};
-
-struct RsTestFileHeader {
-    uint32_t magic;            // Identifier
-    uint32_t version;          // Format version
-    uint32_t tt;               // Error correction capacity
-    uint32_t num_codewords;    // How many vectors follow
-    uint32_t codeword_size;    // Total size (parity + data)
-};
+#include "RsTestConfig.h"
 
 struct DecodingStats {
     int total_codewords;
@@ -46,7 +25,7 @@ struct DecodingStats {
 };
 
 void print_progress(const RsTestConfig& config, const char* msg, ...) {
-    if (config.verbose_level == Verbosity::Quiet) {
+    if (config.getVerboseLevel() == Verbosity::Quiet) {
         return;
     }
 
@@ -57,7 +36,7 @@ void print_progress(const RsTestConfig& config, const char* msg, ...) {
 }
 
 void print_debug(const RsTestConfig& config, const char* msg, ...) {
-    if (config.verbose_level != Verbosity::Debug) {
+    if (config.getVerboseLevel() != Verbosity::Debug) {
         return;
     }
 
@@ -174,129 +153,6 @@ RS_ENCODER *prs;
 std::mt19937 rng;  // Mersenne Twister
 std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
 std::uniform_int_distribution<int> byte_dist(1, 255);
-
-int mode = 0;
-#define ENCODING    1
-#define DECODING    2
-#define COMPARISON  3
-#define BENCHMARK   4
-
-RsTestConfig parse_args(int argc, char* argv[]) {
-    RsTestConfig config = {
-        .tt = 0,
-        .num_codewords = 10000,
-        .verbose_level = Verbosity::Normal,
-        .random_seed = 1093,
-        .error_rate = 0.0,
-        .verify_correction = true
-    };
-
-    // Parse mode first
-    bool needTT = false;
-    if (2 <= argc && argv[1][0] == '-')
-    {
-        switch (argv[1][1])
-        {
-            case 'e':
-            case 'E':
-                mode = ENCODING;
-		needTT = true;
-                break;
-
-            case 'd':
-            case 'D':
-                mode = DECODING;
-		needTT = true;
-                break;
-
-            case 'c':
-            case 'C':
-                mode = COMPARISON;
-		needTT = true;
-                break;
-
-            case 'b':
-            case 'B':
-                mode = BENCHMARK;
-                break;
-
-            default:
-                break;
-        }
-    }
-
-    if (mode == 0 || (needTT && argc < 3))
-    {
-        printf("Usage: rstest [-e|-d|-b] tt [-v level] [-n count] [-s seed] [-r rate]\n");
-        printf("  -e/-d/-c tt : encode/decode/compare mode and error correction capacity\n");
-        printf("  -b          : Benchmarking\n");
-        printf("  -v level    : verbosity (0=quiet, 1=normal, 2=debug)\n");
-        printf("  -n count    : number of codewords (default: 10000)\n");
-        printf("  -s seed     : random seed (default: 1093)\n");
-        printf("  -r rate     : error injection rate (default: 0.01)\n");
-        exit(1);
-    }
-
-    // Parse tt
-    if (needTT)
-    {
-        config.tt = tt = atoi(argv[2]);
-        if (config.tt < MIN_TT || config.tt > MAX_TT) {
-            printf("tt must be between %d and %d\n", MIN_TT, MAX_TT);
-            exit(1);
-        }
-    }
-
-    // Parse optional arguments
-    int v;
-    for (int i = needTT ? 3 : 2; i < argc; i++) {
-        if (argv[i][0] != '-' || strlen(argv[i]) != 2) {
-            printf("Invalid option: %s\n", argv[i]);
-            exit(1);
-        }
-
-        switch (argv[i][1]) {
-            case 'v':
-                if (i + 1 >= argc) {
-                    printf("Missing value for -v\n");
-                    exit(1);
-                }
-                v = atoi(argv[++i]);
-                config.verbose_level = static_cast<Verbosity>(v);
-                break;
-
-            case 'n':
-                if (i + 1 >= argc) {
-                    printf("Missing value for -n\n");
-                    exit(1);
-                }
-                config.num_codewords = atoi(argv[++i]);
-                break;
-
-            case 's':
-                if (i + 1 >= argc) {
-                    printf("Missing value for -s\n");
-                    exit(1);
-                }
-                config.random_seed = atoi(argv[++i]);
-                break;
-
-            case 'r':
-                if (i + 1 >= argc) {
-                    printf("Missing value for -r\n");
-                    exit(1);
-                }
-                config.error_rate = atof(argv[++i]);
-                break;
-
-            default:
-                printf("Unknown option: -%c\n", argv[i][1]);
-                exit(1);
-        }
-    }
-
-    return config;
-}
 
 bool compare_debug_results(const RsDebug::DebugResults& orig, const RsDebug::DebugResults& ref, bool verbose) {
     bool match = true;
@@ -569,63 +425,24 @@ void compare_implementations(int tt) {
     }
 }
 
-int main(int argc, char *argv[])
-{
-    RsTestConfig config = parse_args(argc, argv);
-    kk = nn - 2*tt;
-
-    RS_Init();
-    RS_ENCODER::Init();
-    RS_ENCODER_REF::Init();
-
-    /* Generate the Galois field GF(2^8) */
-    // printf("Generating the Galois field GF(%d)\n\n", n);
-    prs = new RS_ENCODER(tt);
-
-    GF error_byte;
-    GF received[1000], cw[1000];
-    int i, j, nn_short, kk_short, no_ch_errs, iter, error_flag;
-    int decode_flag, no_decoder_errors;
-    const char* cw_file = "cws.txt";
-    const char* file_in = "cws.txt";;
-    FILE *fp_out, *fp;
-    double x;
-
-    if (ENCODING == mode)
-    {
-        nn_short = 255;
-        if ((nn_short < 2*tt) || (nn_short > nn))
-        {
-            printf("Invalid entry %d for shortened length\n",nn_short);
-            exit(0);
+int main(int argc, char *argv[]) {
+    try {
+        RsTestConfig config = RsTestConfig::parse_args(argc, argv);
+        if (config.getVerboseLevel() != Verbosity::Quiet) {
+            config.print();
         }
 
-        /* compute dimension of shortened code */
-        kk_short = kk - (nn-nn_short);
+        // Initialize RS code
+        tt = config.getTT();
+        kk = nn - 2*tt;
+        RS_Init();
+        RS_ENCODER::Init();
+        RS_ENCODER_REF::Init();
+        prs = new RS_ENCODER(tt);
 
-        if (!rs_fopen(&fp_out, cw_file, "wb") || nullptr == fp_out)
-        {
-            printf("Could not open %s\n", cw_file);
-            exit(0);
-        }
-
-        /**** BEGIN: Encoding random information vectors ****/
-        /* Pad with zeros rightmost (kk-kk_short) positions */
-        memset(data + kk_short, 0, kk - kk_short);
-        for (i = 0; i < config.num_codewords; i++)
-        {
-            for ( j = 0; j < (int)kk_short; j++)
-                data[j] = (int) (nrand48() % 256);
-
-            prs->RSEncode(data, bb);
-
-            fwrite(bb, sizeof(GF), nn_short - kk_short, fp_out);
-            fwrite(data, sizeof(GF), kk_short, fp_out);
-        }
-        fclose(fp_out);
-    }
-    else if (DECODING == mode)
-    {
+        const char* cw_file = "cws.txt";
+        const char* file_in = "cws.txt";;
+	int kk_short, nn_short, iter, no_decoder_errors;
         DecodingStats stats = {
             .total_codewords = 0,
             .total_errors_injected = 0,
@@ -633,146 +450,181 @@ int main(int argc, char *argv[])
             .decode_failures = 0,
             .uncorrectable_errors = 0
         };
-        memset(stats.errors_by_count, 0, sizeof(stats.errors_by_count));
 
-        config.error_rate = config.error_rate > 0 ? config.error_rate : 0.01;
-        print_debug(config, "Error rate set to: %f\n", config.error_rate);
-
-        nn_short = 255;
-        if ((nn_short < 2*tt) || (nn_short > nn))
-        {
-            printf("Invalid entry %d for shortened length\n",nn_short);
-            exit(0);
-        }
-        kk_short = kk - (nn-nn_short); /* compute dimension of shortened code */
-        rng.seed(config.random_seed);
-
-        if (!rs_fopen(&fp, file_in, "rb") || nullptr == fp)
-        {
-            printf("Could not open %s\n", file_in);
-            exit(0);
-        }
-
-        no_decoder_errors = 0;
-        iter = -1;
-        while (++iter < config.num_codewords) {
-            stats.total_codewords++;
-            fread(cw, sizeof(GF), nn_short, fp);
-
-            print_debug(config, "\n\n\n\n Transmitting codeword %d \n", iter);
-            print_debug(config, "Channel caused following errors Location (Error): \n");
-            no_ch_errs = 0;
-            for (i=0;i < nn_short;i++)
+	switch (config.getMode()) {
+ 	case TestMode::Encoding:
+            nn_short = 255;
+            if ((nn_short < 2*tt) || (nn_short > nn))
             {
-                x = uniform_dist(rng);
-                print_debug(config, "Random value: %f vs threshold: %f\n", x, config.error_rate);
-                if (x < config.error_rate)
-                {
-                    error_byte = byte_dist(rng);
-                    print_debug(config, "Injecting error: %d\n", error_byte);
-                    received[i] = cw[i] ^ error_byte;
-                    ++no_ch_errs;
-                }
-                else
-                    received[i] = cw[i];
+                printf("Invalid entry %d for shortened length\n",nn_short);
+                exit(0);
             }
-            stats.total_errors_injected += no_ch_errs;
-            stats.errors_by_count[no_ch_errs]++;
-            print_debug(config, "Channel caused %d errors\n", no_ch_errs);
 
-            // Pad with zeros and decode as if was a (255,kk) tt-error correcting
-            // code.
-            //
-            for (i=0;i < nn-kk;i++)
-                recd[i] = received[i]; /* parity bytes */
-            for (i=nn-kk;i < nn-kk+kk_short;i++)
-                recd[i] = received[i]; /* info bytes */
-            for (i=nn-kk+kk_short;i < nn;i++)
-                recd[i] = 0; /* zero padding */
+            /* compute dimension of shortened code */
+            kk_short = kk - (nn-nn_short);
 
-#if 1
-            decode_flag = prs->RSDecode(recd);
-#else
-            decode_flag = rs.RSDecodeErasures(recd, 0, 0);
-#endif
-            print_debug(config, "decode_rs() returned %d\n", decode_flag);
-            error_flag = 0;
-            for (i=0; i < kk_short; i++)
+            FILE *fp_out;
+            if (!rs_fopen(&fp_out, cw_file, "wb") || nullptr == fp_out)
             {
-                if (recd[i+nn-kk] != cw[i+nn-kk])
+                printf("Could not open %s\n", cw_file);
+                exit(0);
+            }
+
+            /**** BEGIN: Encoding random information vectors ****/
+            /* Pad with zeros rightmost (kk-kk_short) positions */
+            memset(data + kk_short, 0, kk - kk_short);
+            for (int i = 0; i < config.getNumCodewords(); i++)
+            {
+                for (int j = 0; j < (int)kk_short; j++)
+                    data[j] = (int) (nrand48() % 256);
+
+                prs->RSEncode(data, bb);
+
+                fwrite(bb, sizeof(GF), nn_short - kk_short, fp_out);
+                fwrite(data, sizeof(GF), kk_short, fp_out);
+            }
+            fclose(fp_out);
+            break;
+
+        case TestMode::Decoding:
+            memset(stats.errors_by_count, 0, sizeof(stats.errors_by_count));
+
+            nn_short = 255;
+            if ((nn_short < 2*tt) || (nn_short > nn))
+            {
+                printf("Invalid entry %d for shortened length\n",nn_short);
+                exit(0);
+            }
+            kk_short = kk - (nn-nn_short); /* compute dimension of shortened code */
+            rng.seed(config.getRandomSeed());
+
+	    FILE *fp;
+            if (!rs_fopen(&fp, file_in, "rb") || nullptr == fp)
+            {
+                printf("Could not open %s\n", file_in);
+                exit(0);
+            }
+
+            no_decoder_errors = 0;
+            iter = -1;
+            while (++iter < config.getNumCodewords()) {
+                stats.total_codewords++;
+                GF received[1000], cw[1000];
+                fread(cw, sizeof(GF), nn_short, fp);
+
+                print_debug(config, "\n\n\n\n Transmitting codeword %d \n", iter);
+                print_debug(config, "Channel caused following errors Location (Error): \n");
+                int no_ch_errs = 0;
+                for (int i=0;i < nn_short;i++)
                 {
-                    if (no_ch_errs <= tt)
+                    double x = uniform_dist(rng);
+                    print_debug(config, "Random value: %f vs threshold: %f\n", x, config.getErrorRate());
+                    if (x < config.getErrorRate())
                     {
-                        printf("Position %d miscorrected %x,%x=%x.\n", i+nn-kk,
-                        recd[i+nn-kk], cw[i+nn-kk], recd[i+nn-kk]^cw[i+nn-kk]);
+                        GF error_byte = byte_dist(rng);
+                        print_debug(config, "Injecting error: %d\n", error_byte);
+                        received[i] = cw[i] ^ error_byte;
+                        ++no_ch_errs;
                     }
-                    error_flag = 1;
-                    //break;
+                    else
+                        received[i] = cw[i];
+                }
+                stats.total_errors_injected += no_ch_errs;
+                stats.errors_by_count[no_ch_errs]++;
+                print_debug(config, "Channel caused %d errors\n", no_ch_errs);
+
+                // Pad with zeros and decode as if was a (255,kk) tt-error correcting
+                // code.
+                //
+		int i;
+                for (i=0;i < nn-kk;i++)
+                    recd[i] = received[i]; /* parity bytes */
+                for (i=nn-kk;i < nn-kk+kk_short;i++)
+                    recd[i] = received[i]; /* info bytes */
+                for (i=nn-kk+kk_short;i < nn;i++)
+                    recd[i] = 0; /* zero padding */
+
+                int decode_flag = prs->RSDecode(recd);
+                print_debug(config, "decode_rs() returned %d\n", decode_flag);
+                int error_flag = 0;
+                for (i=0; i < kk_short; i++)
+                {
+                    if (recd[i+nn-kk] != cw[i+nn-kk])
+                    {
+                        if (no_ch_errs <= tt)
+                        {
+                            printf("Position %d miscorrected %x,%x=%x.\n", i+nn-kk,
+                            recd[i+nn-kk], cw[i+nn-kk], recd[i+nn-kk]^cw[i+nn-kk]);
+                        }
+                        error_flag = 1;
+                        //break;
+                    }
+                }
+
+                if (decode_flag == 0) {
+                    stats.errors_corrected++;
+                }
+                if (error_flag == 1 && no_ch_errs <= tt) {
+                    stats.decode_failures++;
+                }
+                if (no_ch_errs > tt) {
+                    stats.uncorrectable_errors++;
+                }
+
+                if (decode_flag == RS_ERROR_LAMDA_ERROR && no_ch_errs <= tt)
+                {
+                    printf("%d ch errs  <=  max # correctable errs but \n", no_ch_errs);
+                    printf("\n DECODER ERROR: deg(lambda) unequal to #roots \n");
+                    exit(2); /* DECODER ERROR condition */
+                }
+                else if (decode_flag == RS_ERROR_CHIEN_SEARCH && no_ch_errs <= tt)
+                {
+                    printf(" %d ch errs  <= max # correctable errs but \n", no_ch_errs);
+                    printf("\n deg(lambda) > 2*tt \n");
+                    exit(3);/* DECODER ERROR condition */
+                }
+                if (error_flag == 1 && no_ch_errs <= tt)
+                {
+                    printf("DECODER FAILED TO CORRECT %d ERRORS\n", no_ch_errs);
+                    ++no_decoder_errors;
                 }
             }
 
-            if (decode_flag == 0) {
-                stats.errors_corrected++;
-            }
-            if (error_flag == 1 && no_ch_errs <= tt) {
-                stats.decode_failures++;
-            }
-            if (no_ch_errs > tt) {
-                stats.uncorrectable_errors++;
-            }
+            print_progress(config, "\nDecoding Summary:\n");
+            print_progress(config, "Total codewords processed: %d\n", stats.total_codewords);
+            print_progress(config, "Total errors injected: %d (avg %.2f per codeword, max correctable: %d)\n",
+                stats.total_errors_injected,
+                (double)stats.total_errors_injected / stats.total_codewords,
+                tt);
 
-            if (decode_flag == RS_ERROR_LAMDA_ERROR && no_ch_errs <= tt)
-            {
-                printf("%d ch errs  <=  max # correctable errs but \n", no_ch_errs);
-                printf("\n DECODER ERROR: deg(lambda) unequal to #roots \n");
-                exit(2); /* DECODER ERROR condition */
+            // Add error distribution
+            print_progress(config, "\nError distribution:\n");
+            for (int i = 0; i <= tt*2 && i < MAX_TT; i++) {  // Show up to 2*tt errors
+                if (stats.errors_by_count[i] > 0) {
+                    print_progress(config, "%d errors: %d times (%d%% %s)\n",
+                        i,
+                        stats.errors_by_count[i],
+                        (stats.errors_by_count[i] * 100) / stats.total_codewords,
+                        i <= tt ? "correctable" : "uncorrectable");
+                }
             }
-            else if (decode_flag == RS_ERROR_CHIEN_SEARCH && no_ch_errs <= tt)
-            {
-                printf(" %d ch errs  <= max # correctable errs but \n", no_ch_errs);
-                printf("\n deg(lambda) > 2*tt \n");
-                exit(3);/* DECODER ERROR condition */
-            }
-            if (error_flag == 1 && no_ch_errs <= tt)
-            {
-                printf("DECODER FAILED TO CORRECT %d ERRORS\n", no_ch_errs);
-                ++no_decoder_errors;
-#ifdef DEBUG
-                printf("The Transmitted Codeword\n");
-                for (i = 0; i < nn_short; i++)
-                    printf("%02x ", cw[i]);
-                printf("\n");
-#endif
-            }
+            break;
 
+        case TestMode::Benchmark:
+            run_benchmarks();
+            break;
+
+        case TestMode::Comparison:
+            compare_implementations(tt);
+            break;
+
+        case TestMode::Unknown:
+	    std::cerr << "Unknown test mode." << std::endl;
+            break;
         }
-
-        print_progress(config, "\nDecoding Summary:\n");
-        print_progress(config, "Total codewords processed: %d\n", stats.total_codewords);
-        print_progress(config, "Total errors injected: %d (avg %.2f per codeword, max correctable: %d)\n",
-            stats.total_errors_injected,
-            (double)stats.total_errors_injected / stats.total_codewords,
-            tt);
-
-        // Add error distribution
-        print_progress(config, "\nError distribution:\n");
-        for (int i = 0; i <= tt*2 && i < MAX_TT; i++) {  // Show up to 2*tt errors
-            if (stats.errors_by_count[i] > 0) {
-                print_progress(config, "%d errors: %d times (%d%% %s)\n",
-                    i,
-                    stats.errors_by_count[i],
-                    (stats.errors_by_count[i] * 100) / stats.total_codewords,
-                    i <= tt ? "correctable" : "uncorrectable");
-            }
-        }
-    }
-    else if (mode == BENCHMARK)
-    {
-        run_benchmarks();
-    }
-    else if (mode == COMPARISON)
-    {
-        compare_implementations(tt);
+    } catch (const ConfigurationError& e) {
+        std::cerr << "Configuration error: " << e.what() << std::endl;
+        return 1;
     }
     return 0;
 }
