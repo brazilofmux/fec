@@ -112,6 +112,25 @@ void RS_ENCODER_REF::RSEncode(GF data[MAX_KK], GF bb[2*MAX_TT]) {
 }
 
 int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
+    /* Reed-Solomon Decoding Process
+     *
+     * Mathematical Background:
+     * 1. A Reed-Solomon code is defined by evaluating codeword polynomials at powers
+     *    of a primitive element α of the Galois Field GF(2^8).
+     *
+     * 2. The generator polynomial g(x) has roots α^b0, α^(b0+1), ..., α^(b0+2t-1)
+     *    where t is the error-correction capability.
+     *
+     * 3. For a received word r(x) = c(x) + e(x) where:
+     *    - c(x) is the transmitted codeword
+     *    - e(x) is the error polynomial
+     *
+     * 4. The decoding process:
+     *    a) Calculate syndromes Si = r(α^(b0+i)) for i = 1..2t
+     *    b) Use Berlekamp-Massey to find error locator polynomial Λ(x)
+     *    c) Find roots of Λ(x) to locate errors (Chien search)
+     *    d) Calculate error values using Forney algorithm
+     */
     RsVerify::verify_received_word(recd, nn);
 
     // Allocate working buffers
@@ -123,8 +142,15 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
     int syn_error = 0;           // Flag for non-zero syndrome
     int count = 0;               // Number of errors found
 
-    // Step 1: Calculate Syndromes
-    // For an error-free codeword, evaluating recd(x) at αⁱ (i=b0...b0+2t-1) should give zero
+    /* Step 1: Syndrome Calculation
+     *
+     * Theory: For a valid codeword c(x), c(α^i) = 0 for i = b0..b0+2t-1
+     * Therefore, for received word r(x):
+     *   Si = r(α^(b0+i)) = e(α^(b0+i))
+     *
+     * These syndrome values depend only on the errors, not the transmitted codeword.
+     * If all syndromes are zero, r(x) is a valid codeword.
+     */
     memset(syndromes, 0, sizeof(syndromes));
 
     // For each position in received word
@@ -149,7 +175,10 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
         MOD_NN(iPowInit);
     }
 
-    // Convert syndromes to power form and check for errors
+    /* Convert syndromes to power form
+     * In GF(2^8), addition is XOR in polynomial form
+     * but multiplication is addition of exponents in power form
+     */
     for (int i = 1; i <= 2*tt; i++) {
         if (syndromes[i] != 0) {
             syn_error = 1;
@@ -163,9 +192,21 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
     if (syn_error) {
         // Since we have non-zero syndromes, attempt error correction
 
-        // Step 2: Berlekamp-Massey Algorithm
-        // This algorithm finds the error locator polynomial Λ(x)
-        // The algorithm iteratively finds a minimal polynomial that predicts syndromes
+        /* Step 2: Berlekamp-Massey Algorithm
+         *
+         * Theory: The error locator polynomial Λ(x) has the property that:
+         * Λ(x) = Π(1 - xXi) where Xi are the error locations (Λ(Xi) = 0)
+         *
+         * The algorithm iteratively constructs Λ(x) by:
+         * 1. Using current polynomial to predict next syndrome
+         * 2. Computing discrepancy between prediction and actual syndrome
+         * 3. Updating polynomial based on discrepancy
+         *
+         * Key properties:
+         * - deg(Λ) equals number of errors
+         * - Polynomial coefficients are in GF(2^8)
+         * - Updates maintain the syndrome equations
+         */
         GF elp[2*MAX_TT+2][2*MAX_TT];  // Error locator polynomials
         GF d[2*MAX_TT+2];              // Discrepancy values
         int l[2*MAX_TT+2];             // Degree of each ELP
@@ -269,9 +310,16 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
                 elp[u][i] = Poly2Pow[elp[u][i]];
             }
 
-            // Step 3: Chien Search
-            // Find roots of error locator polynomial by evaluating at all field elements
-            // A root α^(-i) indicates an error at position i
+            /* Step 3: Chien Search
+             *
+             * Theory: To find error locations, we need roots of Λ(x)
+             * For each j, evaluate Λ(α^-j):
+             * - If Λ(α^-j) = 0, then j is an error location
+             * - We expect deg(Λ) roots if Λ(x) is correct
+             *
+             * Optimization: Instead of recomputing powers, use a register
+             * that's updated by multiplying each coefficient by appropriate power
+             */
 
             // Initialize evaluation register with coefficients
             for (int i = 1; i <= l[u]; i++) {
@@ -307,7 +355,17 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
             // Verify we found the expected number of roots
             if (count == l[u]) {
                 // Found correct number of roots, continue with error value computation
-                // Step 4: Forney Algorithm for computing error values
+                /* Step 4: Forney Algorithm
+                 *
+                 * Theory: Error evaluator polynomial Ω(x) is computed from:
+                 * Ω(x) = S(x)Λ(x) mod x^(2t)
+                 * where S(x) is the syndrome polynomial
+                 *
+                 * For each error location Xk = α^-k:
+                 * The error value ek is computed as:
+                 * ek = -(Xk^(1-b0) * Ω(Xk^-1)) / Λ'(Xk^-1)
+                 * where Λ'(x) is the formal derivative of Λ(x)
+                 */
 
                 // First compute error evaluator polynomial Ω(x)
                 GF z[MAX_TT+2];  // Error evaluator polynomial
