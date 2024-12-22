@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -O3 -finline-functions -Wall
 
-SRCS = rstest.cpp RsDebug.cpp RsVerify.cpp rs.cpp rsref.cpp rs_common.cpp
+SRCS = rstest.cpp RsDebug.cpp RsVerify.cpp rs.cpp rsref.cpp rs_common.cpp RsVerification.cpp
 OBJS = $(SRCS:.cpp=.o)
 TARGET = rstest
 
