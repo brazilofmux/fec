@@ -114,29 +114,32 @@ void RS_ENCODER_REF::RSEncode(GF data[MAX_KK], GF bb[2*MAX_TT]) {
 int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
     RsVerify::verify_received_word(recd, nn);
 
-    // Declare all variables up front
     int i, j, q, iMod;
     int u = 0;  // We already had this
 
+    // Allocate working buffers
     GF syndromes[2*MAX_TT+1];    // Syndromes
-    GF root[MAX_TT];             // Error locations
     GF z[MAX_TT+2];              // must be at least tt+1
+    GF root[MAX_TT];             // Error locations in power form
     GF loc[MAX_TT];              // Error position indices
-    GF err[n];                   // must be at least nn
+    GF err[n];                   // Error values
     GF reg[2*MAX_TT+1];          // Scratch space for Chien search
-    int syn_error = 0;
+    int syn_error = 0;           // Flag for non-zero syndrome
     int count = 0;               // Number of errors found
 
-    // First form the syndromes: evaluate recd(x) at roots of g(x)
+    // Step 1: Calculate Syndromes
+    // For an error-free codeword, evaluating recd(x) at αⁱ (i=b0...b0+2t-1) should give zero
     memset(syndromes, 0, sizeof(syndromes));
 
     // For each position in received word
-    int iPowInit = 0, iPow0;
+    int iPowInit = 0;
     for (int j = 0; j < nn; j++) {
-        GF RECD = recd[j];
-        if (RECD != 0) {
-            iPow0 = iPowInit + Poly2Pow[RECD];
+        GF symbol = recd[j];
+        if (symbol != 0) {
+            // For each syndrome, calculate recd(αⁱ)
+            int iPow0 = iPowInit + Poly2Pow[symbol];
             MOD_NN(iPow0);
+
             for (int i = 1; i <= 2*tt; i+=2) {
                 MOD_NN(iPow0);
                 syndromes[i] ^= Pow2Poly[iPow0];
@@ -157,6 +160,7 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
         }
         syndromes[i] = Poly2Pow[syndromes[i]];
     }
+
     RsVerify::verify_syndromes(syndromes, tt);
     RsDebug::print_syndromes("Initial", syndromes, tt);
 
