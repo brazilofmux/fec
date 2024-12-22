@@ -75,7 +75,7 @@
 #include <cstdio>
 #include "projdefs.h"
 #include "rs.h"
-#include "rs_debug.h"
+#include "RsVerification.h"
 
 #define NO_PRINT
 
@@ -114,7 +114,7 @@ RS_ENCODER::RS_ENCODER(int CorrectableErrors)
 
     RSGenPoly();
     RSGenTable();
-    RsVerify::verify_generator(gg, tt);
+    RsVerification::verify_generator(gg, tt);
 }
 
 RS_ENCODER::~RS_ENCODER(void)
@@ -809,7 +809,7 @@ void RS_ENCODER::RSEncode1(GF data[MAX_KK], GF bb[2*MAX_TT])
 //
 int RS_ENCODER::RSDecode(GF recd[nn])
 {
-    RsVerify::verify_received_word(recd, nn);
+    RsVerification::verify_received_word(recd, nn);
 
     // RSDecode variables
     //
@@ -903,8 +903,8 @@ int RS_ENCODER::RSDecode(GF recd[nn])
         //
         s[i] = Poly2Pow[s[i]];
     }
-    RsVerify::verify_syndromes(s, tt);
-    RsDebug::print_syndromes("Initial", s, tt);
+    RsVerification::verify_syndromes(s, tt);
+    RsVerification::print_syndromes("Initial", s, tt);
 
 #ifdef DECODER_DEBUG
     printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
@@ -1037,11 +1037,11 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                 }
                 d[u+1] = Poly2Pow[d[u+1]];    /* put d[u+1] into power form */
             }
-            RsDebug::print_berlekamp_step(u, d[u], l[u], elp[u], l[u]);
+            RsVerification::print_berlekamp_step(u, d[u], l[u], elp[u], l[u]);
         } while ((u < nn-kk) && (l[u+1] <= tt));
 
         u++;
-        RsVerify::verify_lambda(elp[u], l[u]);
+        RsVerification::verify_lambda(elp[u], l[u]);
 
         if (l[u] <= tt)         /* can correct error */
         {
@@ -1208,7 +1208,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                         MOD_NN(iMod);
                         err[loc[i]] = Pow2Poly[iMod];
                         recd[loc[i]] ^= err[loc[i]];  /*recd[i] must be in polynomial form */
-                        RsDebug::print_error_location(loc[i], err[loc[i]], recd[loc[i]] ^ err[loc[i]], recd[loc[i]]);
+                        RsVerification::print_error_location(loc[i], err[loc[i]], recd[loc[i]] ^ err[loc[i]], recd[loc[i]]);
                     }
                 }
 #ifdef DECODER_DEBUG
@@ -1554,7 +1554,7 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
         /* Put lambda(x) into power form */
         for (i=0; i < 2*tt+1; i++)
             lambda[i] = Poly2Pow[lambda[i]];
-        RsVerify::verify_lambda(lambda, deg_lambda);
+        RsVerification::verify_lambda(lambda, deg_lambda);
 
         /* Compute deg(lambda(x)) */
         deg_lambda = 2*tt;

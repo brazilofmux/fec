@@ -1,6 +1,8 @@
 #include <string.h>
 #include <stdio.h>
-#include "rs_debug.h"
+#include "rs.h"
+#include "rsref.h"
+#include "RsVerification.h"
 
 // Simple helper function for Galois Field modulo operations
 static inline void MOD_NN(int& x) {
@@ -26,7 +28,7 @@ RS_ENCODER_REF::RS_ENCODER_REF(int CorrectableErrors) {
 
     // Generate the generator polynomial
     RSGenPoly();
-    RsVerify::verify_generator(gg, tt);
+    RsVerification::verify_generator(gg, tt);
 }
 
 RS_ENCODER_REF::~RS_ENCODER_REF(void) {
@@ -131,7 +133,7 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
      *    c) Find roots of Λ(x) to locate errors (Chien search)
      *    d) Calculate error values using Forney algorithm
      */
-    RsVerify::verify_received_word(recd, nn);
+    RsVerification::verify_received_word(recd, nn);
 
     // Allocate working buffers
     GF syndromes[2*MAX_TT+1];    // Syndromes
@@ -186,8 +188,8 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
         syndromes[i] = Poly2Pow[syndromes[i]];
     }
 
-    RsVerify::verify_syndromes(syndromes, tt);
-    RsDebug::print_syndromes("Initial", syndromes, tt);
+    RsVerification::verify_syndromes(syndromes, tt);
+    RsVerification::print_syndromes("Initial", syndromes, tt);
 
     if (syn_error) {
         // Since we have non-zero syndromes, attempt error correction
@@ -296,12 +298,12 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
                 d[u+1] = Poly2Pow[d[u+1]];  // Convert to power form
             }
 
-            RsDebug::print_berlekamp_step(u, d[u], l[u], elp[u], l[u]);
+            RsVerification::print_berlekamp_step(u, d[u], l[u], elp[u], l[u]);
 
         } while ((u < nn-kk) && (l[u+1] <= tt));
 
         u++;
-        RsVerify::verify_lambda(elp[u], l[u]);
+        RsVerification::verify_lambda(elp[u], l[u]);
 
         // We have a valid error locator polynomial if degree <= tt
         if (l[u] <= tt) {
@@ -438,7 +440,7 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
                             // Apply correction to received word
                             GF original = recd[position];
                             recd[position] ^= err[position];
-                            RsDebug::print_error_location(position, err[position],
+                            RsVerification::print_error_location(position, err[position],
                                                         original, recd[position]);
                         }
                     }
@@ -567,8 +569,8 @@ int RS_ENCODER_REF::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no
         syndromes[i] = Poly2Pow[syndromes[i]];
     }
 
-    RsVerify::verify_syndromes(syndromes, tt);
-    RsDebug::print_syndromes("Initial", syndromes, tt);
+    RsVerification::verify_syndromes(syndromes, tt);
+    RsVerification::print_syndromes("Initial", syndromes, tt);
 
     if (syn_error) {
         /* Step 3: Modified Berlekamp-Massey Algorithm
@@ -672,7 +674,7 @@ int RS_ENCODER_REF::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no
             --deg_lambda;
         }
 
-        RsVerify::verify_lambda(lambda, deg_lambda);
+        RsVerification::verify_lambda(lambda, deg_lambda);
 
         if (deg_lambda <= 2*tt) {
             // Find roots of error+erasure locator polynomial using Chien Search

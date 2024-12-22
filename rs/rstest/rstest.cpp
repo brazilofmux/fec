@@ -12,7 +12,7 @@
 #include <string.h>
 #include "rs.h"
 #include "rsref.h"
-#include "rs_debug.h"
+#include "RsVerification.h"
 #include "RsTestConfig.h"
 
 struct DecodingStats {
@@ -22,6 +22,15 @@ struct DecodingStats {
     int decode_failures;
     int errors_by_count[MAX_TT + 1];  // Distribution of error counts
     int uncorrectable_errors;         // When errors > tt
+};
+
+// Replace old test context with new one using RsVerification
+struct EncoderTestContext {
+    RsVerification::VerificationResults results;
+    GF recd[nn];
+    int decode_result;
+    int eras_pos[2*MAX_TT];
+    int no_eras;
 };
 
 void print_progress(const RsTestConfig& config, const char* msg, ...) {
@@ -144,177 +153,7 @@ void run_benchmarks() {
     }
 }
 
-int tt;
-int kk;
-GF data[MAX_KK];
-GF recd[nn];
-GF bb[2*MAX_TT];
-RS_ENCODER *prs;
-std::mt19937 rng;  // Mersenne Twister
-std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
-std::uniform_int_distribution<int> byte_dist(1, 255);
-
-bool compare_debug_results(const RsDebug::DebugResults& orig, const RsDebug::DebugResults& ref, bool verbose) {
-    bool match = true;
-
-    // Compare syndrome counts and contents
-    if (orig.syndromes.size() != ref.syndromes.size()) {
-        printf("ERROR: Syndrome count mismatch - orig: %zu, ref: %zu\n",
-               orig.syndromes.size(), ref.syndromes.size());
-        match = false;
-    } else {
-        for (size_t i = 0; i < orig.syndromes.size(); i++) {
-            if (orig.syndromes[i] != ref.syndromes[i]) {
-                printf("ERROR: Syndrome %zu mismatch:\n", i);
-                printf("  orig: %s\n", orig.syndromes[i].c_str());
-                printf("   ref: %s\n", ref.syndromes[i].c_str());
-                match = false;
-            } else if (verbose) {
-                printf("Syndrome %zu matches: %s\n", i, orig.syndromes[i].c_str());
-            }
-        }
-    }
-
-    // Compare Berlekamp step counts and contents
-    if (orig.berlekamp_steps.size() != ref.berlekamp_steps.size()) {
-        printf("ERROR: Berlekamp step count mismatch - orig: %zu, ref: %zu\n",
-               orig.berlekamp_steps.size(), ref.berlekamp_steps.size());
-        match = false;
-    } else {
-        for (size_t i = 0; i < orig.berlekamp_steps.size(); i++) {
-            if (orig.berlekamp_steps[i] != ref.berlekamp_steps[i]) {
-                printf("ERROR: Berlekamp step %zu mismatch:\n", i);
-                printf("  orig: %s\n", orig.berlekamp_steps[i].c_str());
-                printf("   ref: %s\n", ref.berlekamp_steps[i].c_str());
-                match = false;
-            } else if (verbose) {
-                printf("Berlekamp step %zu matches: %s\n", i, orig.berlekamp_steps[i].c_str());
-            }
-        }
-    }
-
-    // Compare error location counts and contents
-    if (orig.error_locations.size() != ref.error_locations.size()) {
-        printf("ERROR: Error location count mismatch - orig: %zu, ref: %zu\n",
-               orig.error_locations.size(), ref.error_locations.size());
-        match = false;
-    } else {
-        for (size_t i = 0; i < orig.error_locations.size(); i++) {
-            if (orig.error_locations[i] != ref.error_locations[i]) {
-                printf("ERROR: Error location %zu mismatch:\n", i);
-                printf("  orig: %s\n", orig.error_locations[i].c_str());
-                printf("   ref: %s\n", ref.error_locations[i].c_str());
-                match = false;
-            } else if (verbose) {
-                printf("Error location %zu matches: %s\n", i, orig.error_locations[i].c_str());
-            }
-        }
-    }
-
-    return match;
-}
-
-bool compare_verify_results(const RsVerify::VerifyResults& orig, const RsVerify::VerifyResults& ref, bool verbose) {
-    bool match = true;
-
-    // Compare all hashes
-    struct {
-        const char* name;
-        uint32_t orig;
-        uint32_t ref;
-    } hashes[] = {
-        {"Generator", orig.generator_hash, ref.generator_hash},
-        {"Received Word", orig.received_word_hash, ref.received_word_hash},
-        {"Syndrome", orig.syndrome_hash, ref.syndrome_hash},
-        {"Lambda", orig.lambda_hash, ref.lambda_hash}
-    };
-
-    for (const auto& hash : hashes) {
-        if (hash.orig != hash.ref) {
-            printf("ERROR: %s hash mismatch:\n", hash.name);
-            printf("  orig: 0x%08X\n", hash.orig);
-            printf("   ref: 0x%08X\n", hash.ref);
-            match = false;
-        } else if (verbose) {
-            printf("%s hash matches: 0x%08X\n", hash.name, hash.orig);
-        }
-    }
-
-    return match;
-}
-
-// Add erasure test to test context
-struct EncoderTestContext {
-    RsDebug::DebugResults debug;
-    RsVerify::VerifyResults verify;
-    GF recd[nn];
-    int decode_result;
-    // Add fields for erasure testing
-    int eras_pos[2*MAX_TT];
-    int no_eras;
-};
-
-void prepare_test_data_with_erasures(GF* recd, int tt, int* eras_pos, int* no_eras) {
-    GF data[MAX_KK];
-    GF bb[2*MAX_TT];
-
-    // Fill data with test pattern
-    for (int i = 0; i < MAX_KK; i++) {
-        data[i] = i & 0xFF;
-    }
-
-    // Initial encoding
-    RS_ENCODER rs0(tt);
-    rs0.RSEncode(data, bb);
-
-    // Copy parity and data into received word
-    const int kk = nn - 2*tt;
-    memcpy(recd, bb, 2*tt);        // Copy parity
-    memcpy(recd + nn - kk, data, kk);  // Copy data
-
-    // Create mix of erasures and errors
-    *no_eras = tt/2;  // Use half our correction capacity for erasures
-    for (int i = 0; i < *no_eras; i++) {
-        int pos = i*2;
-        eras_pos[i] = pos;
-        recd[pos] ^= 0xFF;  // Mark position as erasure
-    }
-
-    // Add some regular errors in different positions
-    for (int i = 0; i < tt/4; i++) {  // Use quarter capacity for regular errors
-        int pos = (*no_eras + i)*2 + 1;  // Ensure no overlap with erasures
-        recd[pos] ^= 0xFF;
-    }
-}
-
-EncoderTestContext setup_and_run_encoder_with_erasures(int tt, bool use_reference,
-                                                      const GF* test_data,
-                                                      const int* eras_pos,
-                                                      int no_eras) {
-    EncoderTestContext ctx;
-
-    // Initialize verification infrastructure
-    RsDebug::init(true, &ctx.debug);
-    RsVerify::init(&ctx.verify);
-
-    // Copy test data and erasure info
-    memcpy(ctx.recd, test_data, nn);
-    memcpy(ctx.eras_pos, eras_pos, no_eras * sizeof(int));
-    ctx.no_eras = no_eras;
-
-    // Create and run appropriate encoder
-    if (use_reference) {
-        RS_ENCODER_REF encoder(tt);
-        ctx.decode_result = encoder.RSDecodeErasures(ctx.recd, ctx.eras_pos, ctx.no_eras);
-    } else {
-        RS_ENCODER encoder(tt);
-        ctx.decode_result = encoder.RSDecodeErasures(ctx.recd, ctx.eras_pos, ctx.no_eras);
-    }
-
-    return ctx;
-}
-
-// Helper to prepare test data with injected errors
+// Helper to prepare test data
 void prepare_test_data(GF* recd, int tt) {
     GF data[MAX_KK];
     GF bb[2*MAX_TT];
@@ -343,9 +182,9 @@ void prepare_test_data(GF* recd, int tt) {
 EncoderTestContext setup_and_run_encoder(int tt, bool use_reference, const GF* test_data) {
     EncoderTestContext ctx;
 
-    // Initialize verification infrastructure
-    RsDebug::init(true, &ctx.debug);
-    RsVerify::init(&ctx.verify);
+    // Initialize verification framework
+    RsVerification::init(true);
+    RsVerification::setResults(&ctx.results);
 
     // Copy test data
     memcpy(ctx.recd, test_data, nn);
@@ -362,30 +201,12 @@ EncoderTestContext setup_and_run_encoder(int tt, bool use_reference, const GF* t
     return ctx;
 }
 
-EncoderTestContext setup_and_run_encoder_with_erasures(int tt, bool use_reference, const GF* test_data) {
-    EncoderTestContext ctx;
-
-    // Initialize verification infrastructure
-    RsDebug::init(true, &ctx.debug);
-    RsVerify::init(&ctx.verify);
-
-    // Copy test data
-    memcpy(ctx.recd, test_data, nn);
-
-    // Set up empty erasure list
-    ctx.no_eras = 0;
-
-    // Create and run appropriate encoder
-    if (use_reference) {
-        RS_ENCODER_REF encoder(tt);
-        ctx.decode_result = encoder.RSDecodeErasures(ctx.recd, ctx.eras_pos, ctx.no_eras);
-    } else {
-        RS_ENCODER encoder(tt);
-        ctx.decode_result = encoder.RSDecodeErasures(ctx.recd, ctx.eras_pos, ctx.no_eras);
-    }
-
-    return ctx;
-}
+GF data[MAX_KK];
+GF recd[nn];
+GF bb[2*MAX_TT];
+std::mt19937 rng;  // Mersenne Twister
+std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
+std::uniform_int_distribution<int> byte_dist(1, 255);
 
 void compare_implementations(int tt) {
     // Prepare test data
@@ -396,13 +217,17 @@ void compare_implementations(int tt) {
 
     // Reference Implementation: RSDecode vs RSDecodeErasures
     EncoderTestContext ref_decode = setup_and_run_encoder(tt, true, test_data);
-    EncoderTestContext ref_decode_eras = setup_and_run_encoder_with_erasures(tt, true, test_data);
+    EncoderTestContext ref_decode_eras = setup_and_run_encoder(tt, true, test_data); // TODO: Add erasures
 
-    bool debug_match = compare_debug_results(ref_decode.debug, ref_decode_eras.debug, false);
-    bool verify_match = compare_verify_results(ref_decode.verify, ref_decode_eras.verify, false);
+    bool results_match = RsVerification::compare_results(
+        ref_decode.results,
+        ref_decode_eras.results,
+        false
+    );
+
     bool decode_match = (ref_decode.decode_result == ref_decode_eras.decode_result);
 
-    if (!debug_match || !verify_match || !decode_match) {
+    if (!results_match || !decode_match) {
         printf("FAIL: Reference implementation RSDecode vs RSDecodeErasures mismatch\n");
     } else {
         printf("PASS: Reference implementation RSDecode matches RSDecodeErasures\n");
@@ -412,16 +237,35 @@ void compare_implementations(int tt) {
 
     // Original Implementation: RSDecode vs RSDecodeErasures
     EncoderTestContext orig_decode = setup_and_run_encoder(tt, false, test_data);
-    EncoderTestContext orig_decode_eras = setup_and_run_encoder_with_erasures(tt, false, test_data);
+    EncoderTestContext orig_decode_eras = setup_and_run_encoder(tt, false, test_data); // TODO: Add erasures
 
-    debug_match = compare_debug_results(orig_decode.debug, orig_decode_eras.debug, false);
-    verify_match = compare_verify_results(orig_decode.verify, orig_decode_eras.verify, false);
+    results_match = RsVerification::compare_results(
+        orig_decode.results,
+        orig_decode_eras.results,
+        false
+    );
+
     decode_match = (orig_decode.decode_result == orig_decode_eras.decode_result);
 
-    if (!debug_match || !verify_match || !decode_match) {
+    if (!results_match || !decode_match) {
         printf("FAIL: Original implementation RSDecode vs RSDecodeErasures mismatch\n");
     } else {
         printf("PASS: Original implementation RSDecode matches RSDecodeErasures\n");
+    }
+
+    // Compare reference vs original implementation
+    printf("\nComparing Reference vs Original Implementation:\n");
+    results_match = RsVerification::compare_results(
+        ref_decode.results,
+        orig_decode.results,
+        false
+    );
+    decode_match = (ref_decode.decode_result == orig_decode.decode_result);
+
+    if (!results_match || !decode_match) {
+        printf("FAIL: Reference implementation differs from original\n");
+    } else {
+        printf("PASS: Reference implementation matches original\n");
     }
 }
 
@@ -433,16 +277,16 @@ int main(int argc, char *argv[]) {
         }
 
         // Initialize RS code
-        tt = config.getTT();
-        kk = nn - 2*tt;
+        int tt = config.getTT();
+        int kk = nn - 2*tt;
+
         RS_Init();
         RS_ENCODER::Init();
         RS_ENCODER_REF::Init();
-        prs = new RS_ENCODER(tt);
 
         const char* cw_file = "cws.txt";
         const char* file_in = "cws.txt";;
-	int kk_short, nn_short, iter, no_decoder_errors;
+        int kk_short, nn_short, iter, no_decoder_errors;
         DecodingStats stats = {
             .total_codewords = 0,
             .total_errors_injected = 0,
@@ -451,180 +295,187 @@ int main(int argc, char *argv[]) {
             .uncorrectable_errors = 0
         };
 
-	switch (config.getMode()) {
- 	case TestMode::Encoding:
-            nn_short = 255;
-            if ((nn_short < 2*tt) || (nn_short > nn))
-            {
-                printf("Invalid entry %d for shortened length\n",nn_short);
-                exit(0);
-            }
+        // Initialize verification framework
+        RsVerification::init(config.getVerboseLevel() == Verbosity::Debug);
 
-            /* compute dimension of shortened code */
-            kk_short = kk - (nn-nn_short);
+        RS_ENCODER *prs = new RS_ENCODER(tt);
 
-            FILE *fp_out;
-            if (!rs_fopen(&fp_out, cw_file, "wb") || nullptr == fp_out)
-            {
-                printf("Could not open %s\n", cw_file);
-                exit(0);
-            }
-
-            /**** BEGIN: Encoding random information vectors ****/
-            /* Pad with zeros rightmost (kk-kk_short) positions */
-            memset(data + kk_short, 0, kk - kk_short);
-            for (int i = 0; i < config.getNumCodewords(); i++)
-            {
-                for (int j = 0; j < (int)kk_short; j++)
-                    data[j] = (int) (nrand48() % 256);
-
-                prs->RSEncode(data, bb);
-
-                fwrite(bb, sizeof(GF), nn_short - kk_short, fp_out);
-                fwrite(data, sizeof(GF), kk_short, fp_out);
-            }
-            fclose(fp_out);
-            break;
-
-        case TestMode::Decoding:
-            memset(stats.errors_by_count, 0, sizeof(stats.errors_by_count));
-
-            nn_short = 255;
-            if ((nn_short < 2*tt) || (nn_short > nn))
-            {
-                printf("Invalid entry %d for shortened length\n",nn_short);
-                exit(0);
-            }
-            kk_short = kk - (nn-nn_short); /* compute dimension of shortened code */
-            rng.seed(config.getRandomSeed());
-
-	    FILE *fp;
-            if (!rs_fopen(&fp, file_in, "rb") || nullptr == fp)
-            {
-                printf("Could not open %s\n", file_in);
-                exit(0);
-            }
-
-            no_decoder_errors = 0;
-            iter = -1;
-            while (++iter < config.getNumCodewords()) {
-                stats.total_codewords++;
-                GF received[1000], cw[1000];
-                fread(cw, sizeof(GF), nn_short, fp);
-
-                print_debug(config, "\n\n\n\n Transmitting codeword %d \n", iter);
-                print_debug(config, "Channel caused following errors Location (Error): \n");
-                int no_ch_errs = 0;
-                for (int i=0;i < nn_short;i++)
+        switch (config.getMode()) {
+            case TestMode::Encoding:
+                nn_short = 255;
+                if ((nn_short < 2*tt) || (nn_short > nn))
                 {
-                    double x = uniform_dist(rng);
-                    print_debug(config, "Random value: %f vs threshold: %f\n", x, config.getErrorRate());
-                    if (x < config.getErrorRate())
-                    {
-                        GF error_byte = byte_dist(rng);
-                        print_debug(config, "Injecting error: %d\n", error_byte);
-                        received[i] = cw[i] ^ error_byte;
-                        ++no_ch_errs;
-                    }
-                    else
-                        received[i] = cw[i];
+                    printf("Invalid entry %d for shortened length\n",nn_short);
+                    exit(0);
                 }
-                stats.total_errors_injected += no_ch_errs;
-                stats.errors_by_count[no_ch_errs]++;
-                print_debug(config, "Channel caused %d errors\n", no_ch_errs);
 
-                // Pad with zeros and decode as if was a (255,kk) tt-error correcting
-                // code.
-                //
-		int i;
-                for (i=0;i < nn-kk;i++)
-                    recd[i] = received[i]; /* parity bytes */
-                for (i=nn-kk;i < nn-kk+kk_short;i++)
-                    recd[i] = received[i]; /* info bytes */
-                for (i=nn-kk+kk_short;i < nn;i++)
-                    recd[i] = 0; /* zero padding */
+                /* compute dimension of shortened code */
+                kk_short = kk - (nn-nn_short);
 
-                int decode_flag = prs->RSDecode(recd);
-                print_debug(config, "decode_rs() returned %d\n", decode_flag);
-                int error_flag = 0;
-                for (i=0; i < kk_short; i++)
+                FILE *fp_out;
+                if (!rs_fopen(&fp_out, cw_file, "wb") || nullptr == fp_out)
                 {
-                    if (recd[i+nn-kk] != cw[i+nn-kk])
+                    printf("Could not open %s\n", cw_file);
+                    exit(0);
+                }
+
+                /**** BEGIN: Encoding random information vectors ****/
+                /* Pad with zeros rightmost (kk-kk_short) positions */
+                memset(data + kk_short, 0, kk - kk_short);
+                for (int i = 0; i < config.getNumCodewords(); i++)
+                {
+                    for (int j = 0; j < (int)kk_short; j++)
+                        data[j] = (int) (nrand48() % 256);
+
+                    prs->RSEncode(data, bb);
+
+                    fwrite(bb, sizeof(GF), nn_short - kk_short, fp_out);
+                    fwrite(data, sizeof(GF), kk_short, fp_out);
+                }
+                fclose(fp_out);
+                break;
+
+            case TestMode::Decoding:
+                memset(stats.errors_by_count, 0, sizeof(stats.errors_by_count));
+
+                nn_short = 255;
+                if ((nn_short < 2*tt) || (nn_short > nn))
+                {
+                    printf("Invalid entry %d for shortened length\n",nn_short);
+                    exit(0);
+                }
+                kk_short = kk - (nn-nn_short); /* compute dimension of shortened code */
+                rng.seed(config.getRandomSeed());
+
+                FILE *fp;
+                if (!rs_fopen(&fp, file_in, "rb") || nullptr == fp)
+                {
+                    printf("Could not open %s\n", file_in);
+                    exit(0);
+                }
+
+                no_decoder_errors = 0;
+                iter = -1;
+                while (++iter < config.getNumCodewords()) {
+                    stats.total_codewords++;
+                    GF received[1000], cw[1000];
+                    fread(cw, sizeof(GF), nn_short, fp);
+
+                    print_debug(config, "\n\n\n\n Transmitting codeword %d \n", iter);
+                    print_debug(config, "Channel caused following errors Location (Error): \n");
+                    int no_ch_errs = 0;
+                    for (int i=0;i < nn_short;i++)
                     {
-                        if (no_ch_errs <= tt)
+                        double x = uniform_dist(rng);
+                        print_debug(config, "Random value: %f vs threshold: %f\n", x, config.getErrorRate());
+                        if (x < config.getErrorRate())
                         {
-                            printf("Position %d miscorrected %x,%x=%x.\n", i+nn-kk,
-                            recd[i+nn-kk], cw[i+nn-kk], recd[i+nn-kk]^cw[i+nn-kk]);
+                            GF error_byte = byte_dist(rng);
+                            print_debug(config, "Injecting error: %d\n", error_byte);
+                            received[i] = cw[i] ^ error_byte;
+                            ++no_ch_errs;
                         }
-                        error_flag = 1;
-                        //break;
+                        else
+                            received[i] = cw[i];
+                    }
+                    stats.total_errors_injected += no_ch_errs;
+                    stats.errors_by_count[no_ch_errs]++;
+                    print_debug(config, "Channel caused %d errors\n", no_ch_errs);
+
+                    // Pad with zeros and decode as if was a (255,kk) tt-error correcting
+                    // code.
+                    //
+                    int i;
+                    for (i=0;i < nn-kk;i++)
+                        recd[i] = received[i]; /* parity bytes */
+                    for (i=nn-kk;i < nn-kk+kk_short;i++)
+                        recd[i] = received[i]; /* info bytes */
+                    for (i=nn-kk+kk_short;i < nn;i++)
+                        recd[i] = 0; /* zero padding */
+
+                    int decode_flag = prs->RSDecode(recd);
+                    print_debug(config, "decode_rs() returned %d\n", decode_flag);
+                    int error_flag = 0;
+                    for (i=0; i < kk_short; i++)
+                    {
+                        if (recd[i+nn-kk] != cw[i+nn-kk])
+                        {
+                            if (no_ch_errs <= tt)
+                            {
+                                printf("Position %d miscorrected %x,%x=%x.\n", i+nn-kk,
+                                recd[i+nn-kk], cw[i+nn-kk], recd[i+nn-kk]^cw[i+nn-kk]);
+                            }
+                            error_flag = 1;
+                            //break;
+                        }
+                    }
+
+                    if (decode_flag == 0) {
+                        stats.errors_corrected++;
+                    }
+                    if (error_flag == 1 && no_ch_errs <= tt) {
+                        stats.decode_failures++;
+                    }
+                    if (no_ch_errs > tt) {
+                        stats.uncorrectable_errors++;
+                    }
+
+                    if (decode_flag == RS_ERROR_LAMDA_ERROR && no_ch_errs <= tt)
+                    {
+                        printf("%d ch errs  <=  max # correctable errs but \n", no_ch_errs);
+                        printf("\n DECODER ERROR: deg(lambda) unequal to #roots \n");
+                        exit(2); /* DECODER ERROR condition */
+                    }
+                    else if (decode_flag == RS_ERROR_CHIEN_SEARCH && no_ch_errs <= tt)
+                    {
+                        printf(" %d ch errs  <= max # correctable errs but \n", no_ch_errs);
+                        printf("\n deg(lambda) > 2*tt \n");
+                        exit(3);/* DECODER ERROR condition */
+                    }
+                    if (error_flag == 1 && no_ch_errs <= tt)
+                    {
+                        printf("DECODER FAILED TO CORRECT %d ERRORS\n", no_ch_errs);
+                        ++no_decoder_errors;
                     }
                 }
 
-                if (decode_flag == 0) {
-                    stats.errors_corrected++;
-                }
-                if (error_flag == 1 && no_ch_errs <= tt) {
-                    stats.decode_failures++;
-                }
-                if (no_ch_errs > tt) {
-                    stats.uncorrectable_errors++;
-                }
+                print_progress(config, "\nDecoding Summary:\n");
+                print_progress(config, "Total codewords processed: %d\n", stats.total_codewords);
+                print_progress(config, "Total errors injected: %d (avg %.2f per codeword, max correctable: %d)\n",
+                    stats.total_errors_injected,
+                    (double)stats.total_errors_injected / stats.total_codewords,
+                    tt);
 
-                if (decode_flag == RS_ERROR_LAMDA_ERROR && no_ch_errs <= tt)
-                {
-                    printf("%d ch errs  <=  max # correctable errs but \n", no_ch_errs);
-                    printf("\n DECODER ERROR: deg(lambda) unequal to #roots \n");
-                    exit(2); /* DECODER ERROR condition */
+                // Add error distribution
+                print_progress(config, "\nError distribution:\n");
+                for (int i = 0; i <= tt*2 && i < MAX_TT; i++) {  // Show up to 2*tt errors
+                    if (stats.errors_by_count[i] > 0) {
+                        print_progress(config, "%d errors: %d times (%d%% %s)\n",
+                            i,
+                            stats.errors_by_count[i],
+                            (stats.errors_by_count[i] * 100) / stats.total_codewords,
+                            i <= tt ? "correctable" : "uncorrectable");
+                    }
                 }
-                else if (decode_flag == RS_ERROR_CHIEN_SEARCH && no_ch_errs <= tt)
-                {
-                    printf(" %d ch errs  <= max # correctable errs but \n", no_ch_errs);
-                    printf("\n deg(lambda) > 2*tt \n");
-                    exit(3);/* DECODER ERROR condition */
-                }
-                if (error_flag == 1 && no_ch_errs <= tt)
-                {
-                    printf("DECODER FAILED TO CORRECT %d ERRORS\n", no_ch_errs);
-                    ++no_decoder_errors;
-                }
-            }
+                break;
 
-            print_progress(config, "\nDecoding Summary:\n");
-            print_progress(config, "Total codewords processed: %d\n", stats.total_codewords);
-            print_progress(config, "Total errors injected: %d (avg %.2f per codeword, max correctable: %d)\n",
-                stats.total_errors_injected,
-                (double)stats.total_errors_injected / stats.total_codewords,
-                tt);
+            case TestMode::Benchmark:
+                run_benchmarks();
+                break;
 
-            // Add error distribution
-            print_progress(config, "\nError distribution:\n");
-            for (int i = 0; i <= tt*2 && i < MAX_TT; i++) {  // Show up to 2*tt errors
-                if (stats.errors_by_count[i] > 0) {
-                    print_progress(config, "%d errors: %d times (%d%% %s)\n",
-                        i,
-                        stats.errors_by_count[i],
-                        (stats.errors_by_count[i] * 100) / stats.total_codewords,
-                        i <= tt ? "correctable" : "uncorrectable");
-                }
-            }
-            break;
+            case TestMode::Comparison:
+                compare_implementations(tt);
+                break;
 
-        case TestMode::Benchmark:
-            run_benchmarks();
-            break;
-
-        case TestMode::Comparison:
-            compare_implementations(tt);
-            break;
-
-        case TestMode::Unknown:
-	    std::cerr << "Unknown test mode." << std::endl;
-            break;
+            case TestMode::Unknown:
+                std::cerr << "Unknown test mode." << std::endl;
+                break;
         }
+
     } catch (const ConfigurationError& e) {
         std::cerr << "Configuration error: " << e.what() << std::endl;
         return 1;
     }
+
     return 0;
 }
