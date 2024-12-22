@@ -591,49 +591,6 @@ int main(int argc, char *argv[])
     FILE *fp_out, *fp;
     double x;
 
-#ifdef DEBUG
-    printf("Look-up tables for GF(2^8)\n");
-    printf("i\t\t Pow2Poly[i]\t Poly2Pow[i]\n");
-    for (i=0; i < n; i++)
-        printf("%3d \t\t %#x \t\t %d\n",i,Pow2Poly[i],Poly2Pow[i]);
-    printf("\n The polynomial-form representation of @^i, 0 <= i < %d \n",n);
-    printf("is obtained as follows: It is given by the binary representation of \n");
-    printf("the integer Pow2Poly[i] with LS-Bit corresponding to @^0\n");
-    printf("and the next bit to @^1 and so on.\n");
-    printf("\n The power of a Galois field element x  whose polynomial-form \n");
-    printf("representation is the binary representation of integer \n");
-    printf("j, 0 <= j < %d is given by the integer Poly2Pow[j]\n",n);
-    printf("Therefore, @^j = x \n");
-    printf("\n EXAMPLES IN GF(256) \n");
-    printf("The polynomial-form of @^8 is the binary representation of the integer Pow2Poly[8] viz. 0x1d. i.e., @^8 = @^4 + @^3 + @^2 + @^0 \n");
-    printf("The power of x whose polynomial-form is 0x72 (integer 155) is Poly2Pow[155] = 217, so @^217 = x \n");
-#endif
-
-#ifdef DEBUG
-    printf("\n g(x) of the %d-error correcting RS (%d,%d) code: \n",tt,nn,kk);
-    printf("Coefficient in power form with @ being the primitive element\n");
-    for (i = 0; i <= nn-kk; i++)
-    {
-        printf("%3d x^%02d ", gg[i], i);
-        if (i < nn-kk)
-            printf("+ ");
-        if (i && ((i+1) % 6 == 0))
-            printf("\n"); /* 7 coefficients per line */
-    }
-    printf("\n");
-
-    printf("\nCoefficient in polynomial form {@^7,...,@,1}\n");
-    for (i = 0; i <= nn-kk; i++)
-    {
-        printf("0x%02x x^%02d ", Pow2Poly[gg[i]], i);
-        if (i < nn-kk)
-            printf("+ ");
-        if (i && ((i+1) % 6 == 0))
-            printf("\n"); /* 7 coefficients per line */
-    }
-    printf("\n\n");
-#endif
-
     if (ENCODING == mode)
     {
         nn_short = 255;
@@ -646,13 +603,11 @@ int main(int argc, char *argv[])
         /* compute dimension of shortened code */
         kk_short = kk - (nn-nn_short);
 
-#ifndef PROFILE
         if (!rs_fopen(&fp_out, cw_file, "wb") || nullptr == fp_out)
         {
             printf("Could not open %s\n", cw_file);
             exit(0);
         }
-#endif
 
         /**** BEGIN: Encoding random information vectors ****/
         /* Pad with zeros rightmost (kk-kk_short) positions */
@@ -664,21 +619,10 @@ int main(int argc, char *argv[])
 
             prs->RSEncode(data, bb);
 
-#ifndef PROFILE
             fwrite(bb, sizeof(GF), nn_short - kk_short, fp_out);
             fwrite(data, sizeof(GF), kk_short, fp_out);
-#if 0
-            for (j=0;j < (int)nn_short-(int)kk_short;j++) /* parity bytes first */
-                fprintf(fp_out,"%02x ",bb[j]);
-            for (j=0;j < (int)kk_short;j++) /* info bytes last */
-                fprintf(fp_out,"%02x ",data[j]);
-            fprintf(fp_out,"\n");
-#endif
-#endif
         }
-#ifndef PROFILE
         fclose(fp_out);
-#endif
     }
     else if (DECODING == mode)
     {
