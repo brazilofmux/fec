@@ -115,7 +115,6 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
     RsVerify::verify_received_word(recd, nn);
 
     int i, j, q, iMod;
-    int u = 0;  // We already had this
 
     // Allocate working buffers
     GF syndromes[2*MAX_TT+1];    // Syndromes
@@ -164,98 +163,103 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
     RsVerify::verify_syndromes(syndromes, tt);
     RsDebug::print_syndromes("Initial", syndromes, tt);
 
-    if (syn_error) {  // If errors, attempt to correct
-        // Initialize arrays for Berlekamp-Massey
-        GF d[2*MAX_TT+2];        // Like rs.cpp
-        int l[2*MAX_TT+2];       // Degree of each elp
-        int u_lu[2*MAX_TT+2];    // Difference between step number and degree
-        GF elp[2*MAX_TT+2][2*MAX_TT];  // Error locator polynomials
+    if (syn_error) {
+        // Since we have non-zero syndromes, attempt error correction
 
-        // Initial conditions
+        // Step 2: Berlekamp-Massey Algorithm
+        // This algorithm finds the error locator polynomial Λ(x)
+        // The algorithm iteratively finds a minimal polynomial that predicts syndromes
+        GF elp[2*MAX_TT+2][2*MAX_TT];  // Error locator polynomials
+        GF d[2*MAX_TT+2];              // Discrepancy values
+        int l[2*MAX_TT+2];             // Degree of each ELP
+        int u_lu[2*MAX_TT+2];          // u-l(u) values
+        int u = 0;                      // Step number
+
+        // Initialize for first two steps
         d[0] = 0;           // power form
-        d[1] = syndromes[1];  // power form
+        d[1] = syndromes[1];// power form
         elp[0][0] = 0;      // power form
         elp[1][0] = 1;      // polynomial form
-        for (i = 1; i < nn-kk; i++) {
+        for (int i = 1; i < nn-kk; i++) {
             elp[0][i] = GF_INFINITY;   // power form
-            elp[1][i] = 0;   // polynomial form
+            elp[1][i] = 0;             // polynomial form
         }
         l[0] = 0;
         l[1] = 0;
         u_lu[0] = -1;
         u_lu[1] = 0;
-        u = 0;
 
         do {
             u++;
             if (d[u] == GF_INFINITY) {
+                // If discrepancy is zero, copy previous polynomial
                 l[u+1] = l[u];
-                for (i = 0; i <= l[u]; i++) {
+                for (int i = 0; i <= l[u]; i++) {
                     elp[u+1][i] = elp[u][i];
-                    elp[u][i] = Poly2Pow[elp[u][i]];
+                    elp[u][i] = Poly2Pow[elp[u][i]];  // Convert old ELP to power form
                 }
-            }
-            else {
-                // Search for words with greatest u_lu[q] for which d[q]!=0
-                q = u-1;
-                while ((d[q] == GF_INFINITY) && (q > 0))
+            } else {
+                // Find earlier error polynomial with max u-l(u)
+                int q = u-1;
+                while ((d[q] == GF_INFINITY) && (q > 0)) {
                     q--;
-
-                /* have found first non-zero d[q]  */
-                if (q>0)
-                {
-                    j=q;
-                    do
-                    {
+                }
+                if (q > 0) {
+                    int j = q;
+                    do {
                         j--;
-                        if ((d[j] != GF_INFINITY) && (u_lu[q]<u_lu[j]))
+                        if ((d[j] != GF_INFINITY) && (u_lu[q] < u_lu[j])) {
                             q = j;
-                    } while (j>0);
+                        }
+                    } while (j > 0);
                 }
 
-                /* have now found q such that d[u]!=0 and u_lu[q] is maximum */
-                /* store degree of new elp polynomial */
-                if (l[u] > l[q]+u-q)
+                // Update polynomial degree
+                if (l[u] > l[q] + u - q) {
                     l[u+1] = l[u];
-                else
-                    l[u+1] = l[q]+u-q;
+                } else {
+                    l[u+1] = l[q] + u - q;
+                }
 
-                /* form new elp(x) */
-                for (i = 0; i < nn-kk; i++)
+                // Form new error locator polynomial
+                for (int i = 0; i < nn-kk; i++) {
                     elp[u+1][i] = 0;
+                }
 
-                for (i=0; i<=l[q]; i++)
-                    if (elp[q][i] != GF_INFINITY)
-                    {
-                        iMod = d[u]-d[q]+elp[q][i];
+                // Add scaled version of selected earlier polynomial
+                for (int i = 0; i <= l[q]; i++) {
+                    if (elp[q][i] != GF_INFINITY) {
+                        int iMod = d[u] - d[q] + elp[q][i];
                         MOD_NN(iMod);
                         elp[u+1][i+u-q] = Pow2Poly[iMod];
                     }
-                for (i=0; i<=l[u]; i++)
-                {
+                }
+
+                // Add current polynomial
+                for (int i = 0; i <= l[u]; i++) {
                     elp[u+1][i] ^= elp[u][i];
-                    elp[u][i] = Poly2Pow[elp[u][i]];  /*convert old elp value to power*/
+                    elp[u][i] = Poly2Pow[elp[u][i]];  // Convert old ELP to power form
                 }
             }
-            u_lu[u+1] = u-l[u+1];
 
-            /* form (u+1)th discrepancy */
-            if (u < nn-kk)    /* no discrepancy computed on last iteration */
-            {
+            u_lu[u+1] = u - l[u+1];
+
+            // Calculate next discrepancy if not at end
+            if (u < nn-kk) {
+                // d[u+1] = S[u+1] + Σ(j=1 to l[u+1]) elp[u+1][j] * S[u+1-j]
                 d[u+1] = Pow2Poly[syndromes[u+1]];
-                for (i = 1; i <= l[u+1]; i++)
-                {
-                    if ((syndromes[u+1-i] != GF_INFINITY) && (elp[u+1][i] != 0))
-                    {
-                        iMod = syndromes[u+1-i]+Poly2Pow[elp[u+1][i]];
+                for (int i = 1; i <= l[u+1]; i++) {
+                    if ((syndromes[u+1-i] != GF_INFINITY) && (elp[u+1][i] != 0)) {
+                        int iMod = syndromes[u+1-i] + Poly2Pow[elp[u+1][i]];
                         MOD_NN(iMod);
                         d[u+1] ^= Pow2Poly[iMod];
                     }
                 }
-                d[u+1] = Poly2Pow[d[u+1]];    /* put d[u+1] into power form */
+                d[u+1] = Poly2Pow[d[u+1]];  // Convert to power form
             }
 
-            RsDebug::print_berlekamp_step(u, d[u], l[u], elp[u], l[u]);  // Updated debug
+            RsDebug::print_berlekamp_step(u, d[u], l[u], elp[u], l[u]);
+
         } while ((u < nn-kk) && (l[u+1] <= tt));
 
         u++;
@@ -291,7 +295,6 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
                     count++;
                 }
             }
-            printf("(count, l[u]) = (%d, %d)\n", count, l[u]);
             if (count == l[u])    /* no. roots = degree of elp hence <= tt errors */
             {
                 /* form polynomial z(x) */

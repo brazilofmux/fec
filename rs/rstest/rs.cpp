@@ -1105,8 +1105,8 @@ int RS_ENCODER::RSDecode(GF recd[nn])
             for (i=0;i < l[u];i++)
                 printf("%d ", loc[i]);
             printf("\n");
-#endif
             printf("(count, l[u]) = (%d, %d)\n", count, l[u]);
+#endif
             if (count == l[u])    /* no. roots = degree of elp hence <= tt errors */
             {
 #ifdef DECODER_DEBUG
