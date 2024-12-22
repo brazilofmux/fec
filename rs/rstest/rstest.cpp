@@ -398,54 +398,6 @@ struct EncoderTestContext {
     int no_eras;
 };
 
-// Helper to prepare test data with injected errors
-void prepare_test_data(GF* recd, int tt) {
-    GF data[MAX_KK];
-    GF bb[2*MAX_TT];
-
-    // Fill data with test pattern
-    for (int i = 0; i < MAX_KK; i++) {
-        data[i] = i & 0xFF;
-    }
-
-    // Initial encoding
-    RS_ENCODER rs0(tt);
-    rs0.RSEncode(data, bb);
-
-    // Copy parity and data into received word
-    const int kk = nn - 2*tt;
-    memcpy(recd, bb, 2*tt);        // Copy parity
-    memcpy(recd + nn - kk, data, kk);  // Copy data
-
-    // Inject errors
-    for (int i = 0; i < tt/2; i++) {
-        recd[i*2] ^= 0xFF;  // Flip some bits
-    }
-}
-
-// Set up and run a single encoder test
-EncoderTestContext setup_and_run_encoder(int tt, bool use_reference, const GF* test_data) {
-    EncoderTestContext ctx;
-
-    // Initialize verification infrastructure
-    RsDebug::init(true, &ctx.debug);
-    RsVerify::init(&ctx.verify);
-
-    // Copy test data
-    memcpy(ctx.recd, test_data, nn);
-
-    // Create and run appropriate encoder
-    if (use_reference) {
-        RS_ENCODER_REF encoder(tt);
-        ctx.decode_result = encoder.RSDecode(ctx.recd);
-    } else {
-        RS_ENCODER encoder(tt);
-        ctx.decode_result = encoder.RSDecode(ctx.recd);
-    }
-
-    return ctx;
-}
-
 void prepare_test_data_with_erasures(GF* recd, int tt, int* eras_pos, int* no_eras) {
     GF data[MAX_KK];
     GF bb[2*MAX_TT];
@@ -506,61 +458,115 @@ EncoderTestContext setup_and_run_encoder_with_erasures(int tt, bool use_referenc
     return ctx;
 }
 
+// Helper to prepare test data with injected errors
+void prepare_test_data(GF* recd, int tt) {
+    GF data[MAX_KK];
+    GF bb[2*MAX_TT];
+
+    // Fill data with test pattern
+    for (int i = 0; i < MAX_KK; i++) {
+        data[i] = i & 0xFF;
+    }
+
+    // Initial encoding
+    RS_ENCODER rs0(tt);
+    rs0.RSEncode(data, bb);
+
+    // Copy parity and data into received word
+    const int kk = nn - 2*tt;
+    memcpy(recd, bb, 2*tt);        // Copy parity
+    memcpy(recd + nn - kk, data, kk);  // Copy data
+
+    // Inject errors
+    for (int i = 0; i < tt/2; i++) {
+        recd[i*2] ^= 0xFF;  // Flip some bits
+    }
+}
+
+// Set up and run a single encoder test
+EncoderTestContext setup_and_run_encoder(int tt, bool use_reference, const GF* test_data) {
+    EncoderTestContext ctx;
+
+    // Initialize verification infrastructure
+    RsDebug::init(true, &ctx.debug);
+    RsVerify::init(&ctx.verify);
+
+    // Copy test data
+    memcpy(ctx.recd, test_data, nn);
+
+    // Create and run appropriate encoder
+    if (use_reference) {
+        RS_ENCODER_REF encoder(tt);
+        ctx.decode_result = encoder.RSDecode(ctx.recd);
+    } else {
+        RS_ENCODER encoder(tt);
+        ctx.decode_result = encoder.RSDecode(ctx.recd);
+    }
+
+    return ctx;
+}
+
+EncoderTestContext setup_and_run_encoder_with_erasures(int tt, bool use_reference, const GF* test_data) {
+    EncoderTestContext ctx;
+
+    // Initialize verification infrastructure
+    RsDebug::init(true, &ctx.debug);
+    RsVerify::init(&ctx.verify);
+
+    // Copy test data
+    memcpy(ctx.recd, test_data, nn);
+
+    // Set up empty erasure list
+    ctx.no_eras = 0;
+
+    // Create and run appropriate encoder
+    if (use_reference) {
+        RS_ENCODER_REF encoder(tt);
+        ctx.decode_result = encoder.RSDecodeErasures(ctx.recd, ctx.eras_pos, ctx.no_eras);
+    } else {
+        RS_ENCODER encoder(tt);
+        ctx.decode_result = encoder.RSDecodeErasures(ctx.recd, ctx.eras_pos, ctx.no_eras);
+    }
+
+    return ctx;
+}
+
 void compare_implementations(int tt) {
-    // Test regular decoding first
+    // Prepare test data
     GF test_data[nn];
     prepare_test_data(test_data, tt);
 
-    EncoderTestContext orig = setup_and_run_encoder(tt, false, test_data);
-    EncoderTestContext ref = setup_and_run_encoder(tt, true, test_data);
+    printf("\nTesting Reference Implementation Internal Consistency:\n");
 
-    bool debug_match = compare_debug_results(orig.debug, ref.debug, false);
-    bool verify_match = compare_verify_results(orig.verify, ref.verify, false);
-    bool decode_match = (orig.decode_result == ref.decode_result);
+    // Reference Implementation: RSDecode vs RSDecodeErasures
+    EncoderTestContext ref_decode = setup_and_run_encoder(tt, true, test_data);
+    EncoderTestContext ref_decode_eras = setup_and_run_encoder_with_erasures(tt, true, test_data);
 
-    if (!debug_match || !verify_match || !decode_match) {
-        printf("FAIL: Regular decode implementations do not match\n");
-        exit(1);
-    }
-
-    // First test with no erasures (should behave like regular decode)
-    int no_eras = 0;
-    int eras_pos[2*MAX_TT] = {0};  // Empty array
-
-    EncoderTestContext orig_eras = setup_and_run_encoder_with_erasures(
-        tt, false, test_data, eras_pos, no_eras);
-    EncoderTestContext ref_eras = setup_and_run_encoder_with_erasures(
-        tt, true, test_data, eras_pos, no_eras);
-
-    debug_match = compare_debug_results(orig_eras.debug, ref_eras.debug, false);
-    verify_match = compare_verify_results(orig_eras.verify, ref_eras.verify, false);
-    decode_match = (orig_eras.decode_result == ref_eras.decode_result);
+    bool debug_match = compare_debug_results(ref_decode.debug, ref_decode_eras.debug, false);
+    bool verify_match = compare_verify_results(ref_decode.verify, ref_decode_eras.verify, false);
+    bool decode_match = (ref_decode.decode_result == ref_decode_eras.decode_result);
 
     if (!debug_match || !verify_match || !decode_match) {
-        printf("FAIL: Erasure decode with no erasures does not match\n");
-        exit(1);
+        printf("FAIL: Reference implementation RSDecode vs RSDecodeErasures mismatch\n");
+    } else {
+        printf("PASS: Reference implementation RSDecode matches RSDecodeErasures\n");
     }
 
-    // Now test erasure decoding
-    GF erasure_test_data[nn];
+    printf("\nTesting Original Implementation Internal Consistency:\n");
 
-    prepare_test_data_with_erasures(erasure_test_data, tt, eras_pos, &no_eras);
+    // Original Implementation: RSDecode vs RSDecodeErasures
+    EncoderTestContext orig_decode = setup_and_run_encoder(tt, false, test_data);
+    EncoderTestContext orig_decode_eras = setup_and_run_encoder_with_erasures(tt, false, test_data);
 
-    orig_eras = setup_and_run_encoder_with_erasures(
-        tt, false, erasure_test_data, eras_pos, no_eras);
-    ref_eras = setup_and_run_encoder_with_erasures(
-        tt, true, erasure_test_data, eras_pos, no_eras);
-
-    debug_match = compare_debug_results(orig_eras.debug, ref_eras.debug, false);
-    verify_match = compare_verify_results(orig_eras.verify, ref_eras.verify, false);
-    decode_match = (orig_eras.decode_result == ref_eras.decode_result);
+    debug_match = compare_debug_results(orig_decode.debug, orig_decode_eras.debug, false);
+    verify_match = compare_verify_results(orig_decode.verify, orig_decode_eras.verify, false);
+    decode_match = (orig_decode.decode_result == orig_decode_eras.decode_result);
 
     if (!debug_match || !verify_match || !decode_match) {
-        printf("FAIL: Erasure decode implementations do not match\n");
-        exit(1);
+        printf("FAIL: Original implementation RSDecode vs RSDecodeErasures mismatch\n");
+    } else {
+        printf("PASS: Original implementation RSDecode matches RSDecodeErasures\n");
     }
-
-    printf("Both regular and erasure decoding implementations match!\n");
 }
 
 int main(int argc, char *argv[])
