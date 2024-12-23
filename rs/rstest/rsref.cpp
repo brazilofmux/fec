@@ -73,6 +73,9 @@ void RS_ENCODER_REF::RSGenPoly(void) {
 }
 
 void RS_ENCODER_REF::RSEncode(GF data[MAX_KK], GF bb[2*MAX_TT]) {
+    // Clear parity buffer
+    memset(bb, 0, 2*tt);
+
     // Systematic encoder for RS codes
     // Input: data[0..kk-1] contains the message
     // Output: bb[0..2*tt-1] contains the parity bytes
@@ -82,18 +85,15 @@ void RS_ENCODER_REF::RSEncode(GF data[MAX_KK], GF bb[2*MAX_TT]) {
     // where m(x) is the message polynomial and b(x) is the remainder when
     // m(x)*x^(n-k) is divided by g(x)
 
-    // Clear parity buffer
-    memset(bb, 0, 2*tt);
-
     // For each message byte
     for (int i = 0; i < kk; i++) {
-        // Calculate feedback term
+        // Calculate feedback using current first parity byte and input
         GF feedback = bb[0] ^ data[i];
 
-        // If feedback is non-zero, multiply feedback by each generator coefficient
-        // and add to the shift register
-        if (feedback != 0) {
+        if (feedback != 0) {  // Skip multiply step if feedback is zero
+            // For each remaining parity byte position
             for (int j = 0; j < 2*tt-1; j++) {
+                // Shift the register and multiply by generator coefficient
                 if (gg[j] != GF_INFINITY) {
                     int iMod = gg[j] + Poly2Pow[feedback];
                     MOD_NN(iMod);
@@ -102,9 +102,10 @@ void RS_ENCODER_REF::RSEncode(GF data[MAX_KK], GF bb[2*MAX_TT]) {
                     bb[j] = bb[j+1];
                 }
             }
+            // Last position gets just the feedback
             bb[2*tt-1] = feedback;
         } else {
-            // Just shift if feedback is zero
+            // If feedback is zero, just shift the register
             for (int j = 0; j < 2*tt-1; j++) {
                 bb[j] = bb[j+1];
             }

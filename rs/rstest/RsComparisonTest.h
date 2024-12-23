@@ -33,6 +33,16 @@ private:
     bool test_reference_implementation() const;
     bool test_original_implementation() const;
     bool test_implementations_match() const;
+    bool test_encoding_matches() const;
+    struct EncodingTestContext {
+        GF data[MAX_KK];
+        GF bb[2*MAX_TT];
+        RsVerification::VerificationResults results;
+    };
+    EncodingTestContext run_encoder_test(bool use_reference) const;
+    bool compare_encoding_results(const EncodingTestContext& left,
+                                const EncodingTestContext& right,
+                                const char* test_name) const;
 };
 
 #endif // RS_COMPARISON_TEST_H

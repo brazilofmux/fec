@@ -28,7 +28,9 @@ private:
 
     // Generator polynomial parameters
     int b0;             // g(x) has roots @^b0, @^(b0+1), ... ,@^(b0+2*tt-1)
+public:
     GF gg[2*MAX_TT+1]; // Generator polynomial coefficients
+private:
     int tt;            // Number of errors that can be corrected
     int kk;            // Number of data symbols per codeword
 };

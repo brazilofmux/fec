@@ -180,12 +180,109 @@ bool RsComparisonTest::test_implementations_match() const {
                          "Reference implementation vs original");
 }
 
+bool RsComparisonTest::test_encoding_matches() const {
+    std::cout << "\nComparing Reference vs Original Encoding:\n";
+
+    EncodingTestContext ref = run_encoder_test(true);
+    EncodingTestContext orig = run_encoder_test(false);
+
+    return compare_encoding_results(ref, orig, "Encoding implementation comparison");
+}
+
+RsComparisonTest::EncodingTestContext RsComparisonTest::run_encoder_test(bool use_reference) const {
+    EncodingTestContext ctx;
+
+    // Initialize test data
+    const int kk = nn - 2*tt;
+    std::cout << "\n" << (use_reference ? "Reference" : "Original") << " implementation:\n";
+    std::cout << "Input data bytes:\n";
+    for (int i = 0; i < kk; i++) {
+        ctx.data[i] = i & 0xFF;  // Simple test pattern
+        if (i < 16) { // Show first few bytes
+            std::cout << "data[" << i << "]=0x" << std::hex << (int)ctx.data[i] << std::dec << " ";
+            if ((i + 1) % 8 == 0) std::cout << "\n";
+        }
+    }
+    std::cout << "\n";
+
+    // Initialize verification
+    RsVerification::setResults(&ctx.results);
+
+    // Show generator polynomial
+    if (use_reference) {
+        RS_ENCODER_REF encoder(tt);
+        std::cout << "Generator polynomial coefficients:\n";
+        for (int i = 0; i <= 2*tt; i++) {
+            std::cout << "g[" << i << "]=0x" << std::hex << (int)encoder.gg[i] << std::dec << " ";
+            if ((i + 1) % 8 == 0) std::cout << "\n";
+        }
+        std::cout << "\n";
+        encoder.RSEncode(ctx.data, ctx.bb);
+    } else {
+        RS_ENCODER encoder(tt);
+        std::cout << "Generator polynomial coefficients:\n";
+        for (int i = 0; i <= 2*tt; i++) {
+            std::cout << "g[" << i << "]=0x" << std::hex << (int)encoder.gg[i] << std::dec << " ";
+            if ((i + 1) % 8 == 0) std::cout << "\n";
+        }
+        std::cout << "\n";
+        encoder.RSEncode(ctx.data, ctx.bb);
+    }
+
+    // Show resulting parity bytes
+    std::cout << "Generated parity bytes:\n";
+    for (int i = 0; i < 2*tt; i++) {
+        std::cout << "bb[" << i << "]=0x" << std::hex << (int)ctx.bb[i] << std::dec << " ";
+        if ((i + 1) % 8 == 0) std::cout << "\n";
+    }
+    std::cout << "\n";
+
+    return ctx;
+}
+
+bool RsComparisonTest::compare_encoding_results(const EncodingTestContext& left,
+                                              const EncodingTestContext& right,
+                                              const char* test_name) const {
+    // Compare parity bytes with detailed output
+    bool parity_matches = true;
+    std::cout << "\nParity byte comparison:\n";
+    for (int i = 0; i < 2*tt; i++) {
+        if (left.bb[i] != right.bb[i]) {
+            std::cout << "Position " << i << ": Reference=0x" << std::hex
+                     << (int)left.bb[i] << " Original=0x" << (int)right.bb[i]
+                     << std::dec << "\n";
+            parity_matches = false;
+        }
+    }
+
+    if (!parity_matches) {
+        std::cout << "\nFAIL: " << test_name << " - parity bytes differ (shown above)\n";
+        return false;
+    }
+
+    // Verify encoding integrity
+    bool results_match = RsVerification::compare_results(
+        left.results,
+        right.results,
+        config.getVerboseLevel() == Verbosity::Debug
+    );
+
+    if (!results_match) {
+        std::cout << "FAIL: " << test_name << " - verification results differ\n";
+        return false;
+    }
+
+    std::cout << "PASS: " << test_name << "\n";
+    return true;
+}
+
 bool RsComparisonTest::run() {
     bool success = true;
 
     success &= test_reference_implementation();
     success &= test_original_implementation();
     success &= test_implementations_match();
+    success &= test_encoding_matches();  // Add this line
 
     return success;
 }
