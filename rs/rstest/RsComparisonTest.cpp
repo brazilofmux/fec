@@ -2,7 +2,7 @@
 #include <iostream>
 #include "RsComparisonTest.h"
 
-RsComparisonTest::RsComparisonTest(const RsTestConfig& cfg) 
+RsComparisonTest::RsComparisonTest(const RsTestConfig& cfg)
     : config(cfg), tt(cfg.getTT()) {
     prepare_test_data();
 }
@@ -33,13 +33,23 @@ void RsComparisonTest::prepare_test_data() {
 
 RsComparisonTest::TestContext RsComparisonTest::run_encoder(bool use_reference, bool use_erasures) const {
     TestContext ctx;
-    
+
     // Initialize verification framework
     RsVerification::init(config.getVerboseLevel() == Verbosity::Debug);
     RsVerification::setResults(&ctx.results);
 
     // Copy test data
     memcpy(ctx.recd, test_data, nn);
+
+    // Initialize erasure data
+    ctx.no_eras = 0;  // Default to no erasures
+    if (use_erasures) {
+        // For now, just mark first tt/2 positions as erasures
+        ctx.no_eras = tt/2;
+        for (int i = 0; i < ctx.no_eras; i++) {
+            ctx.eras_pos[i] = i*2;  // Every other position
+        }
+    }
 
     // Run appropriate encoder version
     if (use_reference) {
@@ -61,7 +71,7 @@ RsComparisonTest::TestContext RsComparisonTest::run_encoder(bool use_reference, 
     return ctx;
 }
 
-bool RsComparisonTest::compare_results(const TestContext& left, 
+bool RsComparisonTest::compare_results(const TestContext& left,
                                      const TestContext& right,
                                      const char* test_name) const {
     bool results_match = RsVerification::compare_results(
@@ -75,7 +85,7 @@ bool RsComparisonTest::compare_results(const TestContext& left,
     if (!results_match || !decode_match) {
         std::cout << "FAIL: " << test_name << " mismatch\n";
         if (!decode_match) {
-            std::cout << "  Decode results differ: " << left.decode_result 
+            std::cout << "  Decode results differ: " << left.decode_result
                      << " vs " << right.decode_result << "\n";
         }
         return false;
@@ -87,7 +97,7 @@ bool RsComparisonTest::compare_results(const TestContext& left,
 
 bool RsComparisonTest::test_reference_implementation() const {
     std::cout << "\nTesting Reference Implementation Internal Consistency:\n";
-    
+
     TestContext ref_decode = run_encoder(true, false);
     TestContext ref_decode_eras = run_encoder(true, true);
 
@@ -97,7 +107,7 @@ bool RsComparisonTest::test_reference_implementation() const {
 
 bool RsComparisonTest::test_original_implementation() const {
     std::cout << "\nTesting Original Implementation Internal Consistency:\n";
-    
+
     TestContext orig_decode = run_encoder(false, false);
     TestContext orig_decode_eras = run_encoder(false, true);
 
@@ -107,7 +117,7 @@ bool RsComparisonTest::test_original_implementation() const {
 
 bool RsComparisonTest::test_implementations_match() const {
     std::cout << "\nComparing Reference vs Original Implementation:\n";
-    
+
     TestContext ref_decode = run_encoder(true, false);
     TestContext orig_decode = run_encoder(false, false);
 

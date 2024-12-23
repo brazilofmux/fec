@@ -13,7 +13,7 @@ RsEncodingTest::RsEncodingTest(const RsTestConfig& cfg)
 void RsEncodingTest::initialize() {
     // Initialize random number generator
     rng.seed(config.getRandomSeed());
-    
+
     // Create encoder
     encoder = new RS_ENCODER(tt);
 
@@ -79,7 +79,7 @@ bool RsEncodingTest::encode_and_save_codewords(const char* filename) {
         }
 
         if (config.getVerboseLevel() == Verbosity::Debug) {
-            std::cout << "Generated codeword " << i + 1 << " of " 
+            std::cout << "Generated codeword " << i + 1 << " of "
                      << config.getNumCodewords() << "\r";
             std::cout.flush();
         }

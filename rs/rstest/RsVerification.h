@@ -15,7 +15,7 @@ public:
         std::vector<std::string> syndromes;
         std::vector<std::string> berlekamp_steps;
         std::vector<std::string> error_locations;
-        
+
         // Verification hashes
         uint32_t generator_hash;
         uint32_t received_word_hash;
@@ -52,10 +52,10 @@ public:
     static uint32_t calculate_crc32(const void* data, size_t length);
 
     // Comparison helpers
-    static bool compare_results(const VerificationResults& left, 
+    static bool compare_results(const VerificationResults& left,
                               const VerificationResults& right,
                               bool verbose = false);
-    
+
 private:
     static bool debug_enabled;
     static VerificationResults* current_results;

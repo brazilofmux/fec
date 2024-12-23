@@ -65,8 +65,8 @@ RsTestConfig RsTestConfig::parse_args(int argc, char* argv[]) {
         }
         config.tt = std::atoi(argv[2]);
         if (config.tt < MIN_TT || config.tt > MAX_TT) {
-            throw ConfigurationError("tt must be between " + 
-                                   std::to_string(MIN_TT) + " and " + 
+            throw ConfigurationError("tt must be between " +
+                                   std::to_string(MIN_TT) + " and " +
                                    std::to_string(MAX_TT));
         }
     }
@@ -114,7 +114,7 @@ RsTestConfig RsTestConfig::parse_args(int argc, char* argv[]) {
             }
 
             default:
-                throw ConfigurationError("Unknown option: -" + 
+                throw ConfigurationError("Unknown option: -" +
                                        std::string(1, argv[i][1]));
         }
     }
@@ -130,7 +130,7 @@ RsTestConfig RsTestConfig::parse_args(int argc, char* argv[]) {
 void RsTestConfig::print() const {
     std::cout << "RS Test Configuration:\n"
               << "  Mode: ";
-    
+
     switch (mode) {
         case TestMode::Encoding:   std::cout << "Encoding\n"; break;
         case TestMode::Decoding:   std::cout << "Decoding\n"; break;
@@ -145,7 +145,7 @@ void RsTestConfig::print() const {
 
     std::cout << "  Number of codewords: " << num_codewords << "\n"
               << "  Verbosity level: ";
-    
+
     switch (verbose_level) {
         case Verbosity::Quiet:  std::cout << "Quiet\n"; break;
         case Verbosity::Normal: std::cout << "Normal\n"; break;
@@ -153,10 +153,10 @@ void RsTestConfig::print() const {
     }
 
     std::cout << "  Random seed: " << random_seed << "\n";
-    
+
     if (mode == TestMode::Decoding) {
         std::cout << "  Error rate: " << error_rate << "\n";
     }
-    
+
     std::cout << "  Verify correction: " << (verify_correction ? "Yes" : "No") << "\n";
 }

@@ -14,7 +14,7 @@ RsDecodingTest::RsDecodingTest(const RsTestConfig& cfg)
 void RsDecodingTest::initialize() {
     // Initialize random number generator
     rng.seed(config.getRandomSeed());
-    
+
     // Create encoder
     encoder = new RS_ENCODER(tt);
 
@@ -24,7 +24,7 @@ void RsDecodingTest::initialize() {
 
 bool RsDecodingTest::process_codeword(const GF* codeword, const int nn_short, const int kk_short) {
     stats.total_codewords++;
-    
+
     // Create received word with errors
     GF received[nn];
     int no_ch_errs = 0;
@@ -63,7 +63,7 @@ bool RsDecodingTest::process_codeword(const GF* codeword, const int nn_short, co
     // Decode
     RsVerification::VerificationResults verify_results;
     RsVerification::setResults(&verify_results);
-    
+
     int decode_flag = encoder->RSDecode(recd);
 
     if (config.getVerboseLevel() == Verbosity::Debug) {
@@ -75,11 +75,11 @@ bool RsDecodingTest::process_codeword(const GF* codeword, const int nn_short, co
     for (int i = 0; i < kk_short; i++) {
         if (recd[i+nn-kk] != codeword[i+nn-kk]) {
             if (no_ch_errs <= tt) {
-                std::cout << "Position " << i+nn-kk 
-                         << " miscorrected " << std::hex 
-                         << (int)recd[i+nn-kk] << "," 
+                std::cout << "Position " << i+nn-kk
+                         << " miscorrected " << std::hex
+                         << (int)recd[i+nn-kk] << ","
                          << (int)codeword[i+nn-kk] << "="
-                         << (int)(recd[i+nn-kk]^codeword[i+nn-kk]) 
+                         << (int)(recd[i+nn-kk]^codeword[i+nn-kk])
                          << std::dec << ".\n";
             }
             error_flag = true;
@@ -123,17 +123,17 @@ void RsDecodingTest::print_stats() const {
 
     std::cout << "\nDecoding Summary:\n"
               << "Total codewords processed: " << stats.total_codewords << "\n"
-              << "Total errors injected: " << stats.total_errors_injected 
-              << " (avg " << (double)stats.total_errors_injected / stats.total_codewords 
+              << "Total errors injected: " << stats.total_errors_injected
+              << " (avg " << (double)stats.total_errors_injected / stats.total_codewords
               << " per codeword, max correctable: " << tt << ")\n\n"
               << "Error distribution:\n";
 
     for (int i = 0; i <= tt*2 && i < MAX_TT; i++) {
         if (stats.errors_by_count[i] > 0) {
-            std::cout << i << " errors: " << stats.errors_by_count[i] 
-                     << " times (" 
-                     << (stats.errors_by_count[i] * 100) / stats.total_codewords 
-                     << "% " << (i <= tt ? "correctable" : "uncorrectable") 
+            std::cout << i << " errors: " << stats.errors_by_count[i]
+                     << " times ("
+                     << (stats.errors_by_count[i] * 100) / stats.total_codewords
+                     << "% " << (i <= tt ? "correctable" : "uncorrectable")
                      << ")\n";
         }
     }

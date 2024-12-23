@@ -17,7 +17,7 @@ private:
     int kk;
     RS_ENCODER* encoder;
     std::mt19937 rng;
-    
+
     void initialize();
     bool encode_and_save_codewords(const char* filename);
     bool validate_shortened_params(int nn_short, int kk_short) const;

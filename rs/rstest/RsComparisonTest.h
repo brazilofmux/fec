@@ -23,12 +23,12 @@ private:
     const RsTestConfig& config;
     int tt;
     GF test_data[nn];
-    
+
     void prepare_test_data();
     TestContext run_encoder(bool use_reference, bool use_erasures = false) const;
-    bool compare_results(const TestContext& left, const TestContext& right, 
+    bool compare_results(const TestContext& left, const TestContext& right,
                         const char* test_name) const;
-    
+
     // New test methods
     bool test_reference_implementation() const;
     bool test_original_implementation() const;

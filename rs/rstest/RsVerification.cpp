@@ -55,9 +55,9 @@ void RsVerification::print_syndromes(const char* prefix, GF* syndromes, int tt) 
     char buf[256];
     snprintf(buf, sizeof(buf), "\n%s Syndromes:\n", prefix);
     current_results->syndromes.push_back(buf);
-    
+
     for (int i = 1; i <= 2*tt; i++) {
-        snprintf(buf, sizeof(buf), "s[%d] = %02X (power form: %d)\n", 
+        snprintf(buf, sizeof(buf), "s[%d] = %02X (power form: %d)\n",
                 i, Pow2Poly[syndromes[i]], syndromes[i]);
         current_results->syndromes.push_back(buf);
     }
@@ -70,7 +70,7 @@ void RsVerification::print_berlekamp_step(int step, GF d, int L, GF* lambda, int
     std::string step_info;
     char buf[512];
 
-    snprintf(buf, sizeof(buf), 
+    snprintf(buf, sizeof(buf),
              "Berlekamp Step %d:\n  Discrepancy d = %02X (power: %d)\n  L = %d\n  deg_lambda = %d",
              step, Pow2Poly[d], d, L, deg_lambda);
     step_info = buf;
@@ -88,7 +88,7 @@ void RsVerification::print_error_location(int loc, GF error_value, GF original, 
     if (!debug_enabled || !current_results) return;
 
     char buf[256];
-    snprintf(buf, sizeof(buf), 
+    snprintf(buf, sizeof(buf),
              "Error at position %d:\n  Error value: %02X\n  Original value: %02X\n  Corrected to: %02X",
              loc, error_value, original, corrected);
 
@@ -151,7 +151,7 @@ bool RsVerification::compare_results(const VerificationResults& left,
                 printf("  right: %s\n", right.berlekamp_steps[i].c_str());
                 match = false;
             } else if (verbose) {
-                printf("Berlekamp step %zu matches: %s\n", i, 
+                printf("Berlekamp step %zu matches: %s\n", i,
                        left.berlekamp_steps[i].c_str());
             }
         }
@@ -170,7 +170,7 @@ bool RsVerification::compare_results(const VerificationResults& left,
                 printf("  right: %s\n", right.error_locations[i].c_str());
                 match = false;
             } else if (verbose) {
-                printf("Error location %zu matches: %s\n", i, 
+                printf("Error location %zu matches: %s\n", i,
                        left.error_locations[i].c_str());
             }
         }

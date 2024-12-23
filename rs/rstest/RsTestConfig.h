@@ -36,7 +36,7 @@ public:
     void print() const;
 
 private:
-    RsTestConfig() : 
+    RsTestConfig() :
         mode(TestMode::Unknown),
         tt(0),
         num_codewords(10000),
