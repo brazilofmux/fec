@@ -14,6 +14,7 @@
 #include "rsref.h"
 #include "RsComparisonTest.h"
 #include "RsDecodingTest.h"
+#include "RsEncodingTest.h"
 #include "RsTestConfig.h"
 #include "RsVerification.h"
 
@@ -150,9 +151,6 @@ void run_benchmarks() {
     }
 }
 
-GF data[MAX_KK];
-GF bb[2*MAX_TT];
-
 int main(int argc, char *argv[]) {
     try {
         RsTestConfig config = RsTestConfig::parse_args(argc, argv);
@@ -160,55 +158,20 @@ int main(int argc, char *argv[]) {
             config.print();
         }
 
-        // Initialize RS code
-        int tt = config.getTT();
-        int kk = nn - 2*tt;
-
         RS_Init();
         RS_ENCODER::Init();
         RS_ENCODER_REF::Init();
 
-        const char* cw_file = "cws.txt";
-        int kk_short, nn_short;
-
         // Initialize verification framework
         RsVerification::init(config.getVerboseLevel() == Verbosity::Debug);
 
-        RS_ENCODER *prs = new RS_ENCODER(tt);
-
         switch (config.getMode()) {
             case TestMode::Encoding:
-                nn_short = 255;
-                if ((nn_short < 2*tt) || (nn_short > nn))
                 {
-                    printf("Invalid entry %d for shortened length\n",nn_short);
-                    exit(0);
+                    RsEncodingTest test(config);
+                    bool success = test.run();
+                    return success ? 0 : 1;
                 }
-
-                /* compute dimension of shortened code */
-                kk_short = kk - (nn-nn_short);
-
-                FILE *fp_out;
-                if (!rs_fopen(&fp_out, cw_file, "wb") || nullptr == fp_out)
-                {
-                    printf("Could not open %s\n", cw_file);
-                    exit(0);
-                }
-
-                /**** BEGIN: Encoding random information vectors ****/
-                /* Pad with zeros rightmost (kk-kk_short) positions */
-                memset(data + kk_short, 0, kk - kk_short);
-                for (int i = 0; i < config.getNumCodewords(); i++)
-                {
-                    for (int j = 0; j < (int)kk_short; j++)
-                        data[j] = (int) (nrand48() % 256);
-
-                    prs->RSEncode(data, bb);
-
-                    fwrite(bb, sizeof(GF), nn_short - kk_short, fp_out);
-                    fwrite(data, sizeof(GF), kk_short, fp_out);
-                }
-                fclose(fp_out);
                 break;
 
             case TestMode::Decoding:
