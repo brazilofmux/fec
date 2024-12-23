@@ -13,6 +13,7 @@
 #include "rs.h"
 #include "rsref.h"
 #include "RsComparisonTest.h"
+#include "RsDecodingTest.h"
 #include "RsTestConfig.h"
 #include "RsVerification.h"
 
@@ -150,11 +151,7 @@ void run_benchmarks() {
 }
 
 GF data[MAX_KK];
-GF recd[nn];
 GF bb[2*MAX_TT];
-std::mt19937 rng;  // Mersenne Twister
-std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
-std::uniform_int_distribution<int> byte_dist(1, 255);
 
 int main(int argc, char *argv[]) {
     try {
@@ -172,15 +169,7 @@ int main(int argc, char *argv[]) {
         RS_ENCODER_REF::Init();
 
         const char* cw_file = "cws.txt";
-        const char* file_in = "cws.txt";;
-        int kk_short, nn_short, iter, no_decoder_errors;
-        DecodingStats stats = {
-            .total_codewords = 0,
-            .total_errors_injected = 0,
-            .errors_corrected = 0,
-            .decode_failures = 0,
-            .uncorrectable_errors = 0
-        };
+        int kk_short, nn_short;
 
         // Initialize verification framework
         RsVerification::init(config.getVerboseLevel() == Verbosity::Debug);
@@ -223,126 +212,10 @@ int main(int argc, char *argv[]) {
                 break;
 
             case TestMode::Decoding:
-                memset(stats.errors_by_count, 0, sizeof(stats.errors_by_count));
-
-                nn_short = 255;
-                if ((nn_short < 2*tt) || (nn_short > nn))
                 {
-                    printf("Invalid entry %d for shortened length\n",nn_short);
-                    exit(0);
-                }
-                kk_short = kk - (nn-nn_short); /* compute dimension of shortened code */
-                rng.seed(config.getRandomSeed());
-
-                FILE *fp;
-                if (!rs_fopen(&fp, file_in, "rb") || nullptr == fp)
-                {
-                    printf("Could not open %s\n", file_in);
-                    exit(0);
-                }
-
-                no_decoder_errors = 0;
-                iter = -1;
-                while (++iter < config.getNumCodewords()) {
-                    stats.total_codewords++;
-                    GF received[1000], cw[1000];
-                    fread(cw, sizeof(GF), nn_short, fp);
-
-                    print_debug(config, "\n\n\n\n Transmitting codeword %d \n", iter);
-                    print_debug(config, "Channel caused following errors Location (Error): \n");
-                    int no_ch_errs = 0;
-                    for (int i=0;i < nn_short;i++)
-                    {
-                        double x = uniform_dist(rng);
-                        print_debug(config, "Random value: %f vs threshold: %f\n", x, config.getErrorRate());
-                        if (x < config.getErrorRate())
-                        {
-                            GF error_byte = byte_dist(rng);
-                            print_debug(config, "Injecting error: %d\n", error_byte);
-                            received[i] = cw[i] ^ error_byte;
-                            ++no_ch_errs;
-                        }
-                        else
-                            received[i] = cw[i];
-                    }
-                    stats.total_errors_injected += no_ch_errs;
-                    stats.errors_by_count[no_ch_errs]++;
-                    print_debug(config, "Channel caused %d errors\n", no_ch_errs);
-
-                    // Pad with zeros and decode as if was a (255,kk) tt-error correcting
-                    // code.
-                    //
-                    int i;
-                    for (i=0;i < nn-kk;i++)
-                        recd[i] = received[i]; /* parity bytes */
-                    for (i=nn-kk;i < nn-kk+kk_short;i++)
-                        recd[i] = received[i]; /* info bytes */
-                    for (i=nn-kk+kk_short;i < nn;i++)
-                        recd[i] = 0; /* zero padding */
-
-                    int decode_flag = prs->RSDecode(recd);
-                    print_debug(config, "decode_rs() returned %d\n", decode_flag);
-                    int error_flag = 0;
-                    for (i=0; i < kk_short; i++)
-                    {
-                        if (recd[i+nn-kk] != cw[i+nn-kk])
-                        {
-                            if (no_ch_errs <= tt)
-                            {
-                                printf("Position %d miscorrected %x,%x=%x.\n", i+nn-kk,
-                                recd[i+nn-kk], cw[i+nn-kk], recd[i+nn-kk]^cw[i+nn-kk]);
-                            }
-                            error_flag = 1;
-                            //break;
-                        }
-                    }
-
-                    if (decode_flag == 0) {
-                        stats.errors_corrected++;
-                    }
-                    if (error_flag == 1 && no_ch_errs <= tt) {
-                        stats.decode_failures++;
-                    }
-                    if (no_ch_errs > tt) {
-                        stats.uncorrectable_errors++;
-                    }
-
-                    if (decode_flag == RS_ERROR_LAMDA_ERROR && no_ch_errs <= tt)
-                    {
-                        printf("%d ch errs  <=  max # correctable errs but \n", no_ch_errs);
-                        printf("\n DECODER ERROR: deg(lambda) unequal to #roots \n");
-                        exit(2); /* DECODER ERROR condition */
-                    }
-                    else if (decode_flag == RS_ERROR_CHIEN_SEARCH && no_ch_errs <= tt)
-                    {
-                        printf(" %d ch errs  <= max # correctable errs but \n", no_ch_errs);
-                        printf("\n deg(lambda) > 2*tt \n");
-                        exit(3);/* DECODER ERROR condition */
-                    }
-                    if (error_flag == 1 && no_ch_errs <= tt)
-                    {
-                        printf("DECODER FAILED TO CORRECT %d ERRORS\n", no_ch_errs);
-                        ++no_decoder_errors;
-                    }
-                }
-
-                print_progress(config, "\nDecoding Summary:\n");
-                print_progress(config, "Total codewords processed: %d\n", stats.total_codewords);
-                print_progress(config, "Total errors injected: %d (avg %.2f per codeword, max correctable: %d)\n",
-                    stats.total_errors_injected,
-                    (double)stats.total_errors_injected / stats.total_codewords,
-                    tt);
-
-                // Add error distribution
-                print_progress(config, "\nError distribution:\n");
-                for (int i = 0; i <= tt*2 && i < MAX_TT; i++) {  // Show up to 2*tt errors
-                    if (stats.errors_by_count[i] > 0) {
-                        print_progress(config, "%d errors: %d times (%d%% %s)\n",
-                            i,
-                            stats.errors_by_count[i],
-                            (stats.errors_by_count[i] * 100) / stats.total_codewords,
-                            i <= tt ? "correctable" : "uncorrectable");
-                    }
+                    RsDecodingTest test(config);
+                    bool success = test.run();
+                    return success ? 0 : 1;
                 }
                 break;
 
