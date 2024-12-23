@@ -12,8 +12,9 @@
 #include <string.h>
 #include "rs.h"
 #include "rsref.h"
-#include "RsVerification.h"
+#include "RsComparisonTest.h"
 #include "RsTestConfig.h"
+#include "RsVerification.h"
 
 struct DecodingStats {
     int total_codewords;
@@ -58,11 +59,6 @@ void print_debug(const RsTestConfig& config, const char* msg, ...) {
 long int nrand48()
 {
     return rand();
-}
-
-double erand48()
-{
-    return ((double)rand())/((double)RAND_MAX);
 }
 
 bool rs_fopen(FILE** pFile, const char* filename, const char* mode)
@@ -153,121 +149,12 @@ void run_benchmarks() {
     }
 }
 
-// Helper to prepare test data
-void prepare_test_data(GF* recd, int tt) {
-    GF data[MAX_KK];
-    GF bb[2*MAX_TT];
-
-    // Fill data with test pattern
-    for (int i = 0; i < MAX_KK; i++) {
-        data[i] = i & 0xFF;
-    }
-
-    // Initial encoding
-    RS_ENCODER rs0(tt);
-    rs0.RSEncode(data, bb);
-
-    // Copy parity and data into received word
-    const int kk = nn - 2*tt;
-    memcpy(recd, bb, 2*tt);        // Copy parity
-    memcpy(recd + nn - kk, data, kk);  // Copy data
-
-    // Inject errors
-    for (int i = 0; i < tt/2; i++) {
-        recd[i*2] ^= 0xFF;  // Flip some bits
-    }
-}
-
-// Set up and run a single encoder test
-EncoderTestContext setup_and_run_encoder(int tt, bool use_reference, const GF* test_data) {
-    EncoderTestContext ctx;
-
-    // Initialize verification framework
-    RsVerification::init(true);
-    RsVerification::setResults(&ctx.results);
-
-    // Copy test data
-    memcpy(ctx.recd, test_data, nn);
-
-    // Create and run appropriate encoder
-    if (use_reference) {
-        RS_ENCODER_REF encoder(tt);
-        ctx.decode_result = encoder.RSDecode(ctx.recd);
-    } else {
-        RS_ENCODER encoder(tt);
-        ctx.decode_result = encoder.RSDecode(ctx.recd);
-    }
-
-    return ctx;
-}
-
 GF data[MAX_KK];
 GF recd[nn];
 GF bb[2*MAX_TT];
 std::mt19937 rng;  // Mersenne Twister
 std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
 std::uniform_int_distribution<int> byte_dist(1, 255);
-
-void compare_implementations(int tt) {
-    // Prepare test data
-    GF test_data[nn];
-    prepare_test_data(test_data, tt);
-
-    printf("\nTesting Reference Implementation Internal Consistency:\n");
-
-    // Reference Implementation: RSDecode vs RSDecodeErasures
-    EncoderTestContext ref_decode = setup_and_run_encoder(tt, true, test_data);
-    EncoderTestContext ref_decode_eras = setup_and_run_encoder(tt, true, test_data); // TODO: Add erasures
-
-    bool results_match = RsVerification::compare_results(
-        ref_decode.results,
-        ref_decode_eras.results,
-        false
-    );
-
-    bool decode_match = (ref_decode.decode_result == ref_decode_eras.decode_result);
-
-    if (!results_match || !decode_match) {
-        printf("FAIL: Reference implementation RSDecode vs RSDecodeErasures mismatch\n");
-    } else {
-        printf("PASS: Reference implementation RSDecode matches RSDecodeErasures\n");
-    }
-
-    printf("\nTesting Original Implementation Internal Consistency:\n");
-
-    // Original Implementation: RSDecode vs RSDecodeErasures
-    EncoderTestContext orig_decode = setup_and_run_encoder(tt, false, test_data);
-    EncoderTestContext orig_decode_eras = setup_and_run_encoder(tt, false, test_data); // TODO: Add erasures
-
-    results_match = RsVerification::compare_results(
-        orig_decode.results,
-        orig_decode_eras.results,
-        false
-    );
-
-    decode_match = (orig_decode.decode_result == orig_decode_eras.decode_result);
-
-    if (!results_match || !decode_match) {
-        printf("FAIL: Original implementation RSDecode vs RSDecodeErasures mismatch\n");
-    } else {
-        printf("PASS: Original implementation RSDecode matches RSDecodeErasures\n");
-    }
-
-    // Compare reference vs original implementation
-    printf("\nComparing Reference vs Original Implementation:\n");
-    results_match = RsVerification::compare_results(
-        ref_decode.results,
-        orig_decode.results,
-        false
-    );
-    decode_match = (ref_decode.decode_result == orig_decode.decode_result);
-
-    if (!results_match || !decode_match) {
-        printf("FAIL: Reference implementation differs from original\n");
-    } else {
-        printf("PASS: Reference implementation matches original\n");
-    }
-}
 
 int main(int argc, char *argv[]) {
     try {
@@ -464,7 +351,11 @@ int main(int argc, char *argv[]) {
                 break;
 
             case TestMode::Comparison:
-                compare_implementations(tt);
+                {
+                    RsComparisonTest test(config);
+                    bool success = test.run();
+                    return success ? 0 : 1;
+                }
                 break;
 
             case TestMode::Unknown:
