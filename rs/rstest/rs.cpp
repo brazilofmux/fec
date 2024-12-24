@@ -341,12 +341,12 @@ void RS_ENCODER::RSEncodeGeneral(GF data[MAX_KK], GF bb[2*MAX_TT])
     for (int i = 0; i < kk; i++)
     {
         GF feedback = bb[0]^data[i];
-        GF *TableRow = table[feedback];
+        GF *TableRow = ptable+SYM_GEN_ENC_LEN*feedback;
         for (int j = 0; j < tt; j++)
         {
             bb[j] = bb[j+1]^TableRow[j];
         }
-        for (j = tt; j < 2*tt-1; j++)
+        for (int j = tt; j < 2*tt-1; j++)
         {
             bb[j] = bb[j+1]^TableRow[2*tt-j-2];
         }
@@ -358,12 +358,12 @@ void RS_ENCODER::RSEncodeGeneral(GF data[MAX_KK], GF bb[2*MAX_TT])
     for (int i = kk-1; i >= 0; i--)
     {
         GF feedback = bb[2*tt-1]^data[i];
-        GF *TableRow = table[feedback];
+        GF *TableRow = ptable+SYM_GEN_ENC_LEN*feedback;
         for (int j = 2*tt-1; j > tt; j--)
         {
             bb[j] = bb[j-1]^TableRow[2*tt-j-1];
         }
-        for (j = tt; j > 0; j--)
+        for (int j = tt; j > 0; j--)
         {
             bb[j] = bb[j-1]^TableRow[j-1];
         }
