@@ -187,21 +187,8 @@ void RS_ENCODER::RSGenTable(void)
 #ifdef SYMMETRICAL_ENCODE
     // Could be tt-1, but we may want a little bigger for alignment.
     //
-    ptable = new GF[256*SYM_GEN_ENC_LEN];
-#else
-    // Could be 2*tt-1, but we may want a little bigger for alignment.
-    //
-    ptable = new GF[256*SYM_GEN_LEN];
-#endif
-#else
-    // Could be 2*tt+1, but we may want a little bigger for alignment.
-    //
-    ptable = new GF[256*NON_SYM_LEN];
-#endif
-
-    // For every possible feedback
-    //
     int ch, iMod;
+    ptable = new GF[256*SYM_GEN_ENC_LEN];
     for (ch = 0; ch < 256; ch++)
     {
         int feedback = Poly2Pow[ch];
@@ -214,55 +201,84 @@ void RS_ENCODER::RSGenTable(void)
         // unique.
         //
         int j;
-#ifdef SYMMETRICAL_GENERATOR
-#ifdef SYMMETRICAL_ENCODE
         for (j = 0; j < tt; j++)
-#else
-        for (j = 0; j < 2*tt; j++)
-#endif
-#else
-        for (j = 0; j <= 2*tt; j++)
-#endif
-#ifdef SYMMETRICAL_GENERATOR
         {
             if (gg[j+1] != GF_INFINITY && feedback != GF_INFINITY)
             {
                 iMod = gg[j+1]+feedback;
                 MOD_NN(iMod);
-                // table[ch][j] = Pow2Poly[iMod];
-#ifdef SYMMETRICAL_ENCODE
                 ptable[ch*SYM_GEN_ENC_LEN+j] = Pow2Poly[iMod];
-#else
-                ptable[ch*SYM_GEN_LEN+j] = Pow2Poly[iMod];
-#endif
             }
             else
             {
-                //table[ch][j] = 0;
-#ifdef SYMMETRICAL_ENCODE
                 ptable[ch*SYM_GEN_ENC_LEN+j] = 0;
-#else
-                ptable[ch*SYM_GEN_LEN+j] = 0;
-#endif
             }
         }
+    }
 #else
+    // Could be 2*tt-1, but we may want a little bigger for alignment.
+    //
+    int ch, iMod;
+    ptable = new GF[256*SYM_GEN_LEN];
+    for (ch = 0; ch < 256; ch++)
+    {
+        int feedback = Poly2Pow[ch];
+        // For about half the terms in symmetrical gg[]. That is, for terms
+        // x^1, ..., x^tt. The coefficient for x^0 is always 1 for
+        // symmetrical gg, and coefficients x^(tt+1), ..., x^(2*tt-1) are
+        // equal to x^tt-1, ..., x^1, respectively. x^(2*tt) is always 1 even
+        // non-symmetrical gg[], and doesn't correspond to any of the taps of
+        // the feedback register, and so doesn't affect anything. x^tt is
+        // unique.
+        //
+        int j;
+        for (j = 0; j < 2*tt; j++)
+        {
+            if (gg[j+1] != GF_INFINITY && feedback != GF_INFINITY)
+            {
+                iMod = gg[j+1]+feedback;
+                MOD_NN(iMod);
+                ptable[ch*SYM_GEN_LEN+j] = Pow2Poly[iMod];
+            }
+            else
+            {
+                ptable[ch*SYM_GEN_LEN+j] = 0;
+            }
+        }
+    }
+#endif
+#else
+    // Could be 2*tt+1, but we may want a little bigger for alignment.
+    //
+    int ch, iMod;
+    ptable = new GF[256*NON_SYM_LEN];
+    for (ch = 0; ch < 256; ch++)
+    {
+        int feedback = Poly2Pow[ch];
+        // For about half the terms in symmetrical gg[]. That is, for terms
+        // x^1, ..., x^tt. The coefficient for x^0 is always 1 for
+        // symmetrical gg, and coefficients x^(tt+1), ..., x^(2*tt-1) are
+        // equal to x^tt-1, ..., x^1, respectively. x^(2*tt) is always 1 even
+        // non-symmetrical gg[], and doesn't correspond to any of the taps of
+        // the feedback register, and so doesn't affect anything. x^tt is
+        // unique.
+        //
+        int j;
+        for (j = 0; j <= 2*tt; j++)
         {
             if (gg[j] != GF_INFINITY && feedback != GF_INFINITY)
             {
                 iMod = gg[j]+feedback;
                 MOD_NN(iMod);
-                //table[ch][j] = Pow2Poly[iMod];
                 ptable[ch*NON_SYM_LEN+j] = Pow2Poly[iMod];
             }
             else
             {
-                //table[ch][j] = 0;
                 ptable[ch*NON_SYM_LEN+j] = 0;
             }
         }
-#endif
     }
+#endif
 }
 
 //
