@@ -5,6 +5,7 @@
 
 // Forward declarations of Karn's original functions
 extern "C" {
+#include "rskarn.h"
     void init_rs(void);
     void generate_gf(void);
     void gen_poly(void);

@@ -1,22 +1,36 @@
 CXX = g++
+CC = gcc
 CXXFLAGS = -O3 -finline-functions -Wall
+CFLAGS = -O3 -Wall
 
-SRCS = rstest.cpp rs.cpp rsref.cpp rs_common.cpp RsComparisonTest.cpp RsDecodingTest.cpp RsEncodingTest.cpp RsTestConfig.cpp RsVerification.cpp rskarn.c
-OBJS = $(SRCS:.cpp=.o)
+# Main test program
+CPP_SRCS = rstest.cpp rs.cpp rsref.cpp rs_common.cpp RsComparisonTest.cpp \
+           RsDecodingTest.cpp RsEncodingTest.cpp RsTestConfig.cpp RsVerification.cpp
+C_SRCS = rskarn.c
+OBJS = $(CPP_SRCS:.cpp=.o) $(C_SRCS:.c=.o)
 TARGET = rstest
+
+# Encoder comparison program
+ENCODER_CPP_SRCS = rs_common.cpp rs.cpp rsref.cpp compare_encoders.cpp RsVerification.cpp
+ENCODER_C_SRCS = rskarn.c
+ENCODER_OBJS = $(ENCODER_CPP_SRCS:.cpp=.o) $(ENCODER_C_SRCS:.c=.o)
+ENCODER_TEST = compare_encoders
 
 .PHONY: all clean
 
-all: $(TARGET)
+all: $(TARGET) $(ENCODER_TEST)
 
 $(TARGET): $(OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $(OBJS)
 
+$(ENCODER_TEST): $(ENCODER_OBJS)
+	$(CXX) $(CXXFLAGS) -o $@ $(ENCODER_OBJS)
+
 %.o: %.c
-	$(CC) $(CCFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -x c -c $< -o $@
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJS) $(TARGET)
+	rm -f $(OBJS) $(ENCODER_OBJS) $(TARGET) $(ENCODER_TEST)
