@@ -164,12 +164,9 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
             int iPow0 = iPowInit + Poly2Pow[symbol];
             MOD_NN(iPow0);
 
-            for (int i = 1; i <= 2*tt; i+=2) {
+            for (int i = 1; i <= 2*tt; i++) {
                 MOD_NN(iPow0);
                 syndromes[i] ^= Pow2Poly[iPow0];
-                iPow0 += j;
-                MOD_NN(iPow0);
-                syndromes[i+1] ^= Pow2Poly[iPow0];
                 iPow0 += j;
             }
         }
@@ -548,12 +545,10 @@ int RS_ENCODER_REF::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no
         if (RECD != 0) {
             int iPow0 = iPowInit + Poly2Pow[RECD];
             MOD_NN(iPow0);
-            for (int i = 1; i <= 2*tt; i+=2) {
+
+            for (int i = 1; i <= 2*tt; i++) {
                 MOD_NN(iPow0);
                 syndromes[i] ^= Pow2Poly[iPow0];
-                iPow0 += j;
-                MOD_NN(iPow0);
-                syndromes[i+1] ^= Pow2Poly[iPow0];
                 iPow0 += j;
             }
         }
