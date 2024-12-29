@@ -73,19 +73,11 @@ void RS_ENCODER_REF::RSGenPoly(void) {
     for (i = 0; i <= 2*tt; i++) {
         gg[i] = Poly2Pow[gg[i]];
     }
-
-    // After generator polynomial construction
-    std::cout << "Generator polynomial coefficients (RSREF):\n";
-    for (i = 0; i <= 2*tt; i++) {
-        std::cout << "g[" << i << "] = " << std::hex
-                  << "0x" << (int)gg[i]
-                  << " (poly form: 0x" << (int)Pow2Poly[gg[i]] << ")\n";
-    }
 }
 
 void RS_ENCODER_REF::RSEncode(GF data[MAX_KK], GF bb[2*MAX_TT]) {
     // Clear parity buffer
-    memset(bb, 0, 2*tt);
+    memset(bb, 0, 2 * tt);
 
     // Systematic encoder for RS codes
     // Input: data[0..kk-1] contains the message
@@ -95,32 +87,28 @@ void RS_ENCODER_REF::RSEncode(GF data[MAX_KK], GF bb[2*MAX_TT]) {
     // c(x) = m(x)*x^(n-k) + b(x)
     // where m(x) is the message polynomial and b(x) is the remainder when
     // m(x)*x^(n-k) is divided by g(x)
+    for (int i = kk - 1; i >= 0; i--) {
+        GF feedback = Poly2Pow[data[i] ^ bb[2 * tt - 1]];  // Get feedback using current data and parity
 
-    // For each message byte
-    for (int i = 0; i < kk; i++) {
-        // Calculate feedback using current first parity byte and input
-        GF feedback = bb[0] ^ data[i];
-
-        if (feedback != 0) {  // Skip multiply step if feedback is zero
-            // For each remaining parity byte position
-            for (int j = 0; j < 2*tt-1; j++) {
-                // Shift the register and multiply by generator coefficient
+        if (feedback != GF_INFINITY) {  // Non-zero feedback term
+            for (int j = 2 * tt - 1; j > 0; j--) {
                 if (gg[j] != GF_INFINITY) {
-                    int iMod = gg[j] + Poly2Pow[feedback];
-                    MOD_NN(iMod);
-                    bb[j] = bb[j+1] ^ Pow2Poly[iMod];
+                    int modVal = gg[j] + feedback;
+                    MOD_NN(modVal);
+                    bb[j] = bb[j - 1] ^ Pow2Poly[modVal];
                 } else {
-                    bb[j] = bb[j+1];
+                    bb[j] = bb[j - 1];
                 }
             }
-            // Last position gets just the feedback
-            bb[2*tt-1] = feedback;
-        } else {
-            // If feedback is zero, just shift the register
-            for (int j = 0; j < 2*tt-1; j++) {
-                bb[j] = bb[j+1];
+            // Update the first parity byte with gg[0] term
+            int modVal = gg[0] + feedback;
+            MOD_NN(modVal);
+            bb[0] = Pow2Poly[modVal];
+        } else {  // Zero feedback: Shift the parity bytes without XOR
+            for (int j = 2 * tt - 1; j > 0; j--) {
+                bb[j] = bb[j - 1];
             }
-            bb[2*tt-1] = 0;
+            bb[0] = 0;  // Clear the first parity byte
         }
     }
 }

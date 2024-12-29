@@ -25,12 +25,6 @@ static void RSGenField(void) {
             iPoly &= 0xFF;
         }
     }
-    for (i = 0 ; i < 256; i++)
-            printf("%02X,", Poly2Pow[i]);
-    printf("\n");
-    for (i = 0 ; i < 256; i++)
-            printf("%02X,", Pow2Poly[i]);
-    printf("\n");
 }
 
 static bool initialized = false;
