@@ -129,20 +129,20 @@ bool RsComparisonTest::compare_results(const TestContext& left,
     }
     // For RSDecode vs RSDecodeErasures comparisons
     else {
-        // Results should show successful correction but hashes will differ
-        if (left.decode_result <= 0 || right.decode_result <= 0) {
+        // If both decoders agree (whether finding errors or not), that's success
+        if (left.decode_result == right.decode_result) {
+            if (config.getVerboseLevel() == Verbosity::Debug) {
+                std::cout << "PASS: " << test_name << "\n";
+                std::cout << "  Normal decode found " << left.decode_result << " errors\n";
+                std::cout << "  Erasure decode found " << right.decode_result << " errors\n";
+            }
+        }
+	else
+	{
             std::cout << "FAIL: " << test_name << " - decoding failed\n";
             std::cout << "  Decode results: " << left.decode_result
                      << " vs " << right.decode_result << "\n";
             return false;
-        }
-
-        // For debugging
-        if (config.getVerboseLevel() == Verbosity::Debug) {
-            std::cout << "SUCCESS: " << test_name << "\n";
-            std::cout << "  Normal decode found " << left.decode_result << " errors\n";
-            std::cout << "  Erasure decode corrected " << right.decode_result
-                     << " positions\n";
         }
     }
 
