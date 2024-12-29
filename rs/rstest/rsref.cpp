@@ -600,7 +600,7 @@ int RS_ENCODER_REF::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no
         while (++r <= 2*tt) {  // r is the step number
             // Compute discrepancy at the r-th step in poly-form
             GF discr_r = 0;
-            for (int i = 0; i < 2*tt+1; i++) {
+            for (int i = 0; i < r; i++) {
                 if ((lambda[i] != 0) && (syndromes[r-i] != GF_INFINITY)) {
                     int iMod = Poly2Pow[lambda[i]] + syndromes[r-i];
                     MOD_NN(iMod);

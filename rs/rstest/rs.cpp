@@ -1497,7 +1497,7 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
             /* r is the step number */
             /* Compute discrepancy at the r-th step in poly-form */
             discr_r = 0;
-            for (i=0;i < 2*tt+1;i++)
+            for (i = 0; i < r; i++)
             {
                 if ((lambda[i] != 0) && (s[r-i] != GF_INFINITY))
                 {
