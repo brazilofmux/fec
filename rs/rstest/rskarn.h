@@ -13,8 +13,6 @@
  * each error counting as two erasures.
  */
 #define MM  8		/* RS code over GF(2**MM) - change to suit */
-#define KK  253		/* KK = number of information symbols */
-
 #define	NN ((1 << MM) - 1)
 
 #if (MM <= 8)
@@ -24,21 +22,21 @@ typedef unsigned int dtype;
 #endif
 
 /* Initialization function */
-void init_rs(void);
+void init_rs(int tt);
 
 /* These two functions *must* be called in this order (e.g.,
  * by init_rs()) before any encoding/decoding
  */
 
 void generate_gf(void);	/* Generate Galois Field */
-void gen_poly(void);	/* Generate generator polynomial */
+void gen_poly(int tt);	/* Generate generator polynomial */
 
 /* Reed-Solomon encoding
  * data[] is the input block, parity symbols are placed in bb[]
  * bb[] may lie past the end of the data, e.g., for (255,223):
  *	encode_rs(&data[0],&data[223]);
  */
-int encode_rs(dtype data[], dtype bb[]);
+int encode_rs(dtype data[], dtype bb[], int tt);
 
 /* Reed-Solomon erasures-and-errors decoding
  * The received block goes into data[], and a list of zero-origin
@@ -48,4 +46,4 @@ int encode_rs(dtype data[], dtype bb[]);
  * the number of corrected symbols. If the codeword is illegal or
  * uncorrectible, the data array is unchanged and -1 is returned
  */
-int eras_dec_rs(dtype data[], int eras_pos[], int no_eras);
+int eras_dec_rs(dtype data[], int eras_pos[], int no_eras, int tt);

@@ -103,9 +103,6 @@ int Pp[MM+1] = { 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1 };
 #error "MM must be in range 2-16"
 #endif
 
-/* Alpha exponent for the first root of the generator polynomial */
-#define B0	127
-
 /* index->polynomial form conversion table */
 gf Alpha_to[NN + 1];
 
@@ -121,7 +118,8 @@ gf Index_of[NN + 1];
  * Degree of g(x) = 2*TT
  * has roots @**B0, @**(B0+1), ... ,@^(B0+2*TT-1)
  */
-gf Gg[NN - KK + 1];
+#define MAX_TT 64
+gf Gg[2*MAX_TT+1];
 
 /* Compute x % NN, where NN is 2**MM - 1,
  * without a slow divide
@@ -155,10 +153,10 @@ modnn(int x)
 		(a)[ci] = (b)[ci];\
 	}
 
-void init_rs(void)
+void init_rs(int tt)
 {
 	generate_gf();
-	gen_poly();
+	gen_poly(tt);
 }
 
 /* generate GF(2**m) from the irreducible polynomial p(X) in p[0]..p[m]
@@ -246,13 +244,16 @@ generate_gf(void)
  * g(x) = (x+1) (x+@) (x+@**2) (x+@**3)
  */
 void
-gen_poly(void)
+gen_poly(int tt)
 {
+	CLEAR(Gg, 2*MAX_TT+1);
 	int i, j;
 
-	Gg[0] = Alpha_to[B0];
+        int kk = NN - 2*tt;
+        int b0 = (kk+1)/2;
+	Gg[0] = Alpha_to[b0];
 	Gg[1] = 1;		/* g(x) = (X+@**B0) initially */
-	for (i = 2; i <= NN - KK; i++) {
+	for (i = 2; i <= 2*tt; i++) {
 		Gg[i] = 1;
 		/*
 		 * Below multiply (Gg[0]+Gg[1]*x + ... +Gg[i]x^i) by
@@ -260,19 +261,19 @@ gen_poly(void)
 		 */
 		for (j = i - 1; j > 0; j--)
 			if (Gg[j] != 0)
-				Gg[j] = Gg[j - 1] ^ Alpha_to[modnn((Index_of[Gg[j]]) + B0 + i - 1)];
+				Gg[j] = Gg[j - 1] ^ Alpha_to[modnn((Index_of[Gg[j]]) + b0 + i - 1)];
 			else
 				Gg[j] = Gg[j - 1];
 		/* Gg[0] can never be zero */
-		Gg[0] = Alpha_to[modnn((Index_of[Gg[0]]) + B0 + i - 1)];
+		Gg[0] = Alpha_to[modnn((Index_of[Gg[0]]) + b0 + i - 1)];
 	}
 	/* convert Gg[] to index form for quicker encoding */
-	for (i = 0; i <= NN - KK; i++)
+	for (i = 0; i <= 2*tt; i++)
 		Gg[i] = Index_of[Gg[i]];
 
     // After generator polynomial construction
-    printf("Generator polynomial coefficients (RSKARN) (%d,%d):\n", NN, KK);
-    for (i = 0; i <= NN - KK; i++) {
+    printf("Generator polynomial coefficients (RSKARN) (%d,%d):\n", NN, NN-2*tt);
+    for (i = 0; i <= 2*tt; i++) {
 	printf("Gg[%d] = 0x%02X (poly form: 0x%02X)\n", i, Gg[i], Alpha_to[Gg[i]]);
     }
 }
@@ -287,20 +288,21 @@ gen_poly(void)
  * data(X)*X**(NN-KK)+ b(X)
  */
 int
-encode_rs(dtype data[KK], dtype bb[NN-KK])
+encode_rs(dtype data[], dtype bb[], int tt)
 {
+	int kk = NN - 2*tt;
 	int i, j;
 	gf feedback;
 
-	CLEAR(bb,NN-KK);
-	for (i = KK - 1; i >= 0; i--) {
+	CLEAR(bb,2*tt);
+	for (i = kk - 1; i >= 0; i--) {
 #if (MM != 8)
 		if(data[i] > NN)
 			return -1;	/* Illegal symbol */
 #endif
-		feedback = Index_of[data[i] ^ bb[NN - KK - 1]];
+		feedback = Index_of[data[i] ^ bb[2*tt - 1]];
 		if (feedback != A0) {	/* feedback term is non-zero */
-			for (j = NN - KK - 1; j > 0; j--)
+			for (j = 2*tt - 1; j > 0; j--)
 				if (Gg[j] != A0)
 					bb[j] = bb[j - 1] ^ Alpha_to[modnn(Gg[j] + feedback)];
 				else
@@ -308,7 +310,7 @@ encode_rs(dtype data[KK], dtype bb[NN-KK])
 			bb[0] = Alpha_to[modnn(Gg[0] + feedback)];
 		} else {	/* feedback term is zero. encoder becomes a
 				 * single-byte shifter */
-			for (j = NN - KK - 1; j > 0; j--)
+			for (j = 2*tt - 1; j > 0; j--)
 				bb[j] = bb[j - 1];
 			bb[0] = 0;
 		}
@@ -330,16 +332,18 @@ encode_rs(dtype data[KK], dtype bb[NN-KK])
  * in R. Blahut's "Theory ... of Error-Correcting Codes".
  */
 int
-eras_dec_rs(dtype data[NN], int eras_pos[NN-KK], int no_eras)
+eras_dec_rs(dtype data[], int eras_pos[], int no_eras, int tt)
 {
+        int kk = NN - 2*tt;
+        int b0 = (kk+1)/2;
 	int deg_lambda, el, deg_omega;
 	int i, j, r;
 	gf u,q,tmp,num1,num2,den,discr_r;
 	gf recd[NN];
-	gf lambda[NN-KK + 1], s[NN-KK + 1];	/* Err+Eras Locator poly
+	gf lambda[2*tt + 1], s[2*tt + 1];	/* Err+Eras Locator poly
 						 * and syndrome poly */
-	gf b[NN-KK + 1], t[NN-KK + 1], omega[NN-KK + 1];
-	gf root[NN-KK], reg[NN-KK + 1], loc[NN-KK];
+	gf b[2*tt + 1], t[2*tt + 1], omega[2*tt + 1];
+	gf root[2*tt], reg[2*tt + 1], loc[2*tt];
 	int syn_error, count;
 
 	/* data[] is in polynomial form, copy and convert to index form */
@@ -354,11 +358,11 @@ eras_dec_rs(dtype data[NN], int eras_pos[NN-KK], int no_eras)
 	 * namely @**(B0+i), i = 0, ... ,(NN-KK-1)
 	 */
 	syn_error = 0;
-	for (i = 1; i <= NN-KK; i++) {
+	for (i = 1; i <= 2*tt; i++) {
 		tmp = 0;
 		for (j = 0; j < NN; j++)
 			if (recd[j] != A0)	/* recd[j] in index form */
-				tmp ^= Alpha_to[modnn(recd[j] + (B0+i-1)*j)];
+				tmp ^= Alpha_to[modnn(recd[j] + (b0+i-1)*j)];
 		syn_error |= tmp;	/* set flag if non-zero syndrome =>
 					 * error */
 		/* store syndrome in index form  */
@@ -371,7 +375,7 @@ eras_dec_rs(dtype data[NN], int eras_pos[NN-KK], int no_eras)
 		 */
 		return 0;
 	}
-	CLEAR(&lambda[1],NN-KK);
+	CLEAR(&lambda[1],2*tt);
 	lambda[0] = 1;
 	if (no_eras > 0) {
 		/* Init lambda to be the erasure locator polynomial */
@@ -417,7 +421,7 @@ eras_dec_rs(dtype data[NN], int eras_pos[NN-KK], int no_eras)
 #endif
 #endif
 	}
-	for(i=0;i<NN-KK+1;i++)
+	for(i=0;i<2*tt+1;i++)
 		b[i] = Index_of[lambda[i]];
 
 	/*
@@ -426,7 +430,7 @@ eras_dec_rs(dtype data[NN], int eras_pos[NN-KK], int no_eras)
 	 */
 	r = no_eras;
 	el = no_eras;
-	while (++r <= NN-KK) {	/* r is the step number */
+	while (++r <= 2*tt) {	/* r is the step number */
 		/* Compute discrepancy at the r-th step in poly-form */
 		discr_r = 0;
 		for (i = 0; i < r; i++){
@@ -437,12 +441,12 @@ eras_dec_rs(dtype data[NN], int eras_pos[NN-KK], int no_eras)
 		discr_r = Index_of[discr_r];	/* Index form */
 		if (discr_r == A0) {
 			/* 2 lines below: B(x) <-- x*B(x) */
-			COPYDOWN(&b[1],b,NN-KK);
+			COPYDOWN(&b[1],b,2*tt);
 			b[0] = A0;
 		} else {
 			/* 7 lines below: T(x) <-- lambda(x) - discr_r*x*b(x) */
 			t[0] = lambda[0];
-			for (i = 0 ; i < NN-KK; i++) {
+			for (i = 0 ; i < 2*tt; i++) {
 				if(b[i] != A0)
 					t[i+1] = lambda[i+1] ^ Alpha_to[modnn(discr_r + b[i])];
 				else
@@ -454,20 +458,20 @@ eras_dec_rs(dtype data[NN], int eras_pos[NN-KK], int no_eras)
 				 * 2 lines below: B(x) <-- inv(discr_r) *
 				 * lambda(x)
 				 */
-				for (i = 0; i <= NN-KK; i++)
+				for (i = 0; i <= 2*tt; i++)
 					b[i] = (lambda[i] == 0) ? A0 : modnn(Index_of[lambda[i]] - discr_r + NN);
 			} else {
 				/* 2 lines below: B(x) <-- x*B(x) */
-				COPYDOWN(&b[1],b,NN-KK);
+				COPYDOWN(&b[1],b,2*tt);
 				b[0] = A0;
 			}
-			COPY(lambda,t,NN-KK+1);
+			COPY(lambda,t,2*tt+1);
 		}
 	}
 
 	/* Convert lambda to index form and compute deg(lambda(x)) */
 	deg_lambda = 0;
-	for(i=0;i<NN-KK+1;i++){
+	for(i=0;i<2*tt+1;i++){
 		lambda[i] = Index_of[lambda[i]];
 		if(lambda[i] != A0)
 			deg_lambda = i;
@@ -476,7 +480,7 @@ eras_dec_rs(dtype data[NN], int eras_pos[NN-KK], int no_eras)
 	 * Find roots of the error+erasure locator polynomial. By Chien
 	 * Search
 	 */
-	COPY(&reg[1],&lambda[1],NN-KK);
+	COPY(&reg[1],&lambda[1],2*tt);
 	count = 0;		/* Number of roots of lambda(x) */
 	for (i = 1; i <= NN; i++) {
 		q = 1;
@@ -511,7 +515,7 @@ eras_dec_rs(dtype data[NN], int eras_pos[NN-KK], int no_eras)
 	 * x**(NN-KK)). in index form. Also find deg(omega).
 	 */
 	deg_omega = 0;
-	for (i = 0; i < NN-KK;i++){
+	for (i = 0; i < 2*tt;i++){
 		tmp = 0;
 		j = (deg_lambda < i) ? deg_lambda : i;
 		for(;j >= 0; j--){
@@ -522,7 +526,7 @@ eras_dec_rs(dtype data[NN], int eras_pos[NN-KK], int no_eras)
 			deg_omega = i;
 		omega[i] = Index_of[tmp];
 	}
-	omega[NN-KK] = A0;
+	omega[2*tt] = A0;
 
 	/*
 	 * Compute error values in poly-form. num1 = omega(inv(X(l))), num2 =
@@ -534,11 +538,11 @@ eras_dec_rs(dtype data[NN], int eras_pos[NN-KK], int no_eras)
 			if (omega[i] != A0)
 				num1  ^= Alpha_to[modnn(omega[i] + i * root[j])];
 		}
-		num2 = Alpha_to[modnn(root[j] * (B0 - 1) + NN)];
+		num2 = Alpha_to[modnn(root[j] * (b0 - 1) + NN)];
 		den = 0;
 
 		/* lambda[i+1] for i even is the formal derivative lambda_pr of lambda[i] */
-		for (i = min(deg_lambda,NN-KK-1) & ~1; i >= 0; i -=2) {
+		for (i = min(deg_lambda,2*tt-1) & ~1; i >= 0; i -=2) {
 			if(lambda[i+1] != A0)
 				den ^= Alpha_to[modnn(lambda[i+1] + i * root[j])];
 		}
