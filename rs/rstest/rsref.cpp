@@ -1,13 +1,16 @@
 #include <string.h>
 #include <stdio.h>
+#include <iostream>
 #include "rs.h"
 #include "rsref.h"
 #include "RsVerification.h"
 
 // Simple helper function for Galois Field modulo operations
 static inline void MOD_NN(int& x) {
-    while (x < 0) x += nn;
-    x = x % nn;
+    while (x >= nn) {
+        x -= nn;
+        x = (x >> 8) + (x & nn);
+    }
 }
 
 void RS_ENCODER_REF::Init(void) {
@@ -69,6 +72,14 @@ void RS_ENCODER_REF::RSGenPoly(void) {
     // Convert generator polynomial coefficients to power form for encoding
     for (i = 0; i <= 2*tt; i++) {
         gg[i] = Poly2Pow[gg[i]];
+    }
+
+    // After generator polynomial construction
+    std::cout << "Generator polynomial coefficients (RSREF):\n";
+    for (i = 0; i <= 2*tt; i++) {
+        std::cout << "g[" << i << "] = " << std::hex
+                  << "0x" << (int)gg[i]
+                  << " (poly form: 0x" << (int)Pow2Poly[gg[i]] << ")\n";
     }
 }
 

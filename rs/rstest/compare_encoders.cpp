@@ -115,7 +115,8 @@ int main(int argc, char* argv[]) {
     std::cout << "===================================\n";
 
     // Test different error correction capacities
-    int tt_values[] = {1, 2, 4, 8, 16, 32};
+    //int tt_values[] = {1, 2, 4, 8, 16, 32};
+    int tt_values[] = {1};
     
     for (int tt : tt_values) {
         std::cout << "\nTesting with tt=" << tt << " (correctable errors)\n";

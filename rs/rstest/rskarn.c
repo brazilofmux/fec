@@ -104,7 +104,7 @@ int Pp[MM+1] = { 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1 };
 #endif
 
 /* Alpha exponent for the first root of the generator polynomial */
-#define B0	1
+#define B0	127
 
 /* index->polynomial form conversion table */
 gf Alpha_to[NN + 1];
@@ -223,6 +223,12 @@ generate_gf(void)
 	}
 	Index_of[0] = A0;
 	Alpha_to[NN] = 0;
+	for (i = 0 ; i < 256; i++)
+		printf("%02X,", Index_of[i]);
+	printf("\n");
+	for (i = 0 ; i < 256; i++)
+		printf("%02X,", Alpha_to[i]);
+	printf("\n");
 }
 
 
@@ -263,6 +269,12 @@ gen_poly(void)
 	/* convert Gg[] to index form for quicker encoding */
 	for (i = 0; i <= NN - KK; i++)
 		Gg[i] = Index_of[Gg[i]];
+
+    // After generator polynomial construction
+    printf("Generator polynomial coefficients (RSKARN) (%d,%d):\n", NN, KK);
+    for (i = 0; i <= NN - KK; i++) {
+	printf("Gg[%d] = 0x%02X (poly form: 0x%02X)\n", i, Gg[i], Alpha_to[Gg[i]]);
+    }
 }
 
 

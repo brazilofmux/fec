@@ -73,6 +73,7 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <cstdio>
+#include <iostream>
 #include "projdefs.h"
 #include "rs.h"
 #include "RsVerification.h"
@@ -174,6 +175,14 @@ void RS_ENCODER::RSGenPoly(void)
     for (i = 0; i <= 2*tt; i++)
     {
         gg[i] = Poly2Pow[gg[i]];
+    }
+
+    // After generator polynomial construction
+    std::cout << "Generator polynomial coefficients (RS):\n";
+    for (i = 0; i <= 2*tt; i++) {
+        std::cout << "g[" << i << "] = " << std::hex
+                  << "0x" << (int)gg[i]
+                  << " (poly form: 0x" << (int)Pow2Poly[gg[i]] << ")\n";
     }
 }
 

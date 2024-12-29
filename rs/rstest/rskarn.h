@@ -13,7 +13,7 @@
  * each error counting as two erasures.
  */
 #define MM  8		/* RS code over GF(2**MM) - change to suit */
-#define KK  223		/* KK = number of information symbols */
+#define KK  253		/* KK = number of information symbols */
 
 #define	NN ((1 << MM) - 1)
 
