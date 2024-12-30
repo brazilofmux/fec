@@ -3,8 +3,15 @@
 
 #include "rs.h"
 #include "rsref.h"
+#include "rskarn_wrapper.h"
 #include "RsTestConfig.h"
 #include "RsVerification.h"
+
+enum class Implementation {
+    Original,
+    Reference,
+    Karn
+};
 
 class RsComparisonTest {
 public:
@@ -25,7 +32,7 @@ private:
     GF test_data[nn];
 
     void prepare_test_data();
-    TestContext run_encoder(bool use_reference, bool use_erasures = false) const;
+    TestContext run_encoder(Implementation impl, bool use_erasures) const;
     bool compare_results(const TestContext& left, const TestContext& right,
                         const char* test_name) const;
 

@@ -31,7 +31,7 @@ void RsComparisonTest::prepare_test_data() {
     }
 }
 
-RsComparisonTest::TestContext RsComparisonTest::run_encoder(bool use_reference, bool use_erasures) const {
+RsComparisonTest::TestContext RsComparisonTest::run_encoder(Implementation impl, bool use_erasures) const {
     TestContext ctx;
 
     // Initialize verification framework with debug enabled
@@ -63,45 +63,75 @@ RsComparisonTest::TestContext RsComparisonTest::run_encoder(bool use_reference, 
     ctx.results.clear();
     RsVerification::setResults(&ctx.results);
 
-    // Run appropriate encoder version
-    if (use_reference) {
-        std::cout << "\nUsing reference implementation with "
-                  << (use_erasures ? "erasures" : "normal decoding") << "\n";
-        RS_ENCODER_REF encoder(tt);
-        if (use_erasures) {
-            std::cout << "Before RSDecodeErasures, hash: ";
-            RsVerification::verify_received_word(ctx.recd, nn);
-            std::cout << "0x" << std::hex << ctx.results.received_word_hash << std::dec << "\n";
+    switch(impl) {
+        case Implementation::Original:
+            {
+                std::cout << "\nUsing original implementation with "
+                          << (use_erasures ? "erasures" : "normal decoding") << "\n";
+                RS_ENCODER encoder(tt);
+                if (use_erasures) {
+                    std::cout << "Before RSDecodeErasures, hash: ";
+                    RsVerification::verify_received_word(ctx.recd, nn);
+                    std::cout << "0x" << std::hex << ctx.results.received_word_hash << std::dec << "\n";
 
-            ctx.decode_result = encoder.RSDecodeErasures(ctx.recd, ctx.eras_pos, ctx.no_eras);
+                    ctx.decode_result = encoder.RSDecodeErasures(ctx.recd,
+                        ctx.eras_pos, ctx.no_eras);
 
-            std::cout << "After RSDecodeErasures, hash: ";
-            RsVerification::verify_received_word(ctx.recd, nn);
-            std::cout << "0x" << std::hex << ctx.results.received_word_hash << std::dec << "\n";
-            std::cout << "Decode result: " << ctx.decode_result << "\n";
-        } else {
-            ctx.decode_result = encoder.RSDecode(ctx.recd);
-        }
-    } else {
-        std::cout << "\nUsing original implementation with "
-                  << (use_erasures ? "erasures" : "normal decoding") << "\n";
-        RS_ENCODER encoder(tt);
-        if (use_erasures) {
-            std::cout << "Before RSDecodeErasures, hash: ";
-            RsVerification::verify_received_word(ctx.recd, nn);
-            std::cout << "0x" << std::hex << ctx.results.received_word_hash << std::dec << "\n";
+                    std::cout << "After RSDecodeErasures, hash: ";
+                    RsVerification::verify_received_word(ctx.recd, nn);
+                    std::cout << "0x" << std::hex << ctx.results.received_word_hash << std::dec << "\n";
+                    std::cout << "Decode result: " << ctx.decode_result << "\n";
+                } else {
+                    ctx.decode_result = encoder.RSDecode(ctx.recd);
+                }
+            }
+            break;
 
-            ctx.decode_result = encoder.RSDecodeErasures(ctx.recd, ctx.eras_pos, ctx.no_eras);
+        case Implementation::Reference:
+	    {
+                std::cout << "\nUsing reference implementation with "
+                          << (use_erasures ? "erasures" : "normal decoding") << "\n";
+                RS_ENCODER_REF encoder(tt);
+                if (use_erasures) {
+                    std::cout << "Before RSDecodeErasures, hash: ";
+                    RsVerification::verify_received_word(ctx.recd, nn);
+                    std::cout << "0x" << std::hex << ctx.results.received_word_hash << std::dec << "\n";
 
-            std::cout << "After RSDecodeErasures, hash: ";
-            RsVerification::verify_received_word(ctx.recd, nn);
-            std::cout << "0x" << std::hex << ctx.results.received_word_hash << std::dec << "\n";
-            std::cout << "Decode result: " << ctx.decode_result << "\n";
-        } else {
-            ctx.decode_result = encoder.RSDecode(ctx.recd);
-        }
+                    ctx.decode_result = encoder.RSDecodeErasures(ctx.recd, ctx.eras_pos, ctx.no_eras);
+
+                    std::cout << "After RSDecodeErasures, hash: ";
+                    RsVerification::verify_received_word(ctx.recd, nn);
+                    std::cout << "0x" << std::hex << ctx.results.received_word_hash << std::dec << "\n";
+                    std::cout << "Decode result: " << ctx.decode_result << "\n";
+                } else {
+                    ctx.decode_result = encoder.RSDecode(ctx.recd);
+                }
+            }
+            break;
+
+        case Implementation::Karn:
+            {
+                std::cout << "\nUsing Karn implementation with "
+                          << (use_erasures ? "erasures" : "normal decoding") << "\n";
+                RS_ENCODER_KARN karn(tt);
+                if (use_erasures) {
+                    std::cout << "Before RSDecodeErasures, hash: ";
+                    RsVerification::verify_received_word(ctx.recd, nn);
+                    std::cout << "0x" << std::hex << ctx.results.received_word_hash << std::dec << "\n";
+
+                    ctx.decode_result = karn.RSDecodeErasures(ctx.recd,
+                        ctx.eras_pos, ctx.no_eras);
+
+                    std::cout << "After RSDecodeErasures, hash: ";
+                    RsVerification::verify_received_word(ctx.recd, nn);
+                    std::cout << "0x" << std::hex << ctx.results.received_word_hash << std::dec << "\n";
+                    std::cout << "Decode result: " << ctx.decode_result << "\n";
+                } else {
+                    ctx.decode_result = karn.RSDecode(ctx.recd);
+                }
+            }
+            break;
     }
-
     return ctx;
 }
 
@@ -153,8 +183,8 @@ bool RsComparisonTest::compare_results(const TestContext& left,
 bool RsComparisonTest::test_reference_implementation() const {
     std::cout << "\nTesting Reference Implementation Internal Consistency:\n";
 
-    TestContext ref_decode = run_encoder(true, false);
-    TestContext ref_decode_eras = run_encoder(true, true);
+    TestContext ref_decode = run_encoder(Implementation::Reference, false);
+    TestContext ref_decode_eras = run_encoder(Implementation::Reference, true);
 
     return compare_results(ref_decode, ref_decode_eras,
                          "Reference implementation RSDecode vs RSDecodeErasures");
@@ -163,21 +193,39 @@ bool RsComparisonTest::test_reference_implementation() const {
 bool RsComparisonTest::test_original_implementation() const {
     std::cout << "\nTesting Original Implementation Internal Consistency:\n";
 
-    TestContext orig_decode = run_encoder(false, false);
-    TestContext orig_decode_eras = run_encoder(false, true);
+    TestContext orig_decode = run_encoder(Implementation::Original, false);
+    TestContext orig_decode_eras = run_encoder(Implementation::Original, true);
 
     return compare_results(orig_decode, orig_decode_eras,
                          "Original implementation RSDecode vs RSDecodeErasures");
 }
 
 bool RsComparisonTest::test_implementations_match() const {
-    std::cout << "\nComparing Reference vs Original Implementation:\n";
+    std::cout << "\nComparing All Decoder Implementations:\n";
 
-    TestContext ref_decode = run_encoder(true, false);
-    TestContext orig_decode = run_encoder(false, false);
+    // Test normal decoding across all implementations
+    TestContext ref_decode = run_encoder(Implementation::Reference, false);
+    TestContext orig_decode = run_encoder(Implementation::Original, false);
+    TestContext karn_decode = run_encoder(Implementation::Karn, false);
 
-    return compare_results(ref_decode, orig_decode,
-                         "Reference implementation vs original");
+    bool success = true;
+
+    // Keep existing comparisons
+    success &= compare_results(ref_decode, orig_decode,
+                             "Reference vs Original normal decode");
+
+    // Add Karn comparisons
+    success &= compare_results(karn_decode, orig_decode,
+                             "Karn vs Original normal decode");
+    success &= compare_results(karn_decode, ref_decode,
+                             "Karn vs Reference normal decode");
+
+    // Add erasure testing for Karn
+    TestContext karn_decode_eras = run_encoder(Implementation::Karn, true);
+    success &= compare_results(karn_decode, karn_decode_eras,
+                             "Karn normal vs erasure decode");
+
+    return success;
 }
 
 bool RsComparisonTest::test_encoding_matches() const {
@@ -195,13 +243,8 @@ RsComparisonTest::EncodingTestContext RsComparisonTest::run_encoder_test(bool us
     // Initialize test data
     const int kk = nn - 2*tt;
     std::cout << "\n" << (use_reference ? "Reference" : "Original") << " implementation:\n";
-    std::cout << "Input data bytes:\n";
     for (int i = 0; i < kk; i++) {
         ctx.data[i] = i & 0xFF;  // Simple test pattern
-        if (i < 16) { // Show first few bytes
-            std::cout << "data[" << i << "]=0x" << std::hex << (int)ctx.data[i] << std::dec << " ";
-            if ((i + 1) % 8 == 0) std::cout << "\n";
-        }
     }
     std::cout << "\n";
 
@@ -211,31 +254,11 @@ RsComparisonTest::EncodingTestContext RsComparisonTest::run_encoder_test(bool us
     // Show generator polynomial
     if (use_reference) {
         RS_ENCODER_REF encoder(tt);
-        std::cout << "Generator polynomial coefficients:\n";
-        for (int i = 0; i <= 2*tt; i++) {
-            std::cout << "g[" << i << "]=0x" << std::hex << (int)encoder.gg[i] << std::dec << " ";
-            if ((i + 1) % 8 == 0) std::cout << "\n";
-        }
-        std::cout << "\n";
         encoder.RSEncode(ctx.data, ctx.bb);
     } else {
         RS_ENCODER encoder(tt);
-        std::cout << "Generator polynomial coefficients:\n";
-        for (int i = 0; i <= 2*tt; i++) {
-            std::cout << "g[" << i << "]=0x" << std::hex << (int)encoder.gg[i] << std::dec << " ";
-            if ((i + 1) % 8 == 0) std::cout << "\n";
-        }
-        std::cout << "\n";
         encoder.RSEncode(ctx.data, ctx.bb);
     }
-
-    // Show resulting parity bytes
-    std::cout << "Generated parity bytes:\n";
-    for (int i = 0; i < 2*tt; i++) {
-        std::cout << "bb[" << i << "]=0x" << std::hex << (int)ctx.bb[i] << std::dec << " ";
-        if ((i + 1) % 8 == 0) std::cout << "\n";
-    }
-    std::cout << "\n";
 
     return ctx;
 }
