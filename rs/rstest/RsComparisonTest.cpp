@@ -303,13 +303,13 @@ bool RsComparisonTest::test_implementations_match() {
     bool success = true;
 
     // Compare Reference vs Original
-    success &= run_erasure_decoder_comparison(Implementation::Reference, Implementation::Original);
+    success &= run_decoder_comparison(Implementation::Reference, Implementation::Original);
 
     // Compare Karn vs Original
-    success &= run_erasure_decoder_comparison(Implementation::Karn, Implementation::Original);
+    success &= run_decoder_comparison(Implementation::Karn, Implementation::Original);
 
     // Compare Karn vs Reference
-    success &= run_erasure_decoder_comparison(Implementation::Karn, Implementation::Reference);
+    success &= run_decoder_comparison(Implementation::Karn, Implementation::Reference);
 
     // Test Karn's internal consistency
     success &= run_erasure_decoder_comparison(Implementation::Karn, Implementation::Karn);

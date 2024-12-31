@@ -9,8 +9,6 @@
 
 class RS_ENCODER_REF {
 public:
-    static void Init(void);
-
     // Core interface
     RS_ENCODER_REF(int CorrectableErrors);
     ~RS_ENCODER_REF(void);
@@ -20,17 +18,13 @@ public:
     int RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_eras);
 
 private:
-    static bool bInitialized;
-
     // Core algorithms
     static void RSGenField(void);
     void RSGenPoly(void);
 
     // Generator polynomial parameters
     int b0;             // g(x) has roots @^b0, @^(b0+1), ... ,@^(b0+2*tt-1)
-public:
     GF gg[2*MAX_TT+1]; // Generator polynomial coefficients
-private:
     int tt;            // Number of errors that can be corrected
     int kk;            // Number of data symbols per codeword
 };

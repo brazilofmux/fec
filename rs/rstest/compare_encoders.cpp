@@ -109,7 +109,6 @@ int main(int argc, char* argv[]) {
     // Initialize all implementations
     RS_Init();  // Common initialization
     RS_ENCODER::Init();
-    RS_ENCODER_KARN::Init();
     
     std::cout << "Reed-Solomon Encoder Comparison Test\n";
     std::cout << "===================================\n";

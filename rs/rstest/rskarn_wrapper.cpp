@@ -1,8 +1,5 @@
 #include "rskarn_wrapper.h"
 
-// Move static member definition here
-bool RS_ENCODER_KARN::initialized = false;
-
 // Stub implementations that just call Karn's original function
 int RS_ENCODER_KARN::calculate_syndromes(GF recd[nn], rs_decoder_state& state) {
     // For now, just call the full decoder and return its result

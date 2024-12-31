@@ -16,12 +16,6 @@
 
 class RS_ENCODER_KARN {
 public:
-    static void Init() {
-        if (!initialized) {
-            initialized = true;
-        }
-    }
-
     RS_ENCODER_KARN(int CorrectableErrors) : tt(CorrectableErrors) {
         // Verify parameters match Karn's implementation
         static_assert(n == (1 << MM), "Symbol field size mismatch");
@@ -92,7 +86,6 @@ private:
     int forney_algorithm(GF recd[nn], rs_decoder_state& state);
     int calculate_phi(int eras_pos[2*MAX_TT], int no_eras, rs_decoder_state& state);
 
-    static bool initialized;
     int tt;  // Number of correctable errors
 };
 

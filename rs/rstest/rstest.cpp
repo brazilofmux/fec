@@ -160,7 +160,6 @@ int main(int argc, char *argv[]) {
 
         RS_Init();
         RS_ENCODER::Init();
-        RS_ENCODER_REF::Init();
 
         // Initialize verification framework
         RsVerification::init(config.getVerboseLevel() == Verbosity::Debug);

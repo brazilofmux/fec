@@ -13,12 +13,6 @@ static inline void MOD_NN(int& x) {
     }
 }
 
-void RS_ENCODER_REF::Init(void) {
-    if (!bInitialized) {
-        bInitialized = true;
-    }
-}
-
 RS_ENCODER_REF::RS_ENCODER_REF(int CorrectableErrors) {
     // Initialize key parameters
     tt = CorrectableErrors;  // Number of correctable errors
@@ -816,4 +810,3 @@ int RS_ENCODER_REF::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no
         return 0;  // No errors found
     }
 }
-bool RS_ENCODER_REF::bInitialized = false;

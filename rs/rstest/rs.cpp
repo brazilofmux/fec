@@ -1575,12 +1575,13 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
         /* Put lambda(x) into power form */
         for (i=0; i < 2*tt+1; i++)
             lambda[i] = Poly2Pow[lambda[i]];
-        RsVerification::verify_lambda(lambda, deg_lambda);
 
         /* Compute deg(lambda(x)) */
         deg_lambda = 2*tt;
         while ((lambda[deg_lambda] == GF_INFINITY) && (deg_lambda > 0))
             --deg_lambda;
+
+        RsVerification::verify_lambda(lambda, deg_lambda);
 
         if (deg_lambda <= 2*tt)
         {
