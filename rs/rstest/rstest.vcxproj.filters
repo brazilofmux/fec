@@ -18,9 +18,60 @@
     <ClCompile Include="rstest.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="rs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="rs_common.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RsComparisonTest.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RsDecodingTest.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RsEncodingTest.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="rsref.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RsTestConfig.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RsVerification.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="rskarn.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="rs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="projdefs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="rs_common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RsComparisonTest.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RsDecodingTest.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RsEncodingTest.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="rsref.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RsTestConfig.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="rskarn.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

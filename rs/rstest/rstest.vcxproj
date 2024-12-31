@@ -139,10 +139,27 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="rs.cpp" />
+    <ClCompile Include="RsComparisonTest.cpp" />
+    <ClCompile Include="RsDecodingTest.cpp" />
+    <ClCompile Include="RsEncodingTest.cpp" />
+    <ClCompile Include="rskarn.cpp" />
+    <ClCompile Include="rsref.cpp" />
     <ClCompile Include="rstest.cpp" />
+    <ClCompile Include="RsTestConfig.cpp" />
+    <ClCompile Include="RsVerification.cpp" />
+    <ClCompile Include="rs_common.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="projdefs.h" />
     <ClInclude Include="rs.h" />
+    <ClInclude Include="RsComparisonTest.h" />
+    <ClInclude Include="RsDecodingTest.h" />
+    <ClInclude Include="RsEncodingTest.h" />
+    <ClInclude Include="rskarn.h" />
+    <ClInclude Include="rsref.h" />
+    <ClInclude Include="RsTestConfig.h" />
+    <ClInclude Include="rs_common.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\librs\librs.vcxproj">
