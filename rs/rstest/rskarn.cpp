@@ -23,6 +23,7 @@
  */
 #include <stdio.h>
 #include "rskarn.h"
+#include "RsVerification.h"
 
 #if (KK >= NN)
 #error "KK must be less than 2**MM - 1"
@@ -35,7 +36,7 @@
  * Note: unsigned char will work up to GF(256) but int seems to run
  * faster on the Pentium.
  */
-typedef int gf;
+typedef unsigned char gf;
 
 /* Primitive polynomials - see Lin & Costello, Appendix A,
  * and  Lee & Messerschmitt, p. 453.
@@ -118,7 +119,7 @@ gf Index_of[NN + 1];
  * Degree of g(x) = 2*TT
  * has roots @**B0, @**(B0+1), ... ,@^(B0+2*TT-1)
  */
-#define MAX_TT 64
+//#define MAX_TT 127
 gf Gg[2*MAX_TT+1];
 
 /* Compute x % NN, where NN is 2**MM - 1,
@@ -157,6 +158,7 @@ void init_rs(int tt)
 {
 	generate_gf();
 	gen_poly(tt);
+        RsVerification::verify_generator(Gg, tt);
 }
 
 /* generate GF(2**m) from the irreducible polynomial p(X) in p[0]..p[m]
@@ -322,6 +324,8 @@ encode_rs(dtype data[], dtype bb[], int tt)
 int
 eras_dec_rs(dtype data[], int eras_pos[], int no_eras, int tt)
 {
+    RsVerification::verify_received_word(data, nn);
+
         int kk = NN - 2*tt;
         int b0 = (kk+1)/2;
 	int deg_lambda, el, deg_omega;
@@ -346,6 +350,7 @@ eras_dec_rs(dtype data[], int eras_pos[], int no_eras, int tt)
 	 * namely @**(B0+i), i = 0, ... ,(NN-KK-1)
 	 */
 	syn_error = 0;
+	s[0] = 0;
 	for (i = 1; i <= 2*tt; i++) {
 		tmp = 0;
 		for (j = 0; j < NN; j++)
@@ -356,6 +361,10 @@ eras_dec_rs(dtype data[], int eras_pos[], int no_eras, int tt)
 		/* store syndrome in index form  */
 		s[i] = Index_of[tmp];
 	}
+
+    RsVerification::verify_syndromes(s, tt);
+    RsVerification::print_syndromes("Initial", s, tt);
+
 	if (!syn_error) {
 		/*
 		 * if syndrome is zero, data[] is a codeword and there are no
@@ -464,6 +473,7 @@ eras_dec_rs(dtype data[], int eras_pos[], int no_eras, int tt)
 		if(lambda[i] != A0)
 			deg_lambda = i;
 	}
+        RsVerification::verify_lambda(lambda, deg_lambda);
 	/*
 	 * Find roots of the error+erasure locator polynomial. By Chien
 	 * Search

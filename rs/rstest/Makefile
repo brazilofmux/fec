@@ -11,8 +11,8 @@ OBJS = $(CPP_SRCS:.cpp=.o) $(C_SRCS:.c=.o)
 TARGET = rstest
 
 # Encoder comparison program
-ENCODER_CPP_SRCS = rs_common.cpp rs.cpp rsref.cpp rskarn_wrapper.cpp compare_encoders.cpp RsVerification.cpp
-ENCODER_C_SRCS = rskarn.c
+ENCODER_CPP_SRCS = rs_common.cpp rs.cpp rsref.cpp rskarn.cpp rskarn_wrapper.cpp compare_encoders.cpp RsVerification.cpp
+ENCODER_C_SRCS =
 ENCODER_OBJS = $(ENCODER_CPP_SRCS:.cpp=.o) $(ENCODER_C_SRCS:.c=.o)
 ENCODER_TEST = compare_encoders
 

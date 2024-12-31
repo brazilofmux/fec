@@ -5,14 +5,14 @@
 #include "rs_decoder_state.h"
 
 // Forward declarations of Karn's original functions
-extern "C" {
+//extern "C" {
 #include "rskarn.h"
     void init_rs(int tt);
     void generate_gf(void);
     void gen_poly(int tt);
     int encode_rs(unsigned char data[], unsigned char bb[], int tt);
     int eras_dec_rs(unsigned char data[], int eras_pos[], int no_eras, int tt);
-}
+//}
 
 class RS_ENCODER_KARN {
 public:

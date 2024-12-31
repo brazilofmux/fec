@@ -1285,6 +1285,8 @@ int RS_ENCODER::RSDecode(GF recd[nn])
 //
 int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_eras)
 {
+    RsVerification::verify_received_word(recd, nn);
+
     // RSDecodeErasures variables
     //
     GF root[n];     // must be big enough for all the errors (tt or 2*tt)
@@ -1462,6 +1464,8 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
         s[i] = Poly2Pow[s[i]];
     }
 
+    RsVerification::verify_syndromes(s, tt);
+    RsVerification::print_syndromes("Initial", s, tt);
 
     // If syndrome is zero, modified recd[] is a codeword, otherwise we perform
     // Berlekamp-Massey procedure to determine location of errors.
