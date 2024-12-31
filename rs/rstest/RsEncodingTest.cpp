@@ -80,7 +80,7 @@ bool RsEncodingTest::encode_and_save_codewords(const char* filename) {
 
         if (config.getVerboseLevel() == Verbosity::Debug) {
             std::cout << "Generated codeword " << i + 1 << " of "
-                     << config.getNumCodewords() << "\r";
+                     << config.getNumCodewords() << "\n";
             std::cout.flush();
         }
     }

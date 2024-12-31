@@ -116,67 +116,56 @@ void RsVerification::verify_received_word(const GF* recd, int nn_arg) {
 }
 
 bool RsVerification::compare_results(const VerificationResults& left,
-                                   const VerificationResults& right,
-                                   bool verbose) {
+                              const VerificationResults& right,
+                              bool verbose) {
     bool match = true;
 
-    // Compare syndromes
-    if (left.syndromes.size() != right.syndromes.size()) {
-        printf("ERROR: Syndrome count mismatch - left: %zu, right: %zu\n",
-               left.syndromes.size(), right.syndromes.size());
-        match = false;
-    } else {
-        for (size_t i = 0; i < left.syndromes.size(); i++) {
-            if (left.syndromes[i] != right.syndromes[i]) {
-                printf("ERROR: Syndrome %zu mismatch:\n", i);
-                printf("  left: %s\n", left.syndromes[i].c_str());
-                printf("  right: %s\n", right.syndromes[i].c_str());
-                match = false;
-            } else if (verbose) {
-                printf("Syndrome %zu matches: %s\n", i, left.syndromes[i].c_str());
+    // Helper to show full vector comparison
+    auto compare_vectors = [verbose](const char* name,
+                            const std::vector<std::string>& left,
+                            const std::vector<std::string>& right) -> bool {
+        bool vectors_match = true;
+        if (left.size() != right.size()) {
+            printf("\n%s count mismatch:\n", name);
+            printf("  Left size:  %zu\n", left.size());
+            printf("  Right size: %zu\n", right.size());
+            vectors_match = false;
+        }
+
+        // Always show contents if verbose or mismatch
+        if (!vectors_match || verbose) {
+            printf("\n%s contents:\n", name);
+            size_t max_size = std::max(left.size(), right.size());
+            for (size_t i = 0; i < max_size; i++) {
+                if (i < left.size() && i < right.size()) {
+                    if (left[i] != right[i]) {
+                        printf("\nEntry %zu differs:\n", i);
+                        printf("  Left:  %s\n", left[i].c_str());
+                        printf("  Right: %s\n", right[i].c_str());
+                        vectors_match = false;
+                    } else if (verbose) {
+                        printf("Entry %zu matches: %s\n", i, left[i].c_str());
+                    }
+                } else {
+                    printf("\nEntry %zu:\n", i);
+                    if (i < left.size()) printf("  Left only:  %s\n", left[i].c_str());
+                    if (i < right.size()) printf("  Right only: %s\n", right[i].c_str());
+                    vectors_match = false;
+                }
             }
         }
-    }
+        return vectors_match;
+    };
 
-    // Compare Berlekamp steps
-    if (left.berlekamp_steps.size() != right.berlekamp_steps.size()) {
-        printf("ERROR: Berlekamp step count mismatch - left: %zu, right: %zu\n",
-               left.berlekamp_steps.size(), right.berlekamp_steps.size());
-        match = false;
-    } else {
-        for (size_t i = 0; i < left.berlekamp_steps.size(); i++) {
-            if (left.berlekamp_steps[i] != right.berlekamp_steps[i]) {
-                printf("ERROR: Berlekamp step %zu mismatch:\n", i);
-                printf("  left: %s\n", left.berlekamp_steps[i].c_str());
-                printf("  right: %s\n", right.berlekamp_steps[i].c_str());
-                match = false;
-            } else if (verbose) {
-                printf("Berlekamp step %zu matches: %s\n", i,
-                       left.berlekamp_steps[i].c_str());
-            }
-        }
-    }
+    printf("\n=== Detailed State Comparison ===\n");
 
-    // Compare error locations
-    if (left.error_locations.size() != right.error_locations.size()) {
-        printf("ERROR: Error location count mismatch - left: %zu, right: %zu\n",
-               left.error_locations.size(), right.error_locations.size());
-        match = false;
-    } else {
-        for (size_t i = 0; i < left.error_locations.size(); i++) {
-            if (left.error_locations[i] != right.error_locations[i]) {
-                printf("ERROR: Error location %zu mismatch:\n", i);
-                printf("  left: %s\n", left.error_locations[i].c_str());
-                printf("  right: %s\n", right.error_locations[i].c_str());
-                match = false;
-            } else if (verbose) {
-                printf("Error location %zu matches: %s\n", i,
-                       left.error_locations[i].c_str());
-            }
-        }
-    }
+    // Compare all vectors
+    match &= compare_vectors("Syndromes", left.syndromes, right.syndromes);
+    match &= compare_vectors("Berlekamp Steps", left.berlekamp_steps, right.berlekamp_steps);
+    match &= compare_vectors("Error Locations", left.error_locations, right.error_locations);
 
-    // Compare verification hashes
+    // Compare hashes
+    printf("\nHash Comparisons:\n");
     struct {
         const char* name;
         uint32_t left;
@@ -190,14 +179,15 @@ bool RsVerification::compare_results(const VerificationResults& left,
 
     for (const auto& hash : hashes) {
         if (hash.left != hash.right) {
-            printf("ERROR: %s hash mismatch:\n", hash.name);
-            printf("  left: 0x%08X\n", hash.left);
-            printf("  right: 0x%08X\n", hash.right);
+            printf("  %s hash mismatch:\n", hash.name);
+            printf("    Left:  0x%08X\n", hash.left);
+            printf("    Right: 0x%08X\n", hash.right);
             match = false;
         } else if (verbose) {
-            printf("%s hash matches: 0x%08X\n", hash.name, hash.left);
+            printf("  %s hash matches: 0x%08X\n", hash.name, hash.left);
         }
     }
 
+    printf("\n=== End State Comparison ===\n");
     return match;
 }

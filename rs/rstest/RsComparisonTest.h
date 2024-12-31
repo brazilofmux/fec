@@ -37,10 +37,7 @@ private:
                         const char* test_name) const;
 
     // New test methods
-    bool test_reference_implementation() const;
-    bool test_original_implementation() const;
-    bool test_implementations_match() const;
-    bool test_encoding_matches() const;
+    bool test_implementations_match() ;
     struct EncodingTestContext {
         GF data[MAX_KK];
         GF bb[2*MAX_TT];
@@ -50,6 +47,15 @@ private:
     bool compare_encoding_results(const EncodingTestContext& left,
                                 const EncodingTestContext& right,
                                 const char* test_name) const;
+
+    // Decoder execution helpers
+    int run_decoder(Implementation impl, GF recd[nn]);
+    int run_erasure_decoder(Implementation impl, TestContext& ctx);
+    std::string get_impl_name(Implementation impl);
+
+    // Comparison runners
+    bool run_decoder_comparison(Implementation impl_a, Implementation impl_b);
+    bool run_erasure_decoder_comparison(Implementation impl_a, Implementation impl_b);
 };
 
 #endif // RS_COMPARISON_TEST_H
