@@ -217,11 +217,6 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
 
 #define A0	(nn)
 
-#define	COPY(a,b,n) {\
-    int ci;\
-    for(ci=(n)-1;ci >=0;ci--)\
-        (a)[ci] = (b)[ci];\
-    }
 #define	COPYDOWN(a,b,n) {\
     int ci;\
     for(ci=(n)-1;ci >=0;ci--)\
@@ -335,7 +330,7 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
                 COPYDOWN(&b[1],b,2*tt);
                 b[0] = A0;
             }
-            COPY(lambda,t,2*tt+1);
+            memcpy(lambda, t, (2*tt+1) * sizeof(lambda[0]));
         }
     }
 
@@ -353,7 +348,7 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
      * Find roots of the error+erasure locator polynomial. By Chien
      * Search
      */
-    COPY(&reg[1],&lambda[1],2*tt);
+    memcpy(&reg[1], &lambda[1], 2*tt*sizeof(lambda[0]));
     count = 0;		/* Number of roots of lambda(x) */
     for (i = 1; i <= nn; i++) {
         q = 1;
