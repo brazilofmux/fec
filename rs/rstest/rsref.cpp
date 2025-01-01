@@ -217,12 +217,6 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
 
 #define A0	(nn)
 
-#define	COPYDOWN(a,b,n) {\
-    int ci;\
-    for(ci=(n)-1;ci >=0;ci--)\
-        (a)[ci] = (b)[ci];\
-    }
-
 // RSDecodeErasures: Port of Phil Karn's Berlekamp-Massey implementation
 // Brain-dead port for erasure decoding with no erasures initially
 int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
@@ -306,7 +300,7 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
         discr_r = Poly2Pow[discr_r];	/* Index form */
         if (discr_r == A0) {
             /* 2 lines below: B(x) <-- x*B(x) */
-            COPYDOWN(&b[1],b,2*tt);
+            memmove(&b[1], b, 2*tt*sizeof(b[0]));
             b[0] = A0;
         } else {
             /* 7 lines below: T(x) <-- lambda(x) - discr_r*x*b(x) */
@@ -327,7 +321,7 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
                     b[i] = (lambda[i] == 0) ? A0 : mod_nn(Poly2Pow[lambda[i]] - discr_r + nn);
             } else {
                 /* 2 lines below: B(x) <-- x*B(x) */
-                COPYDOWN(&b[1],b,2*tt);
+                memmove(&b[1], b, 2*tt*sizeof(b[0]));
                 b[0] = A0;
             }
             memcpy(lambda, t, (2*tt+1) * sizeof(lambda[0]));
