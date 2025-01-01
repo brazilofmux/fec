@@ -74,143 +74,6 @@ void RS_ENCODER_REF::RSEncode(GF data[MAX_KK], GF bb[2 * MAX_TT]) {
     }
 }
 
-#if 0
-void RS_ENCODER_REF::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
-    syndromes.assign(2 * tt + 1, 0);
-    int iPowInit = 0;
-
-    for (int j = 0; j < nn; j++) {
-        if (recd[j] != 0) {
-            int iPow0 = iPowInit + Poly2Pow[recd[j]];
-            iPow0 = mod_nn(iPow0);
-
-            for (int i = 1; i <= 2 * tt; i++) {
-                iPow0 = mod_nn(iPow0);
-                syndromes[i] ^= Pow2Poly[iPow0];
-                iPow0 += j;
-            }
-        }
-        iPowInit += b0;
-        iPowInit = mod_nn(iPowInit);
-    }
-
-    for (int i = 1; i <= 2 * tt; i++) {
-        syndromes[i] = Poly2Pow[syndromes[i]];
-    }
-}
-
-void RS_ENCODER_REF::berlekamp_massey(const std::vector<GF>& syndromes, int tt,
-                                      std::vector<GF>& lambda, int& lambda_deg) {
-    const int max_deg = 2 * tt;
-
-    // Initialize tables
-    std::vector<GF> b(max_deg + 1, 0); // Previous lambda(x)
-    lambda.assign(max_deg + 1, 0);     // Current lambda(x)
-    lambda[0] = 1;                     // Polynomial form
-
-    int L = 0;  // Degree of lambda(x)
-    int m = 1;  // Distance since last update
-    GF discr = 0; // Discrepancy (polynomial form)
-
-    for (int r = 1; r <= max_deg; ++r) {
-        // Compute discrepancy: discr = S[r] + sum(lambda[i] * S[r-i])
-        discr = syndromes[r];
-        for (int i = 1; i <= L; ++i) {
-            if (lambda[i] != 0 && syndromes[r - i] != GF_INFINITY) {
-                discr ^= Pow2Poly[mod_nn(Poly2Pow[lambda[i]] + syndromes[r - i])];
-            }
-        }
-
-        RsVerification::print_berlekamp_step(r, discr, L, lambda, L);
-
-        if (discr == 0) {
-            ++m; // No update needed
-        } else {
-            std::vector<GF> temp = lambda; // Save current lambda(x)
-
-            // Update lambda(x): lambda = lambda - discr * x^m * b
-            for (int i = 0; i <= max_deg; ++i) {
-                if (b[i] != 0) {
-                    int index = mod_nn(Poly2Pow[discr] + Poly2Pow[b[i]]);
-                    if (i + m <= max_deg) {
-                        lambda[i + m] ^= Pow2Poly[index];
-                    }
-                }
-            }
-
-            if (2 * L < r) {
-                L = r - L;
-                b = temp; // Update b to old lambda(x)
-                m = 1;
-            } else {
-                ++m;
-            }
-        }
-    }
-
-    lambda_deg = L;
-}
-
-int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
-    RsVerification::verify_received_word(recd, nn);
-
-    std::vector<GF> syndromes;
-    calculate_syndromes(recd, syndromes);
-
-    bool has_error = false;
-    for (int i = 1; i <= 2 * tt; i++) {
-        if (syndromes[i] != 0) {
-            has_error = true;
-        }
-    }
-
-    RsVerification::verify_syndromes(syndromes, tt);
-    RsVerification::print_syndromes("Initial", syndromes, tt);
-
-    if (!has_error) {
-        return 0; // No errors detected
-    }
-
-    std::vector<GF> lambda;
-    int lambda_deg = 0;
-    berlekamp_massey(syndromes, tt, lambda, lambda_deg);
-    RsVerification::verify_lambda(lambda, lambda_deg);
-
-    std::vector<GF> roots(lambda_deg);
-    int num_errors = 0;
-    for (int i = 0; i < nn; ++i) {
-        GF eval = 1;
-        for (int j = 1; j <= lambda_deg; ++j) {
-            if (lambda[j] != GF_INFINITY) {
-                eval ^= Pow2Poly[mod_nn(Poly2Pow[lambda[j]] + i * j)];
-            }
-        }
-        if (eval == 0) {
-            roots[num_errors++] = i;
-        }
-    }
-
-    if (num_errors != lambda_deg) {
-        return -2; // Error count mismatch
-    }
-
-    for (int i = 0; i < num_errors; ++i) {
-        int position = nn - 1 - roots[i];
-        GF error_val = 0;
-
-        for (int j = 1; j <= lambda_deg; ++j) {
-            if (syndromes[j] != GF_INFINITY) {
-                error_val ^= Pow2Poly[mod_nn(Poly2Pow[syndromes[j]] + j * roots[i])];
-            }
-        }
-
-        recd[position] ^= error_val;
-    }
-
-    return num_errors;
-}
-#endif
-
 int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
     return RSDecodeErasures(recd, nullptr, 0);
 }
@@ -262,6 +125,62 @@ int RS_ENCODER_REF::construct_erasure_locator(std::vector<GF>& lambda, const int
     }
 
     return no_eras; // Degree of the erasure locator polynomial
+}
+
+int RS_ENCODER_REF::berlekamp_massey(const std::vector<GF>& syndromes, std::vector<GF>& lambda, int no_eras) {
+    std::vector<GF> b(2 * tt + 1, 0);
+    for (int i = 0; i < 2 * tt + 1; i++)
+        b[i] = Poly2Pow[lambda[i]];
+
+    std::vector<GF> t(2 * tt + 1, 0);
+
+    /*
+     * Begin Berlekamp-Massey algorithm to determine error+erasure
+     * locator polynomial
+     */
+    int r = no_eras;
+    int el = no_eras;
+    while (++r <= 2*tt) { /* r is the step number */
+        /* Compute discrepancy at the r-th step in poly-form */
+        int discr_r = 0;
+        for (int i = 0; i < r; i++){
+            if ((lambda[i] != 0) && (syndromes[r - i] != A0)) {
+                discr_r ^= Pow2Poly[mod_nn(Poly2Pow[lambda[i]] + syndromes[r - i])];
+            }
+        }
+        RsVerification::print_berlekamp_step(r, discr_r, r, lambda, r);
+
+        discr_r = Poly2Pow[discr_r]; /* Index form */
+        if (discr_r == A0) {
+            /* 2 lines below: B(x) <-- x*B(x) */
+            std::copy_backward(b.begin(), b.begin() + (2 * tt), b.begin() + (2 * tt + 1));
+            b[0] = A0;
+        } else {
+            /* 7 lines below: T(x) <-- lambda(x) - discr_r*x*b(x) */
+            t[0] = lambda[0];
+            for (int i = 0 ; i < 2*tt; i++) {
+                if(b[i] != A0)
+                    t[i+1] = lambda[i+1] ^ Pow2Poly[mod_nn(discr_r + b[i])];
+                else
+                    t[i+1] = lambda[i+1];
+            }
+            if (2 * el <= r + no_eras - 1) {
+                el = r + no_eras - el;
+                /*
+                 * 2 lines below: B(x) <-- inv(discr_r) *
+                 * lambda(x)
+                 */
+                for (int i = 0; i <= 2*tt; i++)
+                    b[i] = (lambda[i] == 0) ? A0 : mod_nn(Poly2Pow[lambda[i]] - discr_r + nn);
+            } else {
+                /* 2 lines below: B(x) <-- x*B(x) */
+                std::copy_backward(b.begin(), b.begin() + (2 * tt), b.begin() + (2 * tt + 1));
+                b[0] = A0;
+            }
+            std::copy(t.begin(), t.begin() + (2 * tt + 1), lambda.begin());
+        }
+    }
+    return 0;
 }
 
 int RS_ENCODER_REF::convert_to_index_and_get_degree(std::vector<GF>& poly) {
@@ -348,12 +267,8 @@ void RS_ENCODER_REF::forney_correction(const std::vector<GF>& omega, int deg_ome
 int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
     RsVerification::verify_received_word(data, nn);
 
-    int el;
-    int i, r;
-    GF discr_r;
     std::vector<GF> lambda(2 * tt + 1, 0);
     std::vector<GF> b(2 * tt + 1, 0);
-    std::vector<GF> t(2 * tt + 1, 0);
     std::vector<GF> omega(2 * tt + 1);
     std::vector<GF> root(2 * MAX_TT);
     std::vector<GF> reg(2 * MAX_TT + 1);
@@ -385,58 +300,8 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
     }
 
     construct_erasure_locator(lambda, eras_pos, no_eras);
-
-    for (i = 0; i< 2 * tt + 1; i++)
-        b[i] = Poly2Pow[lambda[i]];
-
-    /*
-     * Begin Berlekamp-Massey algorithm to determine error+erasure
-     * locator polynomial
-     */
-    r = no_eras;
-    el = no_eras;
-    while (++r <= 2*tt) { /* r is the step number */
-        /* Compute discrepancy at the r-th step in poly-form */
-        discr_r = 0;
-        for (i = 0; i < r; i++){
-            if ((lambda[i] != 0) && (syndromes[r - i] != A0)) {
-                discr_r ^= Pow2Poly[mod_nn(Poly2Pow[lambda[i]] + syndromes[r - i])];
-            }
-        }
-        RsVerification::print_berlekamp_step(r, discr_r, r, lambda, r);
-
-        discr_r = Poly2Pow[discr_r]; /* Index form */
-        if (discr_r == A0) {
-            /* 2 lines below: B(x) <-- x*B(x) */
-            std::copy_backward(b.begin(), b.begin() + (2 * tt), b.begin() + (2 * tt + 1));
-            b[0] = A0;
-        } else {
-            /* 7 lines below: T(x) <-- lambda(x) - discr_r*x*b(x) */
-            t[0] = lambda[0];
-            for (i = 0 ; i < 2*tt; i++) {
-                if(b[i] != A0)
-                    t[i+1] = lambda[i+1] ^ Pow2Poly[mod_nn(discr_r + b[i])];
-                else
-                    t[i+1] = lambda[i+1];
-            }
-            if (2 * el <= r + no_eras - 1) {
-                el = r + no_eras - el;
-                /*
-                 * 2 lines below: B(x) <-- inv(discr_r) *
-                 * lambda(x)
-                 */
-                for (i = 0; i <= 2*tt; i++)
-                    b[i] = (lambda[i] == 0) ? A0 : mod_nn(Poly2Pow[lambda[i]] - discr_r + nn);
-            } else {
-                /* 2 lines below: B(x) <-- x*B(x) */
-                std::copy_backward(b.begin(), b.begin() + (2 * tt), b.begin() + (2 * tt + 1));
-                b[0] = A0;
-            }
-            std::copy(t.begin(), t.begin() + (2 * tt + 1), lambda.begin());
-        }
-    }
-
-    int deg_lambda = convert_to_index_and_get_degree(lambda);
+    int deg_lambda = berlekamp_massey(syndromes, lambda, no_eras);
+    deg_lambda = convert_to_index_and_get_degree(lambda);
 
     RsVerification::verify_lambda(lambda, deg_lambda);
 
