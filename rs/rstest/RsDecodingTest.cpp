@@ -18,7 +18,7 @@ void RsDecodingTest::initialize() {
     rng.seed(config.getRandomSeed());
 
     // Create encoder
-    encoder = new RS_ENCODER_REF(tt);
+    encoder = new RS_ENCODER(tt);
 
     // Initialize verification
     RsVerification::init(config.getVerboseLevel() == Verbosity::Debug);
@@ -100,7 +100,7 @@ bool RsDecodingTest::process_codeword(const GF* codeword, const int nn_short, co
     }
 
     // Check for specific decode failure modes
-    if (decode_flag == RS_ERROR_LAMDA_ERROR && no_ch_errs <= tt) {
+    if (decode_flag == RS_ERROR_LAMBDA_ERROR && no_ch_errs <= tt) {
         std::cout << no_ch_errs << " ch errs  <=  max # correctable errs but\n"
                   << "DECODER ERROR: deg(lambda) unequal to #roots\n";
         return false;
