@@ -242,6 +242,16 @@ void RS_ENCODER_REF::calculate_syndromes(const GF recd[nn], std::vector<GF>& syn
 
 #define A0	(nn)
 
+int RS_ENCODER_REF::convert_to_index_and_get_degree(std::vector<GF>& poly) {
+    int degree = 0;
+    for (size_t i = 0; i < poly.size(); i++) {
+        poly[i] = Poly2Pow[poly[i]];
+        if (poly[i] != A0)
+            degree = static_cast<int>(i);
+    }
+    return degree;
+}
+
 // RSDecodeErasures: Port of Phil Karn's Berlekamp-Massey implementation
 // Brain-dead port for erasure decoding with no erasures initially
 int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
@@ -249,11 +259,13 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
 
     int kk = nn - 2*tt;
     int b0 = (kk+1)/2;
-    int deg_lambda, el, deg_omega;
+    int el, deg_omega;
     int i, j, r;
     GF u,q,tmp,num1,num2,den,discr_r;
-    GF lambda[2 * MAX_TT + 1];	/* Err+Eras Locator poly */
-    GF b[2 * MAX_TT + 1], t[2 * MAX_TT + 1], omega[2 * MAX_TT + 1];
+    std::vector<GF> lambda(2 * tt + 1, 0);
+    std::vector<GF> b(2 * tt + 1, 0);
+    std::vector<GF> t(2 * MAX_TT + 1, 0);
+    GF omega[2 * MAX_TT + 1];
     GF root[2 * MAX_TT], reg[2 * MAX_TT + 1], loc[2 * MAX_TT];
     int count;
 
@@ -305,7 +317,7 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
      */
     r = no_eras;
     el = no_eras;
-    while (++r <= 2*tt) {	/* r is the step number */
+    while (++r <= 2*tt) { /* r is the step number */
         /* Compute discrepancy at the r-th step in poly-form */
         discr_r = 0;
         for (i = 0; i < r; i++){
@@ -313,12 +325,12 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
                 discr_r ^= Pow2Poly[mod_nn(Poly2Pow[lambda[i]] + syndromes[r - i])];
             }
         }
-        RsVerification::print_berlekamp_step(r, discr_r, r, std::vector<GF>(lambda, lambda + r + 1), r);
+        RsVerification::print_berlekamp_step(r, discr_r, r, lambda, r);
 
-        discr_r = Poly2Pow[discr_r];	/* Index form */
+        discr_r = Poly2Pow[discr_r]; /* Index form */
         if (discr_r == A0) {
             /* 2 lines below: B(x) <-- x*B(x) */
-            memmove(&b[1], b, 2*tt*sizeof(b[0]));
+            std::copy_backward(b.begin(), b.begin() + (2 * tt), b.begin() + (2 * tt + 1));
             b[0] = A0;
         } else {
             /* 7 lines below: T(x) <-- lambda(x) - discr_r*x*b(x) */
@@ -339,20 +351,14 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
                     b[i] = (lambda[i] == 0) ? A0 : mod_nn(Poly2Pow[lambda[i]] - discr_r + nn);
             } else {
                 /* 2 lines below: B(x) <-- x*B(x) */
-                memmove(&b[1], b, 2*tt*sizeof(b[0]));
+                std::copy_backward(b.begin(), b.begin() + (2 * tt), b.begin() + (2 * tt + 1));
                 b[0] = A0;
             }
-            memcpy(lambda, t, (2*tt+1) * sizeof(lambda[0]));
+            std::copy(t.begin(), t.begin() + (2 * tt + 1), lambda.begin());
         }
     }
 
-    /* Convert lambda to index form and compute deg(lambda(x)) */
-    deg_lambda = 0;
-    for(i=0;i<2*tt+1;i++){
-        lambda[i] = Poly2Pow[lambda[i]];
-        if(lambda[i] != A0)
-            deg_lambda = i;
-    }
+    int deg_lambda = convert_to_index_and_get_degree(lambda);
 
     RsVerification::verify_lambda(lambda, deg_lambda);
 
@@ -361,7 +367,7 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
      * Search
      */
     memcpy(&reg[1], &lambda[1], 2*tt*sizeof(lambda[0]));
-    count = 0;		/* Number of roots of lambda(x) */
+    count = 0;  /* Number of roots of lambda(x) */
     for (i = 1; i <= nn; i++) {
         q = 1;
         for (j = deg_lambda; j > 0; j--)
