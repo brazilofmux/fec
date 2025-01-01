@@ -233,7 +233,7 @@ int RS_ENCODER_REF::convert_to_index_and_get_degree(std::vector<GF>& poly) {
     return degree;
 }
 
-int RS_ENCODER_REF::chien_search(const std::vector<GF> lambda, int deg_lambda, std::vector<GF>& root, std::vector<GF>& loc, int& count) {
+int RS_ENCODER_REF::chien_search(const std::vector<GF>& lambda, int deg_lambda, std::vector<GF>& root, std::vector<GF>& loc, int& count) {
     std::vector<GF> reg(2 * tt + 1);
     memcpy(&reg[1], &lambda[1], 2 * tt * sizeof(GF));
 
