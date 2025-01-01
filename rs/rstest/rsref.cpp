@@ -215,6 +215,31 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
     return RSDecodeErasures(recd, nullptr, 0);
 }
 
+void RS_ENCODER_REF::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
+    syndromes.assign(2 * tt + 1, 0);
+
+    int iPowInit = 0;
+    for (int j = 0; j < nn; j++) {
+        GF RECD = recd[j];
+        if (RECD != 0) {
+            int iPow0 = iPowInit + Poly2Pow[RECD];
+            iPow0 = mod_nn(iPow0);
+
+            for (int i = 1; i <= 2 * tt; i++) {
+                iPow0 = mod_nn(iPow0);
+                syndromes[i] ^= Pow2Poly[iPow0];
+                iPow0 += j;
+            }
+        }
+        iPowInit += b0;
+        iPowInit = mod_nn(iPowInit);
+    }
+
+    for (int i = 1; i <= 2 * tt; i++) {
+        syndromes[i] = Poly2Pow[syndromes[i]];
+    }
+}
+
 #define A0	(nn)
 
 // RSDecodeErasures: Port of Phil Karn's Berlekamp-Massey implementation
@@ -227,35 +252,27 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
     int deg_lambda, el, deg_omega;
     int i, j, r;
     GF u,q,tmp,num1,num2,den,discr_r;
-    GF recd[nn];
-    GF lambda[2 * MAX_TT + 1], s[2 * MAX_TT + 1];	/* Err+Eras Locator poly
-                         * and syndrome poly */
+    GF lambda[2 * MAX_TT + 1];	/* Err+Eras Locator poly */
     GF b[2 * MAX_TT + 1], t[2 * MAX_TT + 1], omega[2 * MAX_TT + 1];
     GF root[2 * MAX_TT], reg[2 * MAX_TT + 1], loc[2 * MAX_TT];
-    int syn_error, count;
+    int count;
 
-    /* data[] is in polynomial form, copy and convert to index form */
-    for (i = nn-1; i >= 0; i--){
-        recd[i] = Poly2Pow[data[i]];
-    }
     /* first form the syndromes; i.e., evaluate recd(x) at roots of g(x)
      * namely @**(B0+i), i = 0, ... ,(NN-KK-1)
      */
-    syn_error = 0;
-    s[0] = 0;
-    for (i = 1; i <= 2*tt; i++) {
-        tmp = 0;
-        for (j = 0; j < nn; j++)
-            if (recd[j] != A0)	/* recd[j] in index form */
-                tmp ^= Pow2Poly[mod_nn(recd[j] + (b0+i-1)*j)];
-        syn_error |= tmp;	/* set flag if non-zero syndrome =>
-                     * error */
-        /* store syndrome in index form  */
-        s[i] = Poly2Pow[tmp];
+    std::vector<GF> syndromes;
+    calculate_syndromes(data, syndromes);
+
+    // Check for errors
+    bool syn_error = false;
+    for (int i = 1; i <= 2 * tt; i++) {
+        if (syndromes[i] != 0) {
+            syn_error = true;
+        }
     }
 
-    RsVerification::verify_syndromes(s, tt);
-    RsVerification::print_syndromes("Initial", s, tt);
+    RsVerification::verify_syndromes(syndromes, tt);
+    RsVerification::print_syndromes("Initial", syndromes, tt);
 
     if (!syn_error) {
         /*
@@ -264,6 +281,7 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
          */
         return 0;
     }
+
     memset(&lambda[1], 0, 2*tt*sizeof(lambda[0]));
     lambda[0] = 1;
     if (no_eras > 0) {
@@ -291,8 +309,8 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
         /* Compute discrepancy at the r-th step in poly-form */
         discr_r = 0;
         for (i = 0; i < r; i++){
-            if ((lambda[i] != 0) && (s[r - i] != A0)) {
-                discr_r ^= Pow2Poly[mod_nn(Poly2Pow[lambda[i]] + s[r - i])];
+            if ((lambda[i] != 0) && (syndromes[r - i] != A0)) {
+                discr_r ^= Pow2Poly[mod_nn(Poly2Pow[lambda[i]] + syndromes[r - i])];
             }
         }
         RsVerification::print_berlekamp_step(r, discr_r, r, std::vector<GF>(lambda, lambda + r + 1), r);
@@ -375,8 +393,8 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
         tmp = 0;
         j = (deg_lambda < i) ? deg_lambda : i;
         for(;j >= 0; j--){
-            if ((s[i + 1 - j] != A0) && (lambda[j] != A0))
-                tmp ^= Pow2Poly[mod_nn(s[i + 1 - j] + lambda[j])];
+            if ((syndromes[i + 1 - j] != A0) && (lambda[j] != A0))
+                tmp ^= Pow2Poly[mod_nn(syndromes[i + 1 - j] + lambda[j])];
         }
         if(tmp != 0)
             deg_omega = i;
