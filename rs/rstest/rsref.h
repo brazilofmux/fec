@@ -22,6 +22,7 @@ private:
     void berlekamp_massey(const std::vector<GF>& syndromes, int tt, std::vector<GF>& lambda, int& lambda_deg);
     void calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes);
     int convert_to_index_and_get_degree(std::vector<GF>& poly);
+    int chien_search(const std::vector<GF> lambda, int deg_lambda, std::vector<GF>& roots, std::vector<GF>& loc, int& count);
 
     std::vector<GF> generator_poly; // Generator polynomial coefficients in power form
     int tt;  // Number of correctable errors

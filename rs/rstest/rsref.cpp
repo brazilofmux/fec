@@ -252,6 +252,29 @@ int RS_ENCODER_REF::convert_to_index_and_get_degree(std::vector<GF>& poly) {
     return degree;
 }
 
+int RS_ENCODER_REF::chien_search(const std::vector<GF> lambda, int deg_lambda, std::vector<GF>& root, std::vector<GF>& loc, int& count) {
+    std::vector<GF> reg(2 * MAX_TT + 1);
+    memcpy(&reg[1], &lambda[1], 2 * tt * sizeof(GF));
+
+    count = 0;
+    for (int i = 1; i <= nn; i++) {
+        GF q = 1;
+        for (int j = deg_lambda; j > 0; j--) {
+            if (reg[j] != A0) {
+                reg[j] = mod_nn(reg[j] + j);
+                q ^= Pow2Poly[reg[j]];
+            }
+        }
+        if (q == 0) {
+            root[count] = i;
+            loc[count] = nn - i;
+            count++;
+        }
+    }
+
+    return count;
+}
+
 // RSDecodeErasures: Port of Phil Karn's Berlekamp-Massey implementation
 // Brain-dead port for erasure decoding with no erasures initially
 int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
@@ -261,7 +284,7 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
     int b0 = (kk+1)/2;
     int el, deg_omega;
     int i, j, r;
-    GF u,q,tmp,num1,num2,den,discr_r;
+    GF u, tmp, num1, num2, den, discr_r;
     std::vector<GF> lambda(2 * tt + 1, 0);
     std::vector<GF> b(2 * tt + 1, 0);
     std::vector<GF> t(2 * tt + 1, 0);
@@ -269,7 +292,6 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
     std::vector<GF> root(2 * MAX_TT);
     std::vector<GF> reg(2 * MAX_TT + 1);
     std::vector<GF> loc(2 * MAX_TT);
-    int count;
 
     /* first form the syndromes; i.e., evaluate recd(x) at roots of g(x)
      * namely @**(B0+i), i = 0, ... ,(NN-KK-1)
@@ -364,33 +386,12 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
 
     RsVerification::verify_lambda(lambda, deg_lambda);
 
-    /*
-     * Find roots of the error+erasure locator polynomial. By Chien
-     * Search
-     */
-    memcpy(&reg[1], &lambda[1], 2*tt*sizeof(lambda[0]));
-    count = 0;  /* Number of roots of lambda(x) */
-    for (i = 1; i <= nn; i++) {
-        q = 1;
-        for (j = deg_lambda; j > 0; j--)
-            if (reg[j] != A0) {
-                reg[j] = mod_nn(reg[j] + j);
-                q ^= Pow2Poly[reg[j]];
-            }
-        if (!q) {
-            /* store root (index-form) and error location number */
-            root[count] = i;
-            loc[count] = nn - i;
-            count++;
-        }
-    }
+    /* Find roots of the error+erasure locator polynomial. By Chien Search */
+    int count = 0;
+    int root_count = chien_search(lambda, deg_lambda, root, loc, count);
 
-    if (deg_lambda != count) {
-        /*
-         * deg(lambda) unequal to number of roots => uncorrectable
-         * error detected
-         */
-        return -1;
+    if (deg_lambda != root_count) {
+        return -1; // Uncorrectable error detected
     }
     /*
      * Compute err+eras evaluator poly omega(x) = s(x)*lambda(x) (modulo
