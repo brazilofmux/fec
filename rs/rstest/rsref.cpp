@@ -242,6 +242,28 @@ void RS_ENCODER_REF::calculate_syndromes(const GF recd[nn], std::vector<GF>& syn
 
 static constexpr GF A0 = nn;
 
+int RS_ENCODER_REF::construct_erasure_locator(std::vector<GF>& lambda, const int* eras_pos, int no_eras) {
+    if (no_eras == 0) {
+        lambda.assign(lambda.size(), 0);
+        lambda[0] = 1;
+        return 0; // No erasures
+    }
+
+    lambda.assign(lambda.size(), 0);
+    lambda[0] = 1;
+
+    for (int i = 0; i < no_eras; i++) {
+        GF u = eras_pos[i];
+        for (int j = no_eras; j > 0; j--) {
+            if (lambda[j - 1] != A0) {
+                lambda[j] ^= Pow2Poly[mod_nn(u + Poly2Pow[lambda[j - 1]])];
+            }
+        }
+    }
+
+    return no_eras; // Degree of the erasure locator polynomial
+}
+
 int RS_ENCODER_REF::convert_to_index_and_get_degree(std::vector<GF>& poly) {
     int degree = 0;
     for (size_t i = 0; i < poly.size(); i++) {
@@ -311,7 +333,7 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
 
     int el;
     int i, j, r;
-    GF u, tmp, discr_r;
+    GF tmp, discr_r;
     std::vector<GF> lambda(2 * tt + 1, 0);
     std::vector<GF> b(2 * tt + 1, 0);
     std::vector<GF> t(2 * tt + 1, 0);
@@ -345,21 +367,9 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
         return 0;
     }
 
-    memset(&lambda[1], 0, 2*tt*sizeof(lambda[0]));
-    lambda[0] = 1;
-    if (no_eras > 0) {
-        /* Init lambda to be the erasure locator polynomial */
-        lambda[1] = Pow2Poly[eras_pos[0]];
-        for (i = 1; i < no_eras; i++) {
-            u = eras_pos[i];
-            for (j = i+1; j > 0; j--) {
-                tmp = Poly2Pow[lambda[j - 1]];
-                if(tmp != A0)
-                    lambda[j] ^= Pow2Poly[mod_nn(u + tmp)];
-            }
-        }
-    }
-    for(i=0;i<2*tt+1;i++)
+    construct_erasure_locator(lambda, eras_pos, no_eras);
+
+    for (i = 0; i< 2 * tt + 1; i++)
         b[i] = Poly2Pow[lambda[i]];
 
     /*

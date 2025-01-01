@@ -19,8 +19,8 @@ public:
 
 private:
     void RSGenPoly();
-    void berlekamp_massey(const std::vector<GF>& syndromes, int tt, std::vector<GF>& lambda, int& lambda_deg);
     void calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes);
+    int construct_erasure_locator(std::vector<GF>& lambda, const int* eras_pos, int no_eras);
     int convert_to_index_and_get_degree(std::vector<GF>& poly);
     int chien_search(const std::vector<GF> lambda, int deg_lambda, std::vector<GF>& root, std::vector<GF>& loc, int& count);
     void forney_correction(const std::vector<GF>& omega, int deg_omega, const std::vector<GF>& lambda, int deg_lambda,
