@@ -860,40 +860,6 @@ int RS_ENCODER::RSDecode(GF recd[nn])
         {
             iPow0 = iPowInit + Poly2Pow[RECD];
             MOD_NN(iPow0);
-#if defined(ASSEMBLY_DECODE) && ((tt==64) || (tt==32) || (tt==16) || (tt==14) || (tt==8) || (tt==4) || (tt==2) || (tt==1))
-            int cnt = 2*j;
-            MOD_NN(cnt);
-            iPow1 = iPow0 + j;
-            MOD_NN(iPow1);
-
-#define DSTEP2(x) { \
-    s[x]   ^= Pow2Poly[iPow0]; \
-    s[x+1] ^= Pow2Poly[iPow1]; \
-    iPow0 += cnt; iPow1 += cnt; \
-    MOD_NN(iPow0); MOD_NN(iPow1); \
-}
-#define DSTEP8(x) { DSTEP2(x) DSTEP2(x+2) DSTEP2(x+4) DSTEP2(x+6) }
-#define DSTEP16(x) { DSTEP8(x) DSTEP8(x+8) }
-#define DSTEP32(x) { DSTEP16(x) DSTEP16(x+16) }
-#define DSTEP64(x) { DSTEP32(x) DSTEP32(x+32) }
-#endif
-#if defined(ASSEMBLY_DECODE) && (tt == 64)
-            DSTEP64(1); DSTEP64(65);
-#elif defined(ASSEMBLY_DECODE) && (tt == 32)
-            DSTEP64(1);
-#elif defined(ASSEMBLY_DECODE) && (tt == 16)
-            DSTEP32(1);
-#elif defined(ASSEMBLY_DECODE) && (tt == 14)
-            DSTEP16(1); DSTEP8(17); DSTEP2(25); DSTEP2(27);
-#elif defined(ASSEMBLY_DECODE) && (tt == 8)
-            DSTEP16(1);
-#elif defined(ASSEMBLY_DECODE) && (tt == 4)
-            DSTEP8(1);
-#elif defined(ASSEMBLY_DECODE) && (tt == 2)
-            DSTEP2(1); DSTEP2(3);
-#elif defined(ASSEMBLY_DECODE) && (tt == 1)
-            DSTEP2(1);
-#else // ASSEMBLY_DECODE
             for (i = 1; i <= 2*tt; i+=2)
             {
                 MOD_NN(iPow0);
@@ -903,7 +869,6 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                 s[i+1] ^= Pow2Poly[iPow0];
                 iPow0 += j;
             }
-#endif
         }
         iPowInit += b0;
         MOD_NN(iPowInit);
@@ -923,39 +888,8 @@ int RS_ENCODER::RSDecode(GF recd[nn])
     RsVerification::verify_syndromes(s, tt);
     RsVerification::print_syndromes("Initial", s, tt);
 
-#ifdef DECODER_DEBUG
-    printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
-    printf("The Syndromes of the received vector in polynomial-form are:\n");
-    for (i = 1; i <= nn-kk; i++)
-    {
-        printf("s(%d) = %#x ", i, Pow2Poly[s[i]]);
-    }
-    printf("\n NOTE: The basis is {@^7,...,@,1}\n");
-#endif
-
-
-#ifdef DECODER_DEBUG
-    printf("The Syndromes of the received vector in power-form are:\n");
-    for (i = 1; i <= nn-kk; i++)
-    {
-        if (s[i] == GF_INFINITY)
-        {
-            printf("s(%d) = 0 ", i);
-        }
-        else
-        {
-            printf("s(%d) = @^%d ", i, s[i]);
-        }
-    }
-    printf("\n---------------------------------------------------------------\n");
-#endif
-
     if (syn_error)       /* if errors, try and correct */
     {
-#ifdef DECODER_DEBUG
-        printf("Received vector is not a codeword. Channel has caused at least one error\n");
-#endif
-
 //
 // Compute the error location polynomial via the Berlekamp iterative algorithm,
 // following the terminology of Lin and Costello :   d[u] is the 'mu'th
@@ -1062,36 +996,9 @@ int RS_ENCODER::RSDecode(GF recd[nn])
 
         if (l[u] <= tt)         /* can correct error */
         {
-#ifdef DECODER_DEBUG
-            printf("---------------------------------------------------------------\n");
-            printf("The Final Error Locator Polynomial Lambda(x) in polynomial-form is: \n");
-            for (i=0;i < l[u];i++)
-            {
-                printf("%#x x^%d + ",elp[u][i],i);
-                if (i && (i % 6 == 0))
-                    printf("\n"); /* 7 coefficients per line */
-            }
-            printf("%#x x^%d",elp[u][i],i);
-            printf("\n");
-#endif
-
             /* put elp into power form */
             for (i=0; i<=l[u]; i++)
                 elp[u][i] = Poly2Pow[elp[u][i]];
-
-#ifdef DECODER_DEBUG
-            printf("The Final Error Locator Polynomial Lambda(x) in power-form is: \n");
-            for (i=0;i < l[u];i++)
-            {
-                printf("%d x^%d + ",elp[u][i],i);
-                if (i && (i % 6 == 0))
-                    printf("\n"); /* 7 coefficients per line */
-            }
-            printf("%d x^%d",elp[u][i],i);
-            printf("\n");
-            printf("---------------------------------------------------------------\n");
-#endif
-
 
             /* find roots of the error location polynomial */
             for (i=1; i <= l[u]; i++)
@@ -1117,23 +1024,9 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                     count++;
                 }
             }
-#ifndef NO_PRINT
-            printf("Computed Error Locations\n");
-            for (i=0;i < l[u];i++)
-                printf("%d ", loc[i]);
-            printf("\n");
-            printf("(count, l[u]) = (%d, %d)\n", count, l[u]);
-#endif
+
             if (count == l[u])    /* no. roots = degree of elp hence <= tt errors */
             {
-#ifdef DECODER_DEBUG
-                printf("\n No of roots of Lambda(x) found by Chien search equals with \n");
-                printf("the degree of Lambda(x). Hence channel presumably caused <= %d errors\n",tt);
-                printf("The roots found are (in power-form) : \n");
-                for (i=0;i < count;i++)
-                    printf("%d ",root[i]);
-                printf("\n");
-#endif
                 /* form polynomial z(x) */
                 for (i = 1; i <= l[u]; i++) /* Z[0] = 1 always - do not need */
                 {
@@ -1149,34 +1042,6 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                     }
                     z[i] = Poly2Pow[zi];         /* put into power form */
                 }
-
-#ifdef DECODER_DEBUG
-                printf("---------------------------------------------------------------\n");
-                printf(" \n The Final Error Evaluator Polynomial Omega(x) in power-form is: \n");
-                printf("0 x^0 + ");
-                for (i=1;i <= l[u];i++)
-                {
-                    printf("%d x^%d + ",z[i],i);
-                    if (i && (i % 6 == 0))
-                        printf("\n"); /* 7 coefficients per line */
-                }
-                printf("%d x^%d",z[i],i);
-                printf("\n");
-#endif
-
-#ifdef DECODER_DEBUG
-                printf(" \n The Final Error Evaluator Polynomial Omega(x) in polynomial-form is: \n");
-                printf("%#x x^%d + ",1,0);
-                for (i=1;i <= l[u];i++)
-                {
-                    printf("%#x x^%d + ",z[i],i);
-                    if (i && (i % 6 == 0))
-                        printf("\n"); /* 7 coefficients per line */
-                }
-                printf("%#x x^%d",z[i],i);
-                printf("\n");
-                printf("---------------------------------------------------------------\n");
-#endif
 
                 // Evaluate errors at locations given by error location
                 // numbers loc[i]
@@ -1228,48 +1093,21 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                         RsVerification::print_error_location(loc[i], err[loc[i]], recd[loc[i]] ^ err[loc[i]], recd[loc[i]]);
                     }
                 }
-#ifdef DECODER_DEBUG
-                printf("---------------------------------------------------------------\n");
-                printf("The computed Error Value Bytes are (in polynomial-form) :\n");
-                printf("Location (Error) \n");
-                for (i=0;i < l[u];i++)
-                {
-                    printf("%d (%#x) ", loc[i], err[loc[i]]);
-                }
-                printf("\n");
-                printf("---------------------------------------------------------------\n");
-#endif
                 return count; // Number of corrections.
             }
             else
             {    /* no. roots != degree of elp => >tt errors and cannot solve */
-#ifdef DECODER_DEBUG
-                printf("No of roots of Lambda(x) found by Chien search\n");
-                printf("does not equal the degree of the Lambda(x).\n");
-                printf("Hence channel has definitely caused >= %d errors\n",tt);
-#endif
                 return RS_ERROR_CHIEN_SEARCH;
             }
         }
         else
         {         /* elp has degree has degree >tt hence cannot solve */
-#ifdef DECODER_DEBUG
-            printf("Degree of the Lambda(x) > %d. \n",tt);
-            printf("Hence channel has definitely caused >= %d errors\n",tt);
-#endif
             return RS_ERROR_LAMBDA_ERROR;
         }
-#ifdef DECODER_DEBUG
-        printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
-#endif
     }
     else
     {
         /* no non-zero syndromes => no errors: output received codeword */
-#ifdef DECODER_DEBUG
-        printf("Received vector is a codeword. Channel has presumably caused no error\n");
-        printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
-#endif
         return 0;
     }
 }
@@ -1350,42 +1188,6 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
         /* put phi[x] in power form */
         for (i=0;i < nn-kk+1;i++)
             phi[i] = Poly2Pow[phi[i]];
-#ifdef ERASURE_DEBUG
-        /* find roots of the erasure location polynomial */
-        for (i=1; i <= no_eras; i++)
-            reg[i] = phi[i];
-        count = 0;
-        for (i=1; i <= nn; i++)
-        {
-            q = 1;
-            for (j=1; j <= no_eras; j++)
-            {
-                if (reg[j] != GF_INFINITY)
-                {
-                    iMod = reg[j]+j;
-                    MOD_NN(iMod);
-                    q ^= Pow2Poly[iMod];
-                    reg[j] = iMod;
-                }
-            }
-            if (!q)        /* store root and error location number indices */
-            {
-                root[count] = i;
-                loc[count] = nn-i;
-                count++;
-            }
-        }
-        if (count != no_eras)
-        {
-            printf("\n phi(x) is WRONG\n"); exit(1);
-        }
-#ifndef NO_PRINT
-        printf("\n Erasure positions as determined by roots of Eras Loc Poly:\n");
-        for (i = 0; i < count; i++)
-            printf("%d ",loc[i]);
-        printf("\n");
-#endif
-#endif
     }
 
     // First form the syndromes: i.e., evaluate recd(x) at roots of g(x) namely
@@ -1395,7 +1197,6 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
         s[i] = 0;
 
     int iPowInit = 0, iPow0;
-    //int iPow1;
     for (j = 0; j < nn; j++)
     {
         GF RECD = recd[j];
@@ -1403,40 +1204,6 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
         {
             iPow0 = iPowInit + Poly2Pow[RECD];
             MOD_NN(iPow0);
-#if defined(ASSEMBLY_DECODE) && ((tt==64) || (tt==32) || (tt==16) || (tt==14) || (tt==8) || (tt==4) || (tt==2) || (tt==1))
-            int cnt = 2*j;
-            MOD_NN(cnt);
-            iPow1 = iPow0 + j;
-            MOD_NN(iPow1);
-
-#define DSTEP2(x) { \
-    s[x]   ^= Pow2Poly[iPow0]; \
-    s[x+1] ^= Pow2Poly[iPow1]; \
-    iPow0 += cnt; iPow1 += cnt; \
-    MOD_NN(iPow0); MOD_NN(iPow1); \
-}
-#define DSTEP8(x) { DSTEP2(x) DSTEP2(x+2) DSTEP2(x+4) DSTEP2(x+6) }
-#define DSTEP16(x) { DSTEP8(x) DSTEP8(x+8) }
-#define DSTEP32(x) { DSTEP16(x) DSTEP16(x+16) }
-#define DSTEP64(x) { DSTEP32(x) DSTEP32(x+32) }
-#endif
-#if defined(ASSEMBLY_DECODE) && (tt == 64)
-            DSTEP64(1); DSTEP64(65);
-#elif defined(ASSEMBLY_DECODE) && (tt == 32)
-            DSTEP64(1);
-#elif defined(ASSEMBLY_DECODE) && (tt == 16)
-            DSTEP32(1);
-#elif defined(ASSEMBLY_DECODE) && (tt == 14)
-            DSTEP16(1); DSTEP8(17); DSTEP2(25); DSTEP2(27);
-#elif defined(ASSEMBLY_DECODE) && (tt == 8)
-            DSTEP16(1);
-#elif defined(ASSEMBLY_DECODE) && (tt == 4)
-            DSTEP8(1);
-#elif defined(ASSEMBLY_DECODE) && (tt == 2)
-            DSTEP2(1); DSTEP2(3);
-#elif defined(ASSEMBLY_DECODE) && (tt == 1)
-            DSTEP2(1);
-#else // ASSEMBLY_DECODE
             for (i = 1; i <= 2*tt; i+=2)
             {
                 MOD_NN(iPow0);
@@ -1446,7 +1213,6 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
                 s[i+1] ^= Pow2Poly[iPow0];
                 iPow0 += j;
             }
-#endif
         }
         iPowInit += b0;
         MOD_NN(iPowInit);
@@ -1609,12 +1375,7 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
                     count++;
                 }
             }
-#ifndef NO_PRINT
-            printf("\n Final error positions:\t");
-            for (i=0;i < count;i++)
-                printf("%d ",loc[i]);
-            printf("\n");
-#endif
+
             // BUG!: If we didn't find as many roots as we expected, then
             // some of the erasures were false indicators. If deg_lamba > count
             // we may need to recompute lambda
