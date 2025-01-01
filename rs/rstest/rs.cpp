@@ -1039,7 +1039,7 @@ int RS_ENCODER::forney_correction(const std::vector<GF>& omega, int deg_omega, c
         GF num1 = 0;
         for (int i = deg_omega; i >= 0; i--) {
             if (omega[i] != A0)
-                num1 ^= Pow2Poly[MOD_NN(omega[i] + i * root[j])];
+                num1 ^= Pow2Poly[mod_nn(omega[i] + i * root[j])];
         }
         GF num2 = Pow2Poly[mod_nn(root[j] * (b0 - 1) + nn)];
         GF den = 0;
@@ -1047,7 +1047,7 @@ int RS_ENCODER::forney_correction(const std::vector<GF>& omega, int deg_omega, c
         /* lambda[i+1] for i even is the formal derivative lambda_pr of lambda[i] */
         for (int i = std::min(deg_lambda, 2 * tt - 1) & ~1; i >= 0; i -=2) {
             if (lambda[i + 1] != A0)
-                den ^= Pow2Poly[MOD_NN(lambda[i+1] + i * root[j])];
+                den ^= Pow2Poly[mod_nn(lambda[i+1] + i * root[j])];
         }
 
         if (den == 0) {
