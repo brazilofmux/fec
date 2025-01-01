@@ -217,14 +217,6 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
 
 #define A0	(nn)
 
-#define	min(a,b)	((a) < (b) ? (a) : (b))
-
-#define	CLEAR(a,n) {\
-    int ci;\
-    for(ci=(n)-1;ci >=0;ci--)\
-        (a)[ci] = 0;\
-    }
-
 #define	COPY(a,b,n) {\
     int ci;\
     for(ci=(n)-1;ci >=0;ci--)\
@@ -283,7 +275,7 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
          */
         return 0;
     }
-    CLEAR(&lambda[1],2*tt);
+    memset(&lambda[1], 0, 2*tt*sizeof(lambda[0]));
     lambda[0] = 1;
     if (no_eras > 0) {
         /* Init lambda to be the erasure locator polynomial */
@@ -417,7 +409,7 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
         den = 0;
 
         /* lambda[i+1] for i even is the formal derivative lambda_pr of lambda[i] */
-        for (i = min(deg_lambda,2*tt-1) & ~1; i >= 0; i -=2) {
+        for (i = std::min(deg_lambda,2*tt-1) & ~1; i >= 0; i -=2) {
             if(lambda[i+1] != A0)
                 den ^= Pow2Poly[mod_nn(lambda[i+1] + i * root[j])];
         }
