@@ -7,13 +7,6 @@
 #include "rsref.h"
 #include "RsVerification.h"
 
-static inline void MOD_NN(int& x) {
-    while (x >= nn) {
-        x -= nn;
-        x = (x >> 8) + (x & nn);
-    }
-}
-
 static inline int mod_nn(int x) {
     while (x >= nn) {
         x -= nn;
