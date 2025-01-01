@@ -149,8 +149,6 @@ void RS_ENCODER_REF::calculate_syndromes(const GF recd[nn], std::vector<GF>& syn
     }
 }
 
-static constexpr GF A0 = nn;
-
 int RS_ENCODER_REF::construct_erasure_locator(std::vector<GF>& lambda, const int* eras_pos, int no_eras) {
     if (no_eras == 0) {
         lambda.assign(lambda.size(), 0);
@@ -164,7 +162,7 @@ int RS_ENCODER_REF::construct_erasure_locator(std::vector<GF>& lambda, const int
     for (int i = 0; i < no_eras; i++) {
         GF u = eras_pos[i];
         for (int j = no_eras; j > 0; j--) {
-            if (lambda[j - 1] != A0) {
+            if (lambda[j - 1] != GF_INFINITY) {
                 lambda[j] ^= Pow2Poly[mod_nn(u + Poly2Pow[lambda[j - 1]])];
             }
         }
@@ -190,22 +188,22 @@ void RS_ENCODER_REF::berlekamp_massey(const std::vector<GF>& syndromes, std::vec
         /* Compute discrepancy at the r-th step in poly-form */
         int discr_r = 0;
         for (int i = 0; i < r; i++){
-            if ((lambda[i] != 0) && (syndromes[r - i] != A0)) {
+            if ((lambda[i] != 0) && (syndromes[r - i] != GF_INFINITY)) {
                 discr_r ^= Pow2Poly[mod_nn(Poly2Pow[lambda[i]] + syndromes[r - i])];
             }
         }
         RsVerification::print_berlekamp_step(r, discr_r, r, lambda, r);
 
         discr_r = Poly2Pow[discr_r]; /* Index form */
-        if (discr_r == A0) {
+        if (discr_r == GF_INFINITY) {
             /* 2 lines below: B(x) <-- x*B(x) */
             std::copy_backward(b.begin(), b.begin() + (2 * tt), b.begin() + (2 * tt + 1));
-            b[0] = A0;
+            b[0] = GF_INFINITY;
         } else {
             /* 7 lines below: T(x) <-- lambda(x) - discr_r*x*b(x) */
             t[0] = lambda[0];
             for (int i = 0 ; i < 2*tt; i++) {
-                if(b[i] != A0)
+                if(b[i] != GF_INFINITY)
                     t[i+1] = lambda[i+1] ^ Pow2Poly[mod_nn(discr_r + b[i])];
                 else
                     t[i+1] = lambda[i+1];
@@ -217,11 +215,11 @@ void RS_ENCODER_REF::berlekamp_massey(const std::vector<GF>& syndromes, std::vec
                  * lambda(x)
                  */
                 for (int i = 0; i <= 2*tt; i++)
-                    b[i] = (lambda[i] == 0) ? A0 : mod_nn(Poly2Pow[lambda[i]] - discr_r + nn);
+                    b[i] = (lambda[i] == 0) ? GF_INFINITY : mod_nn(Poly2Pow[lambda[i]] - discr_r + nn);
             } else {
                 /* 2 lines below: B(x) <-- x*B(x) */
                 std::copy_backward(b.begin(), b.begin() + (2 * tt), b.begin() + (2 * tt + 1));
-                b[0] = A0;
+                b[0] = GF_INFINITY;
             }
             std::copy(t.begin(), t.begin() + (2 * tt + 1), lambda.begin());
         }
@@ -232,7 +230,7 @@ int RS_ENCODER_REF::convert_to_index_and_get_degree(std::vector<GF>& poly) {
     int degree = 0;
     for (size_t i = 0; i < poly.size(); i++) {
         poly[i] = Poly2Pow[poly[i]];
-        if (poly[i] != A0)
+        if (poly[i] != GF_INFINITY)
             degree = static_cast<int>(i);
     }
     return degree;
@@ -246,7 +244,7 @@ int RS_ENCODER_REF::chien_search(const std::vector<GF>& lambda, int deg_lambda, 
     for (int i = 1; i <= nn; i++) {
         GF q = 1;
         for (int j = deg_lambda; j > 0; j--) {
-            if (reg[j] != A0) {
+            if (reg[j] != GF_INFINITY) {
                 reg[j] = mod_nn(reg[j] + j);
                 q ^= Pow2Poly[reg[j]];
             }
@@ -267,14 +265,14 @@ int RS_ENCODER_REF::compute_omega(const std::vector<GF>& syndromes, const std::v
         GF tmp = 0;
         int j = (deg_lambda < i) ? deg_lambda : i;
         for ( ; j >= 0; j--) {
-            if ((syndromes[i + 1 - j] != A0) && (lambda[j] != A0))
+            if ((syndromes[i + 1 - j] != GF_INFINITY) && (lambda[j] != GF_INFINITY))
                 tmp ^= Pow2Poly[mod_nn(syndromes[i + 1 - j] + lambda[j])];
         }
         if (tmp != 0)
             deg_omega = i;
         omega[i] = Poly2Pow[tmp];
     }
-    omega[2*tt] = A0;
+    omega[2*tt] = GF_INFINITY;
     return deg_omega;
 }
 
@@ -284,7 +282,7 @@ int RS_ENCODER_REF::forney_correction(const std::vector<GF>& omega, int deg_omeg
     for (int j = count - 1; j >= 0; j--) {
         GF num1 = 0;
         for (int i = deg_omega; i >= 0; i--) {
-            if (omega[i] != A0)
+            if (omega[i] != GF_INFINITY)
                 num1 ^= Pow2Poly[mod_nn(omega[i] + i * root[j])];
         }
         GF num2 = Pow2Poly[mod_nn(root[j] * (b0 - 1) + nn)];
@@ -292,7 +290,7 @@ int RS_ENCODER_REF::forney_correction(const std::vector<GF>& omega, int deg_omeg
 
         /* lambda[i+1] for i even is the formal derivative lambda_pr of lambda[i] */
         for (int i = std::min(deg_lambda, 2 * tt - 1) & ~1; i >= 0; i -=2) {
-            if (lambda[i + 1] != A0)
+            if (lambda[i + 1] != GF_INFINITY)
                 den ^= Pow2Poly[mod_nn(lambda[i+1] + i * root[j])];
         }
 
