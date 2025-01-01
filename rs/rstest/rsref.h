@@ -25,7 +25,7 @@ private:
     int convert_to_index_and_get_degree(std::vector<GF>& poly);
     int chien_search(const std::vector<GF>& lambda, int deg_lambda, std::vector<GF>& root, std::vector<GF>& loc, int& count);
     int compute_omega(const std::vector<GF>& syndromes, const std::vector<GF>& lambda, int deg_lambda, std::vector<GF>& omega);
-    void forney_correction(const std::vector<GF>& omega, int deg_omega, const std::vector<GF>& lambda, int deg_lambda,
+    int forney_correction(const std::vector<GF>& omega, int deg_omega, const std::vector<GF>& lambda, int deg_lambda,
                                        const std::vector<GF>& root, int count, const std::vector<GF>& loc, GF data[nn]);
 
     std::vector<GF> generator_poly; // Generator polynomial coefficients in power form

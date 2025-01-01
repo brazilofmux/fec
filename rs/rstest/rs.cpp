@@ -1248,7 +1248,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
                 printf("does not equal the degree of the Lambda(x).\n");
                 printf("Hence channel has definitely caused >= %d errors\n",tt);
 #endif
-                return -2; // NOT ENOUGH ROOTS BY CHIEN SEARCH
+                return RS_ERROR_CHIEN_SEARCH;
             }
         }
         else
@@ -1257,7 +1257,7 @@ int RS_ENCODER::RSDecode(GF recd[nn])
             printf("Degree of the Lambda(x) > %d. \n",tt);
             printf("Hence channel has definitely caused >= %d errors\n",tt);
 #endif
-            return -3; // LAMDA DEGREE TOO HIGH
+            return RS_ERROR_LAMBDA_ERROR;
         }
 #ifdef DECODER_DEBUG
         printf("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
@@ -1717,12 +1717,12 @@ int RS_ENCODER::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_era
             {
                 /* deg(lambda) unequal to number of roots => uncorrectable error detected */
                 //printf("deg_lambda(%d) != #root(%d)\n", deg_lambda, count);
-                return -2;
+                return RS_ERROR_CHIEN_SEARCH;
             }
         }
         else
             /* deg(lambda) > 2*tt => uncorrectable error detected */
-            return -3;
+            return RS_ERROR_LAMBDA_ERROR;
     }
     else
     {

@@ -95,6 +95,10 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
     lambda[0] = 1; // Start with identity polynomial
     berlekamp_massey(syndromes, lambda, 0);
     int deg_lambda = convert_to_index_and_get_degree(lambda);
+    if (deg_lambda > 2 * tt)
+    {
+        return RS_ERROR_LAMBDA_ERROR;
+    }
 
     // Verify error locator polynomial
     RsVerification::verify_lambda(lambda, deg_lambda);
@@ -104,9 +108,8 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
     std::vector<GF> loc(2 * tt);
     int count = 0;
     int root_count = chien_search(lambda, deg_lambda, root, loc, count);
-
     if (deg_lambda != root_count) {
-        return -1; // Uncorrectable error detected
+        return RS_ERROR_CHIEN_SEARCH;
     }
 
     // Step 4: Compute evaluator polynomial omega
@@ -114,9 +117,11 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
     int deg_omega = compute_omega(syndromes, lambda, deg_lambda, omega);
 
     // Step 5: Apply Forney’s Algorithm for error correction
-    forney_correction(omega, deg_omega, lambda, deg_lambda, root, count, loc, recd);
-
-    return count; // Return the number of errors corrected
+    if (forney_correction(omega, deg_omega, lambda, deg_lambda, root, count, loc, recd) < 0)
+    {
+        return -1;
+    }
+    return count;
 }
 
 void RS_ENCODER_REF::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
@@ -274,7 +279,7 @@ int RS_ENCODER_REF::compute_omega(const std::vector<GF>& syndromes, const std::v
 }
 
 // Forney’s Algorithm: Compute error magnitudes and correct errors
-void RS_ENCODER_REF::forney_correction(const std::vector<GF>& omega, int deg_omega, const std::vector<GF>& lambda, int deg_lambda,
+int RS_ENCODER_REF::forney_correction(const std::vector<GF>& omega, int deg_omega, const std::vector<GF>& lambda, int deg_lambda,
                                        const std::vector<GF>& root, int count, const std::vector<GF>& loc, GF data[nn]) {
     for (int j = count - 1; j >= 0; j--) {
         GF num1 = 0;
@@ -292,7 +297,7 @@ void RS_ENCODER_REF::forney_correction(const std::vector<GF>& omega, int deg_ome
         }
 
         if (den == 0) {
-            throw std::runtime_error("Uncorrectable error: division by zero in Forney");
+            return -1;
         }
 
         /* Apply error to data */
@@ -300,6 +305,7 @@ void RS_ENCODER_REF::forney_correction(const std::vector<GF>& omega, int deg_ome
             data[loc[j]] ^= Pow2Poly[mod_nn(Poly2Pow[num1] + Poly2Pow[num2] + nn - Poly2Pow[den])];
         }
     }
+    return 0;
 }
 
 // RSDecodeErasures: Port of Phil Karn's Berlekamp-Massey implementation
@@ -343,6 +349,11 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
     berlekamp_massey(syndromes, lambda, no_eras);
     int deg_lambda = convert_to_index_and_get_degree(lambda);
 
+    if (deg_lambda > 2 * tt)
+    {
+        return RS_ERROR_LAMBDA_ERROR;
+    }
+
     RsVerification::verify_lambda(lambda, deg_lambda);
 
     /* Find roots of the error+erasure locator polynomial. By Chien Search */
@@ -350,7 +361,7 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
     int root_count = chien_search(lambda, deg_lambda, root, loc, count);
 
     if (deg_lambda != root_count) {
-        return -1; // Uncorrectable error detected
+        return RS_ERROR_CHIEN_SEARCH;
     }
 
     /*
@@ -363,6 +374,9 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
      * Compute error values in poly-form. num1 = omega(inv(X(l))), num2 =
      * inv(X(l))**(B0-1) and den = lambda_pr(inv(X(l))) all in poly-form
      */
-    forney_correction(omega, deg_omega, lambda, deg_lambda, root, count, loc, data);
+    if (forney_correction(omega, deg_omega, lambda, deg_lambda, root, count, loc, data) < 0)
+    {
+        return -1;
+    }
     return count;
 }
