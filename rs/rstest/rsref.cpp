@@ -100,8 +100,8 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
     // Step 2: Compute error locator polynomial using Berlekamp-Massey
     std::vector<GF> lambda(2 * tt + 1, 0);
     lambda[0] = 1; // Start with identity polynomial
-    int deg_lambda = berlekamp_massey(syndromes, lambda, 0);
-    deg_lambda = convert_to_index_and_get_degree(lambda);
+    berlekamp_massey(syndromes, lambda, 0);
+    int deg_lambda = convert_to_index_and_get_degree(lambda);
 
     // Verify error locator polynomial
     RsVerification::verify_lambda(lambda, deg_lambda);
@@ -175,7 +175,7 @@ int RS_ENCODER_REF::construct_erasure_locator(std::vector<GF>& lambda, const int
     return no_eras; // Degree of the erasure locator polynomial
 }
 
-int RS_ENCODER_REF::berlekamp_massey(const std::vector<GF>& syndromes, std::vector<GF>& lambda, int no_eras) {
+void RS_ENCODER_REF::berlekamp_massey(const std::vector<GF>& syndromes, std::vector<GF>& lambda, int no_eras) {
     std::vector<GF> b(2 * tt + 1, 0);
     for (int i = 0; i < 2 * tt + 1; i++)
         b[i] = Poly2Pow[lambda[i]];
@@ -228,7 +228,6 @@ int RS_ENCODER_REF::berlekamp_massey(const std::vector<GF>& syndromes, std::vect
             std::copy(t.begin(), t.begin() + (2 * tt + 1), lambda.begin());
         }
     }
-    return 0;
 }
 
 int RS_ENCODER_REF::convert_to_index_and_get_degree(std::vector<GF>& poly) {
@@ -348,8 +347,8 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
     }
 
     construct_erasure_locator(lambda, eras_pos, no_eras);
-    int deg_lambda = berlekamp_massey(syndromes, lambda, no_eras);
-    deg_lambda = convert_to_index_and_get_degree(lambda);
+    berlekamp_massey(syndromes, lambda, no_eras);
+    int deg_lambda = convert_to_index_and_get_degree(lambda);
 
     RsVerification::verify_lambda(lambda, deg_lambda);
 
