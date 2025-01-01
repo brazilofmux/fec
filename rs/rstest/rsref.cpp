@@ -74,6 +74,7 @@ void RS_ENCODER_REF::RSEncode(GF data[MAX_KK], GF bb[2 * MAX_TT]) {
     }
 }
 
+#if 0
 void RS_ENCODER_REF::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
     syndromes.assign(2 * tt + 1, 0);
     int iPowInit = 0;
@@ -208,327 +209,225 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
 
     return num_errors;
 }
+#endif
 
-int RS_ENCODER_REF::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_eras) {
-    RsVerification::verify_received_word(recd, nn);
+int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
+    return RSDecodeErasures(recd, nullptr, 0);
+}
 
-    /* Reed-Solomon Decoding with Erasures
-     *
-     * Mathematical Background:
-     * 1. An erasure is an error whose position is known in advance
-     * 2. Each erasure counts as one condition on the error pattern
-     * 3. Total corrections = errors + erasures ≤ 2t
-     * 4. Known erasure positions let us modify initial conditions for B-M algorithm
-     *
-     * Key differences from standard decoding:
-     * 1. First compute erasure locator polynomial Γ(x) from known positions
-     * 2. Initialize error locator polynomial Λ(x) = Γ(x)
-     * 3. Continue with modified Berlekamp-Massey to find remaining errors
-     * 4. Final polynomial will locate both errors and erasures
+#define A0	(nn)
+
+#define	min(a,b)	((a) < (b) ? (a) : (b))
+
+#define	CLEAR(a,n) {\
+    int ci;\
+    for(ci=(n)-1;ci >=0;ci--)\
+        (a)[ci] = 0;\
+    }
+
+#define	COPY(a,b,n) {\
+    int ci;\
+    for(ci=(n)-1;ci >=0;ci--)\
+        (a)[ci] = (b)[ci];\
+    }
+#define	COPYDOWN(a,b,n) {\
+    int ci;\
+    for(ci=(n)-1;ci >=0;ci--)\
+        (a)[ci] = (b)[ci];\
+    }
+
+// RSDecodeErasures: Port of Phil Karn's Berlekamp-Massey implementation
+// Brain-dead port for erasure decoding with no erasures initially
+int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
+    RsVerification::verify_received_word(data, nn);
+
+    int kk = nn - 2*tt;
+    int b0 = (kk+1)/2;
+    int deg_lambda, el, deg_omega;
+    int i, j, r;
+    GF u,q,tmp,num1,num2,den,discr_r;
+    GF recd[nn];
+    GF lambda[2 * MAX_TT + 1], s[2 * MAX_TT + 1];	/* Err+Eras Locator poly
+                         * and syndrome poly */
+    GF b[2 * MAX_TT + 1], t[2 * MAX_TT + 1], omega[2 * MAX_TT + 1];
+    GF root[2 * MAX_TT], reg[2 * MAX_TT + 1], loc[2 * MAX_TT];
+    int syn_error, count;
+
+    /* data[] is in polynomial form, copy and convert to index form */
+    for (i = nn-1; i >= 0; i--){
+        recd[i] = Poly2Pow[data[i]];
+    }
+    /* first form the syndromes; i.e., evaluate recd(x) at roots of g(x)
+     * namely @**(B0+i), i = 0, ... ,(NN-KK-1)
      */
+    syn_error = 0;
+    s[0] = 0;
+    for (i = 1; i <= 2*tt; i++) {
+        tmp = 0;
+        for (j = 0; j < nn; j++)
+            if (recd[j] != A0)	/* recd[j] in index form */
+                tmp ^= Pow2Poly[mod_nn(recd[j] + (b0+i-1)*j)];
+        syn_error |= tmp;	/* set flag if non-zero syndrome =>
+                     * error */
+        /* store syndrome in index form  */
+        s[i] = Poly2Pow[tmp];
+    }
 
-    // Working buffers
-    GF syndromes[2*MAX_TT+1];    // Si = r(α^(b0+i))
-    GF root[n];                  // Roots of final locator polynomial
-    GF loc[n];                   // Error/erasure positions
-    GF err[n];                   // Error/erasure values
-    GF reg[2*MAX_TT+1];         // Working register for Chien search
-    int syn_error = 0;          // Non-zero syndrome flag
+    RsVerification::verify_syndromes(s, tt);
+    RsVerification::print_syndromes("Initial", s, tt);
 
-    // Additional buffers for erasure handling
-    GF phi[2*MAX_TT+1];         // Erasure locator polynomial
-    GF tmp_pol[2*MAX_TT+1];     // Temporary polynomial for computations
-    GF lambda[2*MAX_TT+1];      // Error+erasure locator polynomial
-    GF lambda_pr[2*MAX_TT+1];   // Formal derivative of lambda
-    GF omega[2*MAX_TT+1];       // Error evaluator polynomial
-    GF b[2*MAX_TT+1];           // Temporary for B-M algorithm
-    GF T[2*MAX_TT+1];           // Another temporary for B-M
-
-    /* Step 1: Compute erasure locator polynomial Γ(x)
-     * Γ(x) = Π(1 - xX[i]) for each erasure position X[i]
-     * where X[i] = α^pos[i]
-     */
-
-    memset(tmp_pol, 0, sizeof(tmp_pol));
-    memset(phi, 0, sizeof(phi));
-
+    if (!syn_error) {
+        /*
+         * if syndrome is zero, data[] is a codeword and there are no
+         * errors to correct. So return data[] unmodified
+         */
+        return 0;
+    }
+    CLEAR(&lambda[1],2*tt);
+    lambda[0] = 1;
     if (no_eras > 0) {
-        phi[0] = 1;  // constant term
-        phi[1] = Pow2Poly[eras_pos[0]];  // First erasure factor
-
-        // Multiply by (1 - xX[i]) for each erasure
-        for (int i = 1; i < no_eras; i++) {
-            GF U = eras_pos[i];
-            for (int j = 1; j < i+2; j++) {
-                if (phi[j-1] == 0) {
-                    tmp_pol[j] = 0;
-                } else {
-                    int iMod = U + Poly2Pow[phi[j-1]];
-                    MOD_NN(iMod);
-                    tmp_pol[j] = Pow2Poly[iMod];
-                }
+        /* Init lambda to be the erasure locator polynomial */
+        lambda[1] = Pow2Poly[eras_pos[0]];
+        for (i = 1; i < no_eras; i++) {
+            u = eras_pos[i];
+            for (j = i+1; j > 0; j--) {
+                tmp = Poly2Pow[lambda[j - 1]];
+                if(tmp != A0)
+                    lambda[j] ^= Pow2Poly[mod_nn(u + tmp)];
             }
-            for (int j = 1; j < i+2; j++) {
-                phi[j] = phi[j] ^ tmp_pol[j];
-            }
-        }
-
-        // Convert phi to power form
-        for (int i = 0; i < nn-kk+1; i++) {
-            phi[i] = Poly2Pow[phi[i]];
         }
     }
+    for(i=0;i<2*tt+1;i++)
+        b[i] = Poly2Pow[lambda[i]];
 
-    /* Step 2: Calculate Syndromes
-     * Same as standard decoding, but will be used with
-     * the initialized Λ(x) = Γ(x)
+    /*
+     * Begin Berlekamp-Massey algorithm to determine error+erasure
+     * locator polynomial
      */
-
-    // Initialize syndromes to zero
-    for (int i = 0; i <= 2*tt; i++) {
-        syndromes[i] = 0;
-    }
-
-    // For each position in received word
-    int iPowInit = 0;
-    for (int j = 0; j < nn; j++) {
-        GF RECD = recd[j];
-        if (RECD != 0) {
-            int iPow0 = iPowInit + Poly2Pow[RECD];
-            MOD_NN(iPow0);
-
-            for (int i = 1; i <= 2*tt; i++) {
-                MOD_NN(iPow0);
-                syndromes[i] ^= Pow2Poly[iPow0];
-                iPow0 += j;
+    r = no_eras;
+    el = no_eras;
+    while (++r <= 2*tt) {	/* r is the step number */
+        /* Compute discrepancy at the r-th step in poly-form */
+        discr_r = 0;
+        for (i = 0; i < r; i++){
+            if ((lambda[i] != 0) && (s[r - i] != A0)) {
+                discr_r ^= Pow2Poly[mod_nn(Poly2Pow[lambda[i]] + s[r - i])];
             }
         }
-        iPowInit += b0;
-        MOD_NN(iPowInit);
-    }
+        RsVerification::print_berlekamp_step(r, discr_r, r, std::vector<GF>(lambda, lambda + r + 1), r);
 
-    // Convert syndromes to power form and check for errors
-    for (int i = 1; i <= 2*tt; i++) {
-        if (syndromes[i] != 0) {
-            syn_error = 1;
-        }
-        syndromes[i] = Poly2Pow[syndromes[i]];
-    }
-
-    RsVerification::verify_syndromes(syndromes, tt);
-    RsVerification::print_syndromes("Initial", syndromes, tt);
-
-    if (syn_error) {
-        /* Step 3: Modified Berlekamp-Massey Algorithm
-         * Initialize with Λ(x) = Γ(x) if there were erasures
-         * Otherwise start with Λ(x) = 1
-         */
-        int r = no_eras;
-        int deg_phi = no_eras;
-        int L = no_eras;
-
-        if (no_eras > 0) {
-            // Initialize lambda(x) and b(x) to phi(x)
-            for (int i = 0; i < deg_phi+1; i++) {
-                lambda[i] = Pow2Poly[phi[i]];
-            }
-            for (int i = deg_phi+1; i < 2*tt+1; i++) {
-                lambda[i] = 0;
-            }
-            for (int i = 0; i < 2*tt+1; i++) {
-                b[i] = lambda[i];
-            }
+        discr_r = Poly2Pow[discr_r];	/* Index form */
+        if (discr_r == A0) {
+            /* 2 lines below: B(x) <-- x*B(x) */
+            COPYDOWN(&b[1],b,2*tt);
+            b[0] = A0;
         } else {
-            lambda[0] = 1;
-            for (int i = 1; i < 2*tt+1; i++) {
-            lambda[i] = 0;
+            /* 7 lines below: T(x) <-- lambda(x) - discr_r*x*b(x) */
+            t[0] = lambda[0];
+            for (i = 0 ; i < 2*tt; i++) {
+                if(b[i] != A0)
+                    t[i+1] = lambda[i+1] ^ Pow2Poly[mod_nn(discr_r + b[i])];
+                else
+                    t[i+1] = lambda[i+1];
             }
-            for (int i = 0; i < 2*tt+1; i++) {
-                b[i] = lambda[i];
-            }
-        }
-
-        while (++r <= 2*tt) {  // r is the step number
-            // Compute discrepancy at the r-th step in poly-form
-            GF discr_r = 0;
-            for (int i = 0; i < r; i++) {
-                if ((lambda[i] != 0) && (syndromes[r-i] != GF_INFINITY)) {
-                    int iMod = Poly2Pow[lambda[i]] + syndromes[r-i];
-                    MOD_NN(iMod);
-                    discr_r ^= Pow2Poly[iMod];
-                }
-            }
-
-            if (discr_r == 0) {
-                // Shift b(x) by x
-                for (int i = 2*tt; i > 0; i--) {
-                    b[i] = b[i-1];
-                }
-                b[0] = 0;
+            if (2 * el <= r + no_eras - 1) {
+                el = r + no_eras - el;
+                /*
+                 * 2 lines below: B(x) <-- inv(discr_r) *
+                 * lambda(x)
+                 */
+                for (i = 0; i <= 2*tt; i++)
+                    b[i] = (lambda[i] == 0) ? A0 : mod_nn(Poly2Pow[lambda[i]] - discr_r + nn);
             } else {
-                // T(x) = lambda(x) - discr_r*x*b(x)
-                T[0] = lambda[0];
-                for (int i = 1; i < 2*tt+1; i++) {
-                    if (b[i-1] == 0) {
-                        T[i] = lambda[i];
-                    } else {
-                        int iMod = Poly2Pow[discr_r] + Poly2Pow[b[i-1]];
-                        MOD_NN(iMod);
-                        T[i] = lambda[i] ^ Pow2Poly[iMod];
-                    }
-                }
-
-                if (2*L <= r+no_eras-1) {
-                    L = r+no_eras-L;
-                    // b(x) = inv(discr_r) * lambda(x)
-                    for (int i = 0; i < 2*tt+1; i++) {
-                        if (lambda[i] == 0) {
-                            b[i] = 0;
-                        } else {
-                            int iMod = Poly2Pow[lambda[i]] - Poly2Pow[discr_r];
-                            MOD_NN(iMod);
-                            b[i] = Pow2Poly[iMod];
-                        }
-                    }
-                    for (int i = 0; i < 2*tt+1; i++) {
-                        lambda[i] = T[i];
-                    }
-                } else {
-                    for (int i = 0; i < 2*tt+1; i++) {
-                        lambda[i] = T[i];
-                    }
-                    // b(x) = x*b(x)
-                    for (int i = 2*tt; i > 0; i--) {
-                        b[i] = b[i-1];
-                    }
-                    b[0] = 0;
-                }
+                /* 2 lines below: B(x) <-- x*B(x) */
+                COPYDOWN(&b[1],b,2*tt);
+                b[0] = A0;
             }
+            COPY(lambda,t,2*tt+1);
         }
-
-        /* Step 4: Find roots (Chien search) and compute error values (Forney)
-         * Same as standard decoding, but handles both errors and erasures
-         */
-        // Put lambda(x) into power form
-        for (int i = 0; i < 2*tt+1; i++) {
-            lambda[i] = Poly2Pow[lambda[i]];
-        }
-
-        // Compute deg(lambda(x))
-        int deg_lambda = 2*tt;
-        while ((lambda[deg_lambda] == GF_INFINITY) && (deg_lambda > 0)) {
-            --deg_lambda;
-        }
-
-        RsVerification::verify_lambda(lambda, deg_lambda);
-
-        if (deg_lambda <= 2*tt) {
-            // Find roots of error+erasure locator polynomial using Chien Search
-            for (int i = 1; i < 2*tt+1; i++) {
-                reg[i] = lambda[i];
-            }
-
-            int count = 0;  // Number of roots found
-            for (int i = 1; i <= nn; i++) {
-                GF q = 1;
-                for (int j = 1; j <= deg_lambda; j++) {
-                    if (reg[j] != GF_INFINITY) {
-                        int iMod = reg[j] + j;
-                        MOD_NN(iMod);
-                        q ^= Pow2Poly[iMod];
-                        reg[j] = iMod;
-                    }
-                }
-                if (!q) {  // Store root and error location number
-                    root[count] = i;
-                    loc[count] = nn-i;
-                    count++;
-                }
-            }
-
-            if (deg_lambda == count) {  // Number of roots equals degree of lambda
-                // Compute error+erasure evaluator polynomial
-                for (int i = 0; i < 2*tt; i++) {
-                    omega[i] = 0;
-                    for (int j = 0; j < deg_lambda+1 && j < i+1; j++) {
-                        if ((syndromes[i+1-j] != GF_INFINITY) && (lambda[j] != GF_INFINITY)) {
-                            int iMod = syndromes[i+1-j] + lambda[j];
-                            MOD_NN(iMod);
-                            omega[i] ^= Pow2Poly[iMod];
-                        }
-                    }
-                }
-                omega[2*tt] = 0;
-
-                // Compute formal derivative of lambda
-                for (int i = 0; i < 2*tt; i += 2) {
-                    lambda_pr[i+1] = 0;
-                    lambda_pr[i] = Pow2Poly[lambda[i+1]];
-                }
-                lambda_pr[2*tt] = 0;
-
-                // Find degree of omega
-                int deg_omega = 2*tt;
-                while ((omega[deg_omega] == 0) && (deg_omega > 0)) {
-                    --deg_omega;
-                }
-
-                // Compute error values
-                for (int j = 0; j < count; j++) {
-                    GF pres_root = root[j];
-                    GF pres_loc = loc[j];
-
-                    // Calculate numerator
-                    GF num1 = 0;
-                    int iPow0 = 0;
-                    for (int i = 0; i < deg_omega+1; i++) {
-                        if (omega[i] != 0) {
-                            int iMod = Poly2Pow[omega[i]] + iPow0;
-                            MOD_NN(iMod);
-                            num1 ^= Pow2Poly[iMod];
-                        }
-                        iPow0 += pres_root;
-                        MOD_NN(iPow0);
-                    }
-
-                    // Additional term for erasure decoding
-                    int iMod = b0-1;
-                    MOD_NN(iMod);
-                    iMod = (iMod*pres_root)%nn;
-                    GF num2 = Pow2Poly[iMod];
-
-                    // Calculate denominator (formal derivative evaluation)
-                    GF den = 0;
-                    iPow0 = 0;
-                    for (int i = 0; i < deg_lambda+1; i++) {
-                        if (lambda_pr[i] != 0) {
-                            iMod = Poly2Pow[lambda_pr[i]] + iPow0;
-                            MOD_NN(iMod);
-                            den ^= Pow2Poly[iMod];
-                        }
-                        iPow0 += pres_root;
-                        MOD_NN(iPow0);
-                    }
-
-                    err[pres_loc] = 0;
-                    if (num1 != 0 && den != 0) {
-                        iMod = Poly2Pow[num1] + Poly2Pow[num2] - Poly2Pow[den];
-                        MOD_NN(iMod);
-                        err[pres_loc] = Pow2Poly[iMod];
-                    }
-
-                    // Apply correction
-                    recd[pres_loc] ^= err[pres_loc];
-                }
-
-                return count;  // Return number of corrections
-            } else {
-                return RS_ERROR_CHIEN_SEARCH;  // Number of roots != degree of lambda
-            }
-        } else {
-            return RS_ERROR_LAMDA_ERROR;  // Degree of lambda too high
-        }
-    } else {
-        return 0;  // No errors found
     }
+
+    /* Convert lambda to index form and compute deg(lambda(x)) */
+    deg_lambda = 0;
+    for(i=0;i<2*tt+1;i++){
+        lambda[i] = Poly2Pow[lambda[i]];
+        if(lambda[i] != A0)
+            deg_lambda = i;
+    }
+
+    RsVerification::verify_lambda(lambda, deg_lambda);
+
+    /*
+     * Find roots of the error+erasure locator polynomial. By Chien
+     * Search
+     */
+    COPY(&reg[1],&lambda[1],2*tt);
+    count = 0;		/* Number of roots of lambda(x) */
+    for (i = 1; i <= nn; i++) {
+        q = 1;
+        for (j = deg_lambda; j > 0; j--)
+            if (reg[j] != A0) {
+                reg[j] = mod_nn(reg[j] + j);
+                q ^= Pow2Poly[reg[j]];
+            }
+        if (!q) {
+            /* store root (index-form) and error location number */
+            root[count] = i;
+            loc[count] = nn - i;
+            count++;
+        }
+    }
+
+    if (deg_lambda != count) {
+        /*
+         * deg(lambda) unequal to number of roots => uncorrectable
+         * error detected
+         */
+        return -1;
+    }
+    /*
+     * Compute err+eras evaluator poly omega(x) = s(x)*lambda(x) (modulo
+     * x**(NN-KK)). in index form. Also find deg(omega).
+     */
+    deg_omega = 0;
+    for (i = 0; i < 2*tt;i++){
+        tmp = 0;
+        j = (deg_lambda < i) ? deg_lambda : i;
+        for(;j >= 0; j--){
+            if ((s[i + 1 - j] != A0) && (lambda[j] != A0))
+                tmp ^= Pow2Poly[mod_nn(s[i + 1 - j] + lambda[j])];
+        }
+        if(tmp != 0)
+            deg_omega = i;
+        omega[i] = Poly2Pow[tmp];
+    }
+    omega[2*tt] = A0;
+
+    /*
+     * Compute error values in poly-form. num1 = omega(inv(X(l))), num2 =
+     * inv(X(l))**(B0-1) and den = lambda_pr(inv(X(l))) all in poly-form
+     */
+    for (j = count-1; j >=0; j--) {
+        num1 = 0;
+        for (i = deg_omega; i >= 0; i--) {
+            if (omega[i] != A0)
+                num1  ^= Pow2Poly[mod_nn(omega[i] + i * root[j])];
+        }
+        num2 = Pow2Poly[mod_nn(root[j] * (b0 - 1) + nn)];
+        den = 0;
+
+        /* lambda[i+1] for i even is the formal derivative lambda_pr of lambda[i] */
+        for (i = min(deg_lambda,2*tt-1) & ~1; i >= 0; i -=2) {
+            if(lambda[i+1] != A0)
+                den ^= Pow2Poly[mod_nn(lambda[i+1] + i * root[j])];
+        }
+        if (den == 0) {
+            return -1;
+        }
+        /* Apply error to data */
+        if (num1 != 0) {
+            data[loc[j]] ^= Pow2Poly[mod_nn(Poly2Pow[num1] + Poly2Pow[num2] + nn - Poly2Pow[den])];
+        }
+    }
+    return count;
 }
