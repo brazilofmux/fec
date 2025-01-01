@@ -107,8 +107,8 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
     RsVerification::verify_lambda(lambda, deg_lambda);
 
     // Step 3: Find roots of the error locator polynomial using Chien Search
-    std::vector<GF> root(2 * MAX_TT);
-    std::vector<GF> loc(2 * MAX_TT);
+    std::vector<GF> root(2 * tt);
+    std::vector<GF> loc(2 * tt);
     int count = 0;
     int root_count = chien_search(lambda, deg_lambda, root, loc, count);
 
@@ -241,7 +241,7 @@ int RS_ENCODER_REF::convert_to_index_and_get_degree(std::vector<GF>& poly) {
 }
 
 int RS_ENCODER_REF::chien_search(const std::vector<GF> lambda, int deg_lambda, std::vector<GF>& root, std::vector<GF>& loc, int& count) {
-    std::vector<GF> reg(2 * MAX_TT + 1);
+    std::vector<GF> reg(2 * tt + 1);
     memcpy(&reg[1], &lambda[1], 2 * tt * sizeof(GF));
 
     count = 0;
@@ -317,9 +317,9 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
     std::vector<GF> lambda(2 * tt + 1, 0);
     std::vector<GF> b(2 * tt + 1, 0);
     std::vector<GF> omega(2 * tt + 1);
-    std::vector<GF> root(2 * MAX_TT);
-    std::vector<GF> reg(2 * MAX_TT + 1);
-    std::vector<GF> loc(2 * MAX_TT);
+    std::vector<GF> root(2 * tt);
+    std::vector<GF> reg(2 * tt + 1);
+    std::vector<GF> loc(2 * tt);
 
     /* first form the syndromes; i.e., evaluate recd(x) at roots of g(x)
      * namely @**(B0+i), i = 0, ... ,(NN-KK-1)
