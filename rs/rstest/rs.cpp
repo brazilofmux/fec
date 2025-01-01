@@ -91,11 +91,7 @@ GF RS_ENCODER::ModTable[4*nn+1];
 GF *RS_ENCODER::pModTable;
 #define MOD_NN(x) (pModTable[(x)])
 
-RS_ENCODER::RS_ENCODER(int CorrectableErrors)
-{
-    tt = CorrectableErrors;
-    kk = nn-2*tt;
-
+RS_ENCODER::RS_ENCODER(int CorrectableErrors) : tt(CorrectableErrors), kk(nn - 2 * CorrectableErrors) {
     // To choose a symetrically generator polynomial, we
     // pick b0 = [(2^m-1)-(Dmin-2)]/2, for even Dmin-1.
     // and  b0 = -(Dmin-2)/2, for odd Dmin-1.
@@ -108,11 +104,10 @@ RS_ENCODER::RS_ENCODER(int CorrectableErrors)
     //    = (kk+1)/2
     //
 #ifdef SYMMETRICAL_GENERATOR
-    b0 = (kk+1)/2;
+    b0 = (kk + 1) / 2;  // Symmetric generator polynomial
 #else
     b0 = 254;
 #endif
-
     RSGenPoly();
     RSGenTable();
     RsVerification::verify_generator(gg, tt);

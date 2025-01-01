@@ -65,10 +65,10 @@ private:
     int forney_correction(const std::vector<GF>& omega, int deg_omega, const std::vector<GF>& lambda, int deg_lambda,
                                        const std::vector<GF>& root, int count, const std::vector<GF>& loc, GF data[nn]);
 
-    int b0;             // g(x) has roots @^b0, @^(b0+1), ... ,@^(b0+2*tt-1)
     GF gg[2*MAX_TT+1]; // number of non-zero coefficients is 2*tt+1
-    int tt;            // Number of errors that can be corrected
-    int kk;            // Number of data symbols per codeword
+    int tt;  // Number of correctable errors
+    int kk;  // Number of data symbols per codeword
+    int b0;  // Start position for generator polynomial roots
 };
 
 #endif // RS_H
