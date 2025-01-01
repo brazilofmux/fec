@@ -275,16 +275,43 @@ int RS_ENCODER_REF::chien_search(const std::vector<GF> lambda, int deg_lambda, s
     return count;
 }
 
+// Forney’s Algorithm: Compute error magnitudes and correct errors
+void RS_ENCODER_REF::forney_correction(const std::vector<GF>& omega, int deg_omega, const std::vector<GF>& lambda, int deg_lambda,
+                                       const std::vector<GF>& root, int count, const std::vector<GF>& loc, GF data[nn]) {
+    for (int j = count - 1; j >= 0; j--) {
+        GF num1 = 0;
+        for (int i = deg_omega; i >= 0; i--) {
+            if (omega[i] != A0)
+                num1 ^= Pow2Poly[mod_nn(omega[i] + i * root[j])];
+        }
+        GF num2 = Pow2Poly[mod_nn(root[j] * (b0 - 1) + nn)];
+        GF den = 0;
+
+        /* lambda[i+1] for i even is the formal derivative lambda_pr of lambda[i] */
+        for (int i = std::min(deg_lambda, 2 * tt - 1) & ~1; i >= 0; i -=2) {
+            if (lambda[i + 1] != A0)
+                den ^= Pow2Poly[mod_nn(lambda[i+1] + i * root[j])];
+        }
+
+        if (den == 0) {
+            throw std::runtime_error("Uncorrectable error: division by zero in Forney");
+        }
+
+        /* Apply error to data */
+        if (num1 != 0) {
+            data[loc[j]] ^= Pow2Poly[mod_nn(Poly2Pow[num1] + Poly2Pow[num2] + nn - Poly2Pow[den])];
+        }
+    }
+}
+
 // RSDecodeErasures: Port of Phil Karn's Berlekamp-Massey implementation
 // Brain-dead port for erasure decoding with no erasures initially
 int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
     RsVerification::verify_received_word(data, nn);
 
-    int kk = nn - 2*tt;
-    int b0 = (kk+1)/2;
-    int el, deg_omega;
+    int el;
     int i, j, r;
-    GF u, tmp, num1, num2, den, discr_r;
+    GF u, tmp, discr_r;
     std::vector<GF> lambda(2 * tt + 1, 0);
     std::vector<GF> b(2 * tt + 1, 0);
     std::vector<GF> t(2 * tt + 1, 0);
@@ -397,7 +424,7 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
      * Compute err+eras evaluator poly omega(x) = s(x)*lambda(x) (modulo
      * x**(NN-KK)). in index form. Also find deg(omega).
      */
-    deg_omega = 0;
+    int deg_omega = 0;
     for (i = 0; i < 2*tt;i++){
         tmp = 0;
         j = (deg_lambda < i) ? deg_lambda : i;
@@ -415,27 +442,6 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
      * Compute error values in poly-form. num1 = omega(inv(X(l))), num2 =
      * inv(X(l))**(B0-1) and den = lambda_pr(inv(X(l))) all in poly-form
      */
-    for (j = count-1; j >=0; j--) {
-        num1 = 0;
-        for (i = deg_omega; i >= 0; i--) {
-            if (omega[i] != A0)
-                num1  ^= Pow2Poly[mod_nn(omega[i] + i * root[j])];
-        }
-        num2 = Pow2Poly[mod_nn(root[j] * (b0 - 1) + nn)];
-        den = 0;
-
-        /* lambda[i+1] for i even is the formal derivative lambda_pr of lambda[i] */
-        for (i = std::min(deg_lambda,2*tt-1) & ~1; i >= 0; i -=2) {
-            if(lambda[i+1] != A0)
-                den ^= Pow2Poly[mod_nn(lambda[i+1] + i * root[j])];
-        }
-        if (den == 0) {
-            return -1;
-        }
-        /* Apply error to data */
-        if (num1 != 0) {
-            data[loc[j]] ^= Pow2Poly[mod_nn(Poly2Pow[num1] + Poly2Pow[num2] + nn - Poly2Pow[den])];
-        }
-    }
+    forney_correction(omega, deg_omega, lambda, deg_lambda, root, count, loc, data);
     return count;
 }
