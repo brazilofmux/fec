@@ -98,63 +98,56 @@ void RS_ENCODER_REF::calculate_syndromes(const GF recd[nn], std::vector<GF>& syn
     }
 }
 
-void RS_ENCODER_REF::berlekamp_massey(const std::vector<GF>& syndromes, int tt, std::vector<GF>& lambda, int& lambda_deg) {
+void RS_ENCODER_REF::berlekamp_massey(const std::vector<GF>& syndromes, int tt,
+                                      std::vector<GF>& lambda, int& lambda_deg) {
     const int max_deg = 2 * tt;
 
-    // Initialization
-    lambda.assign(max_deg + 1, 0);
-    lambda[0] = 1; // Initial lambda(x) = 1
-
+    // Initialize tables
     std::vector<GF> b(max_deg + 1, 0); // Previous lambda(x)
-    b[0] = 1;
+    lambda.assign(max_deg + 1, 0);     // Current lambda(x)
+    lambda[0] = 1;                     // Polynomial form
 
-    int l = 0;   // Current degree of lambda(x)
-    int m = 1;   // Distance since last update
-    GF discr = 0; // Discrepancy
+    int L = 0;  // Degree of lambda(x)
+    int m = 1;  // Distance since last update
+    GF discr = 0; // Discrepancy (polynomial form)
 
-    // Process each step of the algorithm
     for (int r = 1; r <= max_deg; ++r) {
-        // Calculate discrepancy: discr = S[r] + sum(lambda[i] * S[r-i])
+        // Compute discrepancy: discr = S[r] + sum(lambda[i] * S[r-i])
         discr = syndromes[r];
-        for (int i = 1; i <= l; ++i) {
+        for (int i = 1; i <= L; ++i) {
             if (lambda[i] != 0 && syndromes[r - i] != GF_INFINITY) {
-                discr ^= Pow2Poly[mod_nn(Poly2Pow[lambda[i]] + Poly2Pow[syndromes[r - i]])];
+                discr ^= Pow2Poly[mod_nn(Poly2Pow[lambda[i]] + syndromes[r - i])];
             }
         }
 
-        // Debug output for the current step
-        RsVerification::print_berlekamp_step(r, discr, l, lambda, l);
+        RsVerification::print_berlekamp_step(r, discr, L, lambda, L);
 
         if (discr == 0) {
-            // No discrepancy, just increment m
-            ++m;
+            ++m; // No update needed
         } else {
-            // Update lambda(x)
-            std::vector<GF> t = lambda; // Temporary copy of current lambda(x)
+            std::vector<GF> temp = lambda; // Save current lambda(x)
 
-            // Lambda(x) = Lambda(x) - discr * x^m * B(x)
+            // Update lambda(x): lambda = lambda - discr * x^m * b
             for (int i = 0; i <= max_deg; ++i) {
                 if (b[i] != 0) {
                     int index = mod_nn(Poly2Pow[discr] + Poly2Pow[b[i]]);
-                    if (i + m < max_deg + 1) {
+                    if (i + m <= max_deg) {
                         lambda[i + m] ^= Pow2Poly[index];
                     }
                 }
             }
 
-            // Update degree of lambda(x) if needed
-            if (2 * l < r) {
-                l = r - l;
-                b = t; // Save current lambda(x) as the new B(x)
-                m = 1; // Reset m
+            if (2 * L < r) {
+                L = r - L;
+                b = temp; // Update b to old lambda(x)
+                m = 1;
             } else {
                 ++m;
             }
         }
     }
 
-    // Finalize lambda degree
-    lambda_deg = l;
+    lambda_deg = L;
 }
 
 int RS_ENCODER_REF::RSDecode(GF recd[nn]) {

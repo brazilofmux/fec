@@ -435,6 +435,8 @@ eras_dec_rs(dtype data[], int eras_pos[], int no_eras, int tt)
                 discr_r ^= Alpha_to[modnn(Index_of[lambda[i]] + s[r - i])];
             }
         }
+        RsVerification::print_berlekamp_step(r, discr_r, r, std::vector<GF>(lambda, lambda + r + 1), r);
+
         discr_r = Index_of[discr_r];	/* Index form */
         if (discr_r == A0) {
             /* 2 lines below: B(x) <-- x*B(x) */
@@ -473,7 +475,9 @@ eras_dec_rs(dtype data[], int eras_pos[], int no_eras, int tt)
         if(lambda[i] != A0)
             deg_lambda = i;
     }
-        RsVerification::verify_lambda(lambda, deg_lambda);
+
+    RsVerification::verify_lambda(lambda, deg_lambda);
+
     /*
      * Find roots of the error+erasure locator polynomial. By Chien
      * Search
