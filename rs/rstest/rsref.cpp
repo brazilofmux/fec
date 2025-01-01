@@ -75,7 +75,55 @@ void RS_ENCODER_REF::RSEncode(GF data[MAX_KK], GF bb[2 * MAX_TT]) {
 }
 
 int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
-    return RSDecodeErasures(recd, nullptr, 0);
+    // Verify received word
+    RsVerification::verify_received_word(recd, nn);
+
+    // Step 1: Calculate syndromes
+    std::vector<GF> syndromes;
+    calculate_syndromes(recd, syndromes);
+
+    // Check for errors
+    bool has_error = false;
+    for (int i = 1; i <= 2 * tt; i++) {
+        if (syndromes[i] != 0) {
+            has_error = true;
+        }
+    }
+
+    RsVerification::verify_syndromes(syndromes, tt);
+    RsVerification::print_syndromes("Initial", syndromes, tt);
+
+    if (!has_error) {
+        return 0; // No errors detected
+    }
+
+    // Step 2: Compute error locator polynomial using Berlekamp-Massey
+    std::vector<GF> lambda(2 * tt + 1, 0);
+    lambda[0] = 1; // Start with identity polynomial
+    int deg_lambda = berlekamp_massey(syndromes, lambda, 0);
+    deg_lambda = convert_to_index_and_get_degree(lambda);
+
+    // Verify error locator polynomial
+    RsVerification::verify_lambda(lambda, deg_lambda);
+
+    // Step 3: Find roots of the error locator polynomial using Chien Search
+    std::vector<GF> root(2 * MAX_TT);
+    std::vector<GF> loc(2 * MAX_TT);
+    int count = 0;
+    int root_count = chien_search(lambda, deg_lambda, root, loc, count);
+
+    if (deg_lambda != root_count) {
+        return -1; // Uncorrectable error detected
+    }
+
+    // Step 4: Compute evaluator polynomial omega
+    std::vector<GF> omega(2 * tt + 1);
+    int deg_omega = compute_omega(syndromes, lambda, deg_lambda, omega);
+
+    // Step 5: Apply Forney’s Algorithm for error correction
+    forney_correction(omega, deg_omega, lambda, deg_lambda, root, count, loc, recd);
+
+    return count; // Return the number of errors corrected
 }
 
 void RS_ENCODER_REF::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
