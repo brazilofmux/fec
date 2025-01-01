@@ -91,6 +91,14 @@ GF RS_ENCODER::ModTable[4*nn+1];
 GF *RS_ENCODER::pModTable;
 #define MOD_NN(x) (pModTable[(x)])
 
+static inline int mod_nn(int x) {
+    while (x >= nn) {
+        x -= nn;
+        x = (x >> 8) + (x & nn);
+    }
+    return x;
+}
+
 RS_ENCODER::RS_ENCODER(int CorrectableErrors) : tt(CorrectableErrors), kk(nn - 2 * CorrectableErrors) {
     // To choose a symetrically generator polynomial, we
     // pick b0 = [(2^m-1)-(Dmin-2)]/2, for even Dmin-1.
@@ -1033,7 +1041,7 @@ int RS_ENCODER::forney_correction(const std::vector<GF>& omega, int deg_omega, c
             if (omega[i] != A0)
                 num1 ^= Pow2Poly[MOD_NN(omega[i] + i * root[j])];
         }
-        GF num2 = Pow2Poly[MOD_NN(root[j] * (b0 - 1) + nn)];
+        GF num2 = Pow2Poly[mod_nn(root[j] * (b0 - 1) + nn)];
         GF den = 0;
 
         /* lambda[i+1] for i even is the formal derivative lambda_pr of lambda[i] */
