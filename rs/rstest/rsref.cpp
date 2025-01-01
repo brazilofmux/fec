@@ -297,6 +297,23 @@ int RS_ENCODER_REF::chien_search(const std::vector<GF> lambda, int deg_lambda, s
     return count;
 }
 
+int RS_ENCODER_REF::compute_omega(const std::vector<GF>& syndromes, const std::vector<GF>& lambda, int deg_lambda, std::vector<GF>& omega) {
+    int deg_omega = 0;
+    for (int i = 0; i < 2 * tt; i++) {
+        GF tmp = 0;
+        int j = (deg_lambda < i) ? deg_lambda : i;
+        for ( ; j >= 0; j--) {
+            if ((syndromes[i + 1 - j] != A0) && (lambda[j] != A0))
+                tmp ^= Pow2Poly[mod_nn(syndromes[i + 1 - j] + lambda[j])];
+        }
+        if (tmp != 0)
+            deg_omega = i;
+        omega[i] = Poly2Pow[tmp];
+    }
+    omega[2*tt] = A0;
+    return deg_omega;
+}
+
 // Forney’s Algorithm: Compute error magnitudes and correct errors
 void RS_ENCODER_REF::forney_correction(const std::vector<GF>& omega, int deg_omega, const std::vector<GF>& lambda, int deg_lambda,
                                        const std::vector<GF>& root, int count, const std::vector<GF>& loc, GF data[nn]) {
@@ -332,8 +349,8 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
     RsVerification::verify_received_word(data, nn);
 
     int el;
-    int i, j, r;
-    GF tmp, discr_r;
+    int i, r;
+    GF discr_r;
     std::vector<GF> lambda(2 * tt + 1, 0);
     std::vector<GF> b(2 * tt + 1, 0);
     std::vector<GF> t(2 * tt + 1, 0);
@@ -430,23 +447,12 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
     if (deg_lambda != root_count) {
         return -1; // Uncorrectable error detected
     }
+
     /*
      * Compute err+eras evaluator poly omega(x) = s(x)*lambda(x) (modulo
      * x**(NN-KK)). in index form. Also find deg(omega).
      */
-    int deg_omega = 0;
-    for (i = 0; i < 2*tt;i++){
-        tmp = 0;
-        j = (deg_lambda < i) ? deg_lambda : i;
-        for(;j >= 0; j--){
-            if ((syndromes[i + 1 - j] != A0) && (lambda[j] != A0))
-                tmp ^= Pow2Poly[mod_nn(syndromes[i + 1 - j] + lambda[j])];
-        }
-        if(tmp != 0)
-            deg_omega = i;
-        omega[i] = Poly2Pow[tmp];
-    }
-    omega[2*tt] = A0;
+    int deg_omega = compute_omega(syndromes, lambda, deg_lambda, omega);
 
     /*
      * Compute error values in poly-form. num1 = omega(inv(X(l))), num2 =
