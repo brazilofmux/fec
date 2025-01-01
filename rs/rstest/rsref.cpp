@@ -240,7 +240,7 @@ void RS_ENCODER_REF::calculate_syndromes(const GF recd[nn], std::vector<GF>& syn
     }
 }
 
-#define A0	(nn)
+static constexpr GF A0 = nn;
 
 int RS_ENCODER_REF::convert_to_index_and_get_degree(std::vector<GF>& poly) {
     int degree = 0;
