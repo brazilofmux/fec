@@ -147,38 +147,6 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
      * These syndrome values depend only on the errors, not the transmitted codeword.
      * If all syndromes are zero, r(x) is a valid codeword.
      */
-#if 1
-    // Initialize syndromes to zero
-    for (int i = 0; i <= 2*tt; i++) {
-        syndromes[i] = 0;
-    }
-
-    // For each position in received word
-    int iPowInit = 0;
-    for (int j = 0; j < nn; j++) {
-        GF RECD = recd[j];
-        if (RECD != 0) {
-            int iPow0 = iPowInit + Poly2Pow[RECD];
-            MOD_NN(iPow0);
-
-            for (int i = 1; i <= 2*tt; i++) {
-                MOD_NN(iPow0);
-                syndromes[i] ^= Pow2Poly[iPow0];
-                iPow0 += j;
-            }
-        }
-        iPowInit += b0;
-        MOD_NN(iPowInit);
-    }
-
-    // Convert syndromes to power form and check for errors
-    for (int i = 1; i <= 2*tt; i++) {
-        if (syndromes[i] != 0) {
-            syn_error = 1;
-        }
-        syndromes[i] = Poly2Pow[syndromes[i]];
-    }
-#else
     memset(syndromes, 0, sizeof(syndromes));
 
     // For each position in received word
@@ -210,7 +178,6 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
         }
         syndromes[i] = Poly2Pow[syndromes[i]];
     }
-#endif
 
     RsVerification::verify_syndromes(syndromes, tt);
     RsVerification::print_syndromes("Initial", syndromes, tt);
