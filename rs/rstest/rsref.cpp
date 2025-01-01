@@ -264,9 +264,11 @@ int RS_ENCODER_REF::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
     GF u,q,tmp,num1,num2,den,discr_r;
     std::vector<GF> lambda(2 * tt + 1, 0);
     std::vector<GF> b(2 * tt + 1, 0);
-    std::vector<GF> t(2 * MAX_TT + 1, 0);
-    GF omega[2 * MAX_TT + 1];
-    GF root[2 * MAX_TT], reg[2 * MAX_TT + 1], loc[2 * MAX_TT];
+    std::vector<GF> t(2 * tt + 1, 0);
+    std::vector<GF> omega(2 * tt + 1);
+    std::vector<GF> root(2 * MAX_TT);
+    std::vector<GF> reg(2 * MAX_TT + 1);
+    std::vector<GF> loc(2 * MAX_TT);
     int count;
 
     /* first form the syndromes; i.e., evaluate recd(x) at roots of g(x)
