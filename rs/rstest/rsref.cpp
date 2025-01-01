@@ -1,11 +1,12 @@
 #include <string.h>
 #include <stdio.h>
 #include <iostream>
+#include <vector>
+#include <algorithm>
 #include "rs.h"
 #include "rsref.h"
 #include "RsVerification.h"
 
-// Simple helper function for Galois Field modulo operations
 static inline void MOD_NN(int& x) {
     while (x >= nn) {
         x -= nn;
@@ -13,445 +14,206 @@ static inline void MOD_NN(int& x) {
     }
 }
 
-RS_ENCODER_REF::RS_ENCODER_REF(int CorrectableErrors) {
-    // Initialize key parameters
-    tt = CorrectableErrors;  // Number of correctable errors
-    kk = nn - 2*tt;         // Number of data symbols (message length)
+static inline int mod_nn(int x) {
+    while (x >= nn) {
+        x -= nn;
+        x = (x >> 8) + (x & nn);
+    }
+    return x;
+}
 
-    // Choose generator polynomial starting power
-    // For RS codes, we can choose b0 to make the generator polynomial symmetric
-    // This doesn't affect correctness but can simplify some implementations
-    b0 = (kk+1)/2;
-
-    // Generate the generator polynomial
+RS_ENCODER_REF::RS_ENCODER_REF(int CorrectableErrors) : tt(CorrectableErrors), kk(nn - 2 * CorrectableErrors) {
+    b0 = (kk + 1) / 2;  // Symmetric generator polynomial
     RSGenPoly();
-    RsVerification::verify_generator(gg, tt);
+    RsVerification::verify_generator(generator_poly, tt);
 }
 
-RS_ENCODER_REF::~RS_ENCODER_REF(void) {
-}
+void RS_ENCODER_REF::RSGenPoly() {
+    generator_poly.assign(2 * tt + 1, 0);
+    generator_poly[0] = Pow2Poly[b0];
+    generator_poly[1] = 1;
 
-void RS_ENCODER_REF::RSGenPoly(void) {
-    // This function generates the generator polynomial for the RS code
-    // The generator polynomial g(x) is the product of (x + α^i) terms
-    // where i ranges from b0 to b0+2t-1
-
-    int i, j, iMod;
-
-    // Initialize first term (x + α^b0)
-    gg[0] = Pow2Poly[b0];  // Constant term
-    gg[1] = 1;             // Coefficient of x
-
-    // Multiply by subsequent terms (x + α^(b0+i))
-    for (i = 2; i <= 2*tt; i++) {
-        gg[i] = 1;
-
-        // Multiply current polynomial by (x + α^(b0+i-1))
-        for (j = i-1; j > 0; j--) {
-            if (gg[j] != 0) {
-                iMod = Poly2Pow[gg[j]] + b0 + i-1;
-                MOD_NN(iMod);
-                gg[j] = gg[j-1] ^ Pow2Poly[iMod];
-            } else {
-                gg[j] = gg[j-1];
+    for (int i = 2; i <= 2 * tt; ++i) {
+        generator_poly[i] = 1;
+        for (int j = i - 1; j > 0; --j) {
+            if (generator_poly[j] != 0) {
+                int index = Poly2Pow[generator_poly[j]] + b0 + i - 1;
+                generator_poly[j] = generator_poly[j - 1] ^ Pow2Poly[mod_nn(index)];
+            }
+            else {
+                generator_poly[j] = generator_poly[j - 1];
             }
         }
-
-        // Handle constant term
-        iMod = Poly2Pow[gg[0]] + b0 + i-1;
-        MOD_NN(iMod);
-        gg[0] = Pow2Poly[iMod];
+        generator_poly[0] = Pow2Poly[mod_nn(Poly2Pow[generator_poly[0]] + b0 + i - 1)];
     }
-
-    // Convert generator polynomial coefficients to power form for encoding
-    for (i = 0; i <= 2*tt; i++) {
-        gg[i] = Poly2Pow[gg[i]];
+    for (auto& coeff : generator_poly) {
+        coeff = Poly2Pow[coeff];
     }
 }
 
-void RS_ENCODER_REF::RSEncode(GF data[MAX_KK], GF bb[2*MAX_TT]) {
-    // Clear parity buffer
-    memset(bb, 0, 2 * tt);
+void RS_ENCODER_REF::RSEncode(GF data[MAX_KK], GF bb[2 * MAX_TT]) {
+    std::fill(bb, bb + 2 * tt, 0);
 
-    // Systematic encoder for RS codes
-    // Input: data[0..kk-1] contains the message
-    // Output: bb[0..2*tt-1] contains the parity bytes
-    //
-    // The codeword is formed by:
-    // c(x) = m(x)*x^(n-k) + b(x)
-    // where m(x) is the message polynomial and b(x) is the remainder when
-    // m(x)*x^(n-k) is divided by g(x)
-    for (int i = kk - 1; i >= 0; i--) {
-        GF feedback = Poly2Pow[data[i] ^ bb[2 * tt - 1]];  // Get feedback using current data and parity
-
-        if (feedback != GF_INFINITY) {  // Non-zero feedback term
-            for (int j = 2 * tt - 1; j > 0; j--) {
-                if (gg[j] != GF_INFINITY) {
-                    int modVal = gg[j] + feedback;
-                    MOD_NN(modVal);
-                    bb[j] = bb[j - 1] ^ Pow2Poly[modVal];
+    for (int i = 0; i < kk; ++i) {
+        GF feedback = Poly2Pow[data[i] ^ bb[0]];  // Adjust for descending order
+        if (feedback != GF_INFINITY) {
+            for (int j = 0; j < 2 * tt - 1; ++j) {
+                if (generator_poly[j + 1] != GF_INFINITY) {
+                    bb[j] = bb[j + 1] ^ Pow2Poly[mod_nn(generator_poly[j + 1] + feedback)];
                 } else {
-                    bb[j] = bb[j - 1];
+                    bb[j] = bb[j + 1];
                 }
             }
-            // Update the first parity byte with gg[0] term
-            int modVal = gg[0] + feedback;
-            MOD_NN(modVal);
-            bb[0] = Pow2Poly[modVal];
-        } else {  // Zero feedback: Shift the parity bytes without XOR
-            for (int j = 2 * tt - 1; j > 0; j--) {
-                bb[j] = bb[j - 1];
+            bb[2 * tt - 1] = Pow2Poly[mod_nn(generator_poly[0] + feedback)];
+        } else {
+            for (int j = 0; j < 2 * tt - 1; ++j) {
+                bb[j] = bb[j + 1];
             }
-            bb[0] = 0;  // Clear the first parity byte
+            bb[2 * tt - 1] = 0;
         }
     }
 }
 
-int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
-    /* Reed-Solomon Decoding Process
-     *
-     * Mathematical Background:
-     * 1. A Reed-Solomon code is defined by evaluating codeword polynomials at powers
-     *    of a primitive element α of the Galois Field GF(2^8).
-     *
-     * 2. The generator polynomial g(x) has roots α^b0, α^(b0+1), ..., α^(b0+2t-1)
-     *    where t is the error-correction capability.
-     *
-     * 3. For a received word r(x) = c(x) + e(x) where:
-     *    - c(x) is the transmitted codeword
-     *    - e(x) is the error polynomial
-     *
-     * 4. The decoding process:
-     *    a) Calculate syndromes Si = r(α^(b0+i)) for i = 1..2t
-     *    b) Use Berlekamp-Massey to find error locator polynomial Λ(x)
-     *    c) Find roots of Λ(x) to locate errors (Chien search)
-     *    d) Calculate error values using Forney algorithm
-     */
-    RsVerification::verify_received_word(recd, nn);
-
-    // Allocate working buffers
-    GF syndromes[2*MAX_TT+1];    // Syndromes
-    GF root[MAX_TT];             // Error locations in power form
-    GF loc[MAX_TT];              // Error position indices
-    GF err[n];                   // Error values
-    GF reg[2*MAX_TT+1];          // Scratch space for Chien search
-    int syn_error = 0;           // Flag for non-zero syndrome
-    int count = 0;               // Number of errors found
-
-    /* Step 1: Syndrome Calculation
-     *
-     * Theory: For a valid codeword c(x), c(α^i) = 0 for i = b0..b0+2t-1
-     * Therefore, for received word r(x):
-     *   Si = r(α^(b0+i)) = e(α^(b0+i))
-     *
-     * These syndrome values depend only on the errors, not the transmitted codeword.
-     * If all syndromes are zero, r(x) is a valid codeword.
-     */
-    memset(syndromes, 0, sizeof(syndromes));
-
-    // For each position in received word
+void RS_ENCODER_REF::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
+    syndromes.assign(2 * tt + 1, 0);
     int iPowInit = 0;
-    for (int j = 0; j < nn; j++) {
-        GF symbol = recd[j];
-        if (symbol != 0) {
-            // For each syndrome, calculate recd(αⁱ)
-            int iPow0 = iPowInit + Poly2Pow[symbol];
-            MOD_NN(iPow0);
 
-            for (int i = 1; i <= 2*tt; i++) {
-                MOD_NN(iPow0);
+    for (int j = 0; j < nn; j++) {
+        if (recd[j] != 0) {
+            int iPow0 = iPowInit + Poly2Pow[recd[j]];
+            iPow0 = mod_nn(iPow0);
+
+            for (int i = 1; i <= 2 * tt; i++) {
+                iPow0 = mod_nn(iPow0);
                 syndromes[i] ^= Pow2Poly[iPow0];
                 iPow0 += j;
             }
         }
         iPowInit += b0;
-        MOD_NN(iPowInit);
+        iPowInit = mod_nn(iPowInit);
     }
 
-    /* Convert syndromes to power form
-     * In GF(2^8), addition is XOR in polynomial form
-     * but multiplication is addition of exponents in power form
-     */
-    for (int i = 1; i <= 2*tt; i++) {
-        if (syndromes[i] != 0) {
-            syn_error = 1;
-        }
+    for (int i = 1; i <= 2 * tt; i++) {
         syndromes[i] = Poly2Pow[syndromes[i]];
+    }
+}
+
+void RS_ENCODER_REF::berlekamp_massey(const std::vector<GF>& syndromes, int tt, std::vector<GF>& lambda, int& lambda_deg) {
+    const int max_deg = 2 * tt;
+
+    // Initialization
+    lambda.assign(max_deg + 1, 0);
+    lambda[0] = 1; // Initial lambda(x) = 1
+
+    std::vector<GF> b(max_deg + 1, 0); // Previous lambda(x)
+    b[0] = 1;
+
+    int l = 0;   // Current degree of lambda(x)
+    int m = 1;   // Distance since last update
+    GF discr = 0; // Discrepancy
+
+    // Process each step of the algorithm
+    for (int r = 1; r <= max_deg; ++r) {
+        // Calculate discrepancy: discr = S[r] + sum(lambda[i] * S[r-i])
+        discr = syndromes[r];
+        for (int i = 1; i <= l; ++i) {
+            if (lambda[i] != 0 && syndromes[r - i] != GF_INFINITY) {
+                discr ^= Pow2Poly[mod_nn(Poly2Pow[lambda[i]] + Poly2Pow[syndromes[r - i]])];
+            }
+        }
+
+        // Debug output for the current step
+        RsVerification::print_berlekamp_step(r, discr, l, lambda, l);
+
+        if (discr == 0) {
+            // No discrepancy, just increment m
+            ++m;
+        } else {
+            // Update lambda(x)
+            std::vector<GF> t = lambda; // Temporary copy of current lambda(x)
+
+            // Lambda(x) = Lambda(x) - discr * x^m * B(x)
+            for (int i = 0; i <= max_deg; ++i) {
+                if (b[i] != 0) {
+                    int index = mod_nn(Poly2Pow[discr] + Poly2Pow[b[i]]);
+                    if (i + m < max_deg + 1) {
+                        lambda[i + m] ^= Pow2Poly[index];
+                    }
+                }
+            }
+
+            // Update degree of lambda(x) if needed
+            if (2 * l < r) {
+                l = r - l;
+                b = t; // Save current lambda(x) as the new B(x)
+                m = 1; // Reset m
+            } else {
+                ++m;
+            }
+        }
+    }
+
+    // Finalize lambda degree
+    lambda_deg = l;
+}
+
+int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
+    RsVerification::verify_received_word(recd, nn);
+
+    std::vector<GF> syndromes;
+    calculate_syndromes(recd, syndromes);
+
+    bool has_error = false;
+    for (int i = 1; i <= 2 * tt; i++) {
+        if (syndromes[i] != 0) {
+            has_error = true;
+        }
     }
 
     RsVerification::verify_syndromes(syndromes, tt);
     RsVerification::print_syndromes("Initial", syndromes, tt);
 
-    if (syn_error) {
-        // Since we have non-zero syndromes, attempt error correction
+    if (!has_error) {
+        return 0; // No errors detected
+    }
 
-        /* Step 2: Berlekamp-Massey Algorithm
-         *
-         * Theory: The error locator polynomial Λ(x) has the property that:
-         * Λ(x) = Π(1 - xXi) where Xi are the error locations (Λ(Xi) = 0)
-         *
-         * The algorithm iteratively constructs Λ(x) by:
-         * 1. Using current polynomial to predict next syndrome
-         * 2. Computing discrepancy between prediction and actual syndrome
-         * 3. Updating polynomial based on discrepancy
-         *
-         * Key properties:
-         * - deg(Λ) equals number of errors
-         * - Polynomial coefficients are in GF(2^8)
-         * - Updates maintain the syndrome equations
-         */
-        GF elp[2*MAX_TT+2][2*MAX_TT];  // Error locator polynomials
-        GF d[2*MAX_TT+2];              // Discrepancy values
-        int l[2*MAX_TT+2];             // Degree of each ELP
-        int u_lu[2*MAX_TT+2];          // u-l(u) values
-        int u = 0;                      // Step number
+    std::vector<GF> lambda;
+    int lambda_deg = 0;
+    berlekamp_massey(syndromes, tt, lambda, lambda_deg);
+    RsVerification::verify_lambda(lambda, lambda_deg);
 
-        // Initialize for first two steps
-        d[0] = 0;           // power form
-        d[1] = syndromes[1];// power form
-        elp[0][0] = 0;      // power form
-        elp[1][0] = 1;      // polynomial form
-        for (int i = 1; i < nn-kk; i++) {
-            elp[0][i] = GF_INFINITY;   // power form
-            elp[1][i] = 0;             // polynomial form
+    std::vector<GF> roots(lambda_deg);
+    int num_errors = 0;
+    for (int i = 0; i < nn; ++i) {
+        GF eval = 1;
+        for (int j = 1; j <= lambda_deg; ++j) {
+            if (lambda[j] != GF_INFINITY) {
+                eval ^= Pow2Poly[mod_nn(Poly2Pow[lambda[j]] + i * j)];
+            }
         }
-        l[0] = 0;
-        l[1] = 0;
-        u_lu[0] = -1;
-        u_lu[1] = 0;
-
-        do {
-            u++;
-            if (d[u] == GF_INFINITY) {
-                // If discrepancy is zero, copy previous polynomial
-                l[u+1] = l[u];
-                for (int i = 0; i <= l[u]; i++) {
-                    elp[u+1][i] = elp[u][i];
-                    elp[u][i] = Poly2Pow[elp[u][i]];  // Convert old ELP to power form
-                }
-            } else {
-                // Find earlier error polynomial with max u-l(u)
-                int q = u-1;
-                while ((d[q] == GF_INFINITY) && (q > 0)) {
-                    q--;
-                }
-                if (q > 0) {
-                    int j = q;
-                    do {
-                        j--;
-                        if ((d[j] != GF_INFINITY) && (u_lu[q] < u_lu[j])) {
-                            q = j;
-                        }
-                    } while (j > 0);
-                }
-
-                // Update polynomial degree
-                if (l[u] > l[q] + u - q) {
-                    l[u+1] = l[u];
-                } else {
-                    l[u+1] = l[q] + u - q;
-                }
-
-                // Form new error locator polynomial
-                for (int i = 0; i < nn-kk; i++) {
-                    elp[u+1][i] = 0;
-                }
-
-                // Add scaled version of selected earlier polynomial
-                for (int i = 0; i <= l[q]; i++) {
-                    if (elp[q][i] != GF_INFINITY) {
-                        int iMod = d[u] - d[q] + elp[q][i];
-                        MOD_NN(iMod);
-                        elp[u+1][i+u-q] = Pow2Poly[iMod];
-                    }
-                }
-
-                // Add current polynomial
-                for (int i = 0; i <= l[u]; i++) {
-                    elp[u+1][i] ^= elp[u][i];
-                    elp[u][i] = Poly2Pow[elp[u][i]];  // Convert old ELP to power form
-                }
-            }
-
-            u_lu[u+1] = u - l[u+1];
-
-            // Calculate next discrepancy if not at end
-            if (u < nn-kk) {
-                // d[u+1] = S[u+1] + Σ(j=1 to l[u+1]) elp[u+1][j] * S[u+1-j]
-                d[u+1] = Pow2Poly[syndromes[u+1]];
-                for (int i = 1; i <= l[u+1]; i++) {
-                    if ((syndromes[u+1-i] != GF_INFINITY) && (elp[u+1][i] != 0)) {
-                        int iMod = syndromes[u+1-i] + Poly2Pow[elp[u+1][i]];
-                        MOD_NN(iMod);
-                        d[u+1] ^= Pow2Poly[iMod];
-                    }
-                }
-                d[u+1] = Poly2Pow[d[u+1]];  // Convert to power form
-            }
-
-            RsVerification::print_berlekamp_step(u, d[u], l[u], elp[u], l[u]);
-
-        } while ((u < nn-kk) && (l[u+1] <= tt));
-
-        u++;
-        RsVerification::verify_lambda(elp[u], l[u]);
-
-        // We have a valid error locator polynomial if degree <= tt
-        if (l[u] <= tt) {
-            // Convert final error locator polynomial to power form
-            for (int i = 0; i <= l[u]; i++) {
-                elp[u][i] = Poly2Pow[elp[u][i]];
-            }
-
-            /* Step 3: Chien Search
-             *
-             * Theory: To find error locations, we need roots of Λ(x)
-             * For each j, evaluate Λ(α^-j):
-             * - If Λ(α^-j) = 0, then j is an error location
-             * - We expect deg(Λ) roots if Λ(x) is correct
-             *
-             * Optimization: Instead of recomputing powers, use a register
-             * that's updated by multiplying each coefficient by appropriate power
-             */
-
-            // Initialize evaluation register with coefficients
-            for (int i = 1; i <= l[u]; i++) {
-                reg[i] = elp[u][i];
-            }
-
-            count = 0;  // Count of roots found
-
-            // Try each possible position
-            for (int i = 1; i <= nn; i++) {
-                GF q = 1;  // Accumulator for polynomial evaluation
-
-                // For each term in the polynomial
-                for (int j = 1; j <= l[u]; j++) {
-                    if (reg[j] != GF_INFINITY) {
-                        // Multiply coefficient by next power of x
-                        int iMod = reg[j] + j;
-                        MOD_NN(iMod);
-                        q ^= Pow2Poly[iMod];
-
-                        // Update register for next position
-                        reg[j] = iMod;
-                    }
-                }
-
-                if (!q) {  // We found a root
-                    root[count] = i;         // Save root in power form
-                    loc[count] = nn - i;     // Save error position
-                    count++;
-                }
-            }
-
-            // Verify we found the expected number of roots
-            if (count == l[u]) {
-                // Found correct number of roots, continue with error value computation
-                /* Step 4: Forney Algorithm
-                 *
-                 * Theory: Error evaluator polynomial Ω(x) is computed from:
-                 * Ω(x) = S(x)Λ(x) mod x^(2t)
-                 * where S(x) is the syndrome polynomial
-                 *
-                 * For each error location Xk = α^-k:
-                 * The error value ek is computed as:
-                 * ek = -(Xk^(1-b0) * Ω(Xk^-1)) / Λ'(Xk^-1)
-                 * where Λ'(x) is the formal derivative of Λ(x)
-                 */
-
-                // First compute error evaluator polynomial Ω(x)
-                GF z[MAX_TT+2];  // Error evaluator polynomial
-
-                // For each position (skipping z[0] which is always 1)
-                for (int i = 1; i <= l[u]; i++) {
-                    // Start with the syndrome term
-                    GF zi = Pow2Poly[syndromes[i]] ^ Pow2Poly[elp[u][i]];
-
-                    // Add correction terms
-                    for (int j = 1; j < i; j++) {
-                        if ((syndromes[j] != GF_INFINITY) && (elp[u][i-j] != GF_INFINITY)) {
-                            int iMod = elp[u][i-j] + syndromes[j];
-                            MOD_NN(iMod);
-                            zi ^= Pow2Poly[iMod];
-                        }
-                    }
-                    z[i] = Poly2Pow[zi];  // Store in power form
-                }
-
-                // Clear error array
-                for (int i = 0; i < nn; i++) {
-                    err[i] = 0;
-                }
-
-                // For each error location found
-                for (int i = 0; i < l[u]; i++) {
-                    // Position in codeword
-                    int position = loc[i];
-
-                    // Evaluate Ω(x) at α^(-j)
-                    int jPow = root[i];
-                    err[position] = 1;  // Start with 1 for z[0]
-
-                    for (int j = 1; j <= l[u]; j++) {
-                        if (z[j] != GF_INFINITY) {
-                            int iMod = z[j] + jPow;
-                            MOD_NN(iMod);
-                            err[position] ^= Pow2Poly[iMod];
-                        }
-                        jPow += root[i];  // Next power
-                        MOD_NN(jPow);
-                    }
-
-                    // Apply correction formula
-                    if (err[position] != 0) {
-                        // Multiply by α^(1-b0)
-                        err[position] = Pow2Poly[(Poly2Pow[err[position]] +
-                                                root[i]*(b0+nn-1)) % nn];
-
-                        if (err[position] != 0) {
-                            err[position] = Poly2Pow[err[position]];
-
-                            // Compute formal derivative denominator
-                            int q = 0;
-                            for (int j = 0; j < l[u]; j++) {
-                                if (j != i) {
-                                    int iMod = loc[j] + root[i];
-                                    MOD_NN(iMod);
-                                    q += Poly2Pow[1 ^ Pow2Poly[iMod]];
-                                    MOD_NN(q);
-                                }
-                            }
-
-                            // Final error value computation
-                            int iMod = err[position] - q;
-                            MOD_NN(iMod);
-                            err[position] = Pow2Poly[iMod];
-
-                            // Apply correction to received word
-                            GF original = recd[position];
-                            recd[position] ^= err[position];
-                            RsVerification::print_error_location(position, err[position],
-                                                        original, recd[position]);
-                        }
-                    }
-                }
-
-                return count;  // Return number of errors corrected
-            } else {
-                // Number of roots doesn't match polynomial degree
-                return RS_ERROR_CHIEN_SEARCH;
-            }
-        } else {
-            // Error locator polynomial degree too high
-            return RS_ERROR_LAMDA_ERROR;
+        if (eval == 0) {
+            roots[num_errors++] = i;
         }
     }
-    else
-    {
-        /* no non-zero syndromes => no errors: output received codeword */
-        return 0;  // No errors found
+
+    if (num_errors != lambda_deg) {
+        return -2; // Error count mismatch
     }
+
+    for (int i = 0; i < num_errors; ++i) {
+        int position = nn - 1 - roots[i];
+        GF error_val = 0;
+
+        for (int j = 1; j <= lambda_deg; ++j) {
+            if (syndromes[j] != GF_INFINITY) {
+                error_val ^= Pow2Poly[mod_nn(Poly2Pow[syndromes[j]] + j * roots[i])];
+            }
+        }
+
+        recd[position] ^= error_val;
+    }
+
+    return num_errors;
 }
 
 int RS_ENCODER_REF::RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_eras) {

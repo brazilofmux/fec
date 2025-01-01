@@ -3,6 +3,7 @@
 
 #include <random>
 #include "rs.h"
+#include "rsref.h"
 #include "RsTestConfig.h"
 #include "RsVerification.h"
 
@@ -34,7 +35,7 @@ private:
     std::mt19937 rng;
     std::uniform_real_distribution<double> uniform_dist;
     std::uniform_int_distribution<int> byte_dist;
-    RS_ENCODER* encoder;
+    RS_ENCODER_REF* encoder;
 
     bool process_codeword(const GF* codeword, const int nn_short, const int kk_short);
     void print_stats() const;

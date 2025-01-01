@@ -1,6 +1,7 @@
 #ifndef RSREF_H
 #define RSREF_H
 
+#include <vector>
 #include "rs_common.h"
 
 // Implementation of Reed-Solomon Error Correcting Codes including
@@ -9,24 +10,22 @@
 
 class RS_ENCODER_REF {
 public:
-    // Core interface
     RS_ENCODER_REF(int CorrectableErrors);
-    ~RS_ENCODER_REF(void);
+    ~RS_ENCODER_REF() = default;
 
-    void RSEncode(GF data[MAX_KK], GF bb[2*MAX_TT]);
+    void RSEncode(GF data[MAX_KK], GF bb[2 * MAX_TT]);
     int RSDecode(GF recd[nn]);
-    int RSDecodeErasures(GF recd[nn], int eras_pos[2*MAX_TT], int no_eras);
+    int RSDecodeErasures(GF recd[nn], int eras_pos[2 * MAX_TT], int no_eras);
 
 private:
-    // Core algorithms
-    static void RSGenField(void);
-    void RSGenPoly(void);
+    void RSGenPoly();
+    void berlekamp_massey(const std::vector<GF>& syndromes, int tt, std::vector<GF>& lambda, int& lambda_deg);
+    void calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes);
 
-    // Generator polynomial parameters
-    int b0;             // g(x) has roots @^b0, @^(b0+1), ... ,@^(b0+2*tt-1)
-    GF gg[2*MAX_TT+1]; // Generator polynomial coefficients
-    int tt;            // Number of errors that can be corrected
-    int kk;            // Number of data symbols per codeword
+    std::vector<GF> generator_poly; // Generator polynomial coefficients in power form
+    int tt;  // Number of correctable errors
+    int kk;  // Number of data symbols per codeword
+    int b0;  // Start position for generator polynomial roots
 };
 
 #endif // RSREF_H

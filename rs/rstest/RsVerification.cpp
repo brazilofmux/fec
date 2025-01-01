@@ -49,7 +49,7 @@ uint32_t RsVerification::calculate_crc32(const void* data, size_t length) {
     return crc ^ 0xFFFFFFFF;
 }
 
-void RsVerification::print_syndromes(const char* prefix, GF* syndromes, int tt) {
+void RsVerification::print_syndromes(const char* prefix, const GF* syndromes, int tt) {
     if (!debug_enabled || !current_results) return;
 
     char buf[256];
@@ -64,7 +64,7 @@ void RsVerification::print_syndromes(const char* prefix, GF* syndromes, int tt) 
     current_results->syndromes.push_back("\n");
 }
 
-void RsVerification::print_berlekamp_step(int step, GF d, int L, GF* lambda, int deg_lambda) {
+void RsVerification::print_berlekamp_step(int step, GF d, int L, const GF* lambda, int deg_lambda) {
     if (!debug_enabled || !current_results) return;
 
     std::string step_info;

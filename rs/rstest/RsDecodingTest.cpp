@@ -18,7 +18,7 @@ void RsDecodingTest::initialize() {
     rng.seed(config.getRandomSeed());
 
     // Create encoder
-    encoder = new RS_ENCODER(tt);
+    encoder = new RS_ENCODER_REF(tt);
 
     // Initialize verification
     RsVerification::init(config.getVerboseLevel() == Verbosity::Debug);
