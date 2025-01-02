@@ -78,7 +78,7 @@
 #include "rs.h"
 #include "RsVerification.h"
 
-#define NO_PRINT
+//#define BENCHMARK
 
 #define n   256         // n  = 2^8     size of the field
 #define nn  255         // nn = 2^8-1   length of codeword
@@ -118,7 +118,9 @@ RS_ENCODER::RS_ENCODER(int CorrectableErrors) : tt(CorrectableErrors), kk(nn - 2
 #endif
     RSGenPoly();
     RSGenTable();
+#ifndef BENCHMARK
     RsVerification::verify_generator(gg, tt);
+#endif
 }
 
 RS_ENCODER::~RS_ENCODER(void)
@@ -822,8 +824,10 @@ void RS_ENCODER::RSEncode1(GF data[MAX_KK], GF bb[2*MAX_TT])
 #endif
 
 int RS_ENCODER::RSDecode(GF recd[nn]) {
+#ifndef BENCHMARK
     // Verify received word
     RsVerification::verify_received_word(recd, nn);
+#endif
 
     // Step 1: Calculate syndromes
     std::vector<GF> syndromes;
@@ -837,8 +841,10 @@ int RS_ENCODER::RSDecode(GF recd[nn]) {
         }
     }
 
+#ifndef BENCHMARK
     RsVerification::verify_syndromes(syndromes, tt);
     RsVerification::print_syndromes("Initial", syndromes, tt);
+#endif
 
     if (!has_error) {
         return 0; // No errors detected
@@ -854,8 +860,10 @@ int RS_ENCODER::RSDecode(GF recd[nn]) {
         return RS_ERROR_LAMBDA_ERROR;
     }
 
+#ifndef BENCHMARK
     // Verify error locator polynomial
     RsVerification::verify_lambda(lambda, deg_lambda);
+#endif
 
     // Step 3: Find roots of the error locator polynomial using Chien Search
     std::vector<GF> root(2 * tt);
@@ -878,6 +886,89 @@ int RS_ENCODER::RSDecode(GF recd[nn]) {
     return count;
 }
 
+#ifdef ASSEMBLY_DECODE
+void RS_ENCODER::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
+    syndromes.assign(2 * tt + 1, 0);
+
+    int iPowInit = 0;
+    for (int j = 0; j < nn; j += 5) {
+        GF RECD0 = recd[j];
+        GF RECD1 = recd[j+1];
+        GF RECD2 = recd[j+2];
+        GF RECD3 = recd[j+3];
+        GF RECD4 = recd[j+4];
+
+        if (RECD0 != 0) {
+            int iPow0 = iPowInit + Poly2Pow[RECD0];
+            iPow0 = MOD_NN(iPow0);
+
+            for (int i = 1; i <= 2 * tt; i++) {
+                iPow0 = MOD_NN(iPow0);
+                syndromes[i] ^= Pow2Poly[iPow0];
+                iPow0 += j;
+            }
+        }
+        iPowInit += b0;
+        iPowInit = MOD_NN(iPowInit);
+
+        if (RECD1 != 0) {
+            int iPow1 = iPowInit + Poly2Pow[RECD1];
+            iPow1 = MOD_NN(iPow1);
+
+            for (int i = 1; i <= 2 * tt; i++) {
+                iPow1 = MOD_NN(iPow1);
+                syndromes[i] ^= Pow2Poly[iPow1];
+                iPow1 += j + 1;
+            }
+        }
+        iPowInit += b0;
+        iPowInit = MOD_NN(iPowInit);
+
+        if (RECD2 != 0) {
+            int iPow2 = iPowInit + Poly2Pow[RECD2];
+            iPow2 = MOD_NN(iPow2);
+
+            for (int i = 1; i <= 2 * tt; i++) {
+                iPow2 = MOD_NN(iPow2);
+                syndromes[i] ^= Pow2Poly[iPow2];
+                iPow2 += j + 2;
+            }
+        }
+        iPowInit += b0;
+        iPowInit = MOD_NN(iPowInit);
+
+        if (RECD3 != 0) {
+            int iPow3 = iPowInit + Poly2Pow[RECD3];
+            iPow3 = MOD_NN(iPow3);
+
+            for (int i = 1; i <= 2 * tt; i++) {
+                iPow3 = MOD_NN(iPow3);
+                syndromes[i] ^= Pow2Poly[iPow3];
+                iPow3 += j + 3;
+            }
+        }
+        iPowInit += b0;
+        iPowInit = MOD_NN(iPowInit);
+
+        if (RECD4 != 0) {
+            int iPow4 = iPowInit + Poly2Pow[RECD4];
+            iPow4 = MOD_NN(iPow4);
+
+            for (int i = 1; i <= 2 * tt; i++) {
+                iPow4 = MOD_NN(iPow4);
+                syndromes[i] ^= Pow2Poly[iPow4];
+                iPow4 += j + 4;
+            }
+        }
+        iPowInit += b0;
+        iPowInit = MOD_NN(iPowInit);
+    }
+
+    for (int i = 1; i <= 2 * tt; i++) {
+        syndromes[i] = Poly2Pow[syndromes[i]];
+    }
+}
+#else
 void RS_ENCODER::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
     syndromes.assign(2 * tt + 1, 0);
 
@@ -886,10 +977,10 @@ void RS_ENCODER::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndrom
         GF RECD = recd[j];
         if (RECD != 0) {
             int iPow0 = iPowInit + Poly2Pow[RECD];
-            iPow0 = MOD_NN(iPow0);
+            iPow0 = mod_nn(iPow0);
 
             for (int i = 1; i <= 2 * tt; i++) {
-                iPow0 = MOD_NN(iPow0);
+                iPow0 = mod_nn(iPow0);
                 syndromes[i] ^= Pow2Poly[iPow0];
                 iPow0 += j;
             }
@@ -902,6 +993,7 @@ void RS_ENCODER::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndrom
         syndromes[i] = Poly2Pow[syndromes[i]];
     }
 }
+#endif
 
 int RS_ENCODER::construct_erasure_locator(std::vector<GF>& lambda, const int* eras_pos, int no_eras) {
     if (no_eras == 0) {
@@ -946,7 +1038,9 @@ void RS_ENCODER::berlekamp_massey(const std::vector<GF>& syndromes, std::vector<
                 discr_r ^= Pow2Poly[MOD_NN(Poly2Pow[lambda[i]] + syndromes[r - i])];
             }
         }
+#ifndef BENCHMARK
         RsVerification::print_berlekamp_step(r, discr_r, r, lambda, r);
+#endif
 
         discr_r = Poly2Pow[discr_r]; /* Index form */
         if (discr_r == GF_INFINITY) {
@@ -1063,7 +1157,9 @@ int RS_ENCODER::forney_correction(const std::vector<GF>& omega, int deg_omega, c
 // RSDecodeErasures: Port of Phil Karn's Berlekamp-Massey implementation
 // Brain-dead port for erasure decoding with no erasures initially
 int RS_ENCODER::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
+#ifndef BENCHMARK
     RsVerification::verify_received_word(data, nn);
+#endif
 
     std::vector<GF> lambda(2 * tt + 1, 0);
     std::vector<GF> b(2 * tt + 1, 0);
@@ -1086,8 +1182,10 @@ int RS_ENCODER::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
         }
     }
 
+#ifndef BENCHMARK
     RsVerification::verify_syndromes(syndromes, tt);
     RsVerification::print_syndromes("Initial", syndromes, tt);
+#endif
 
     if (!syn_error) {
         /*
@@ -1106,7 +1204,9 @@ int RS_ENCODER::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
         return RS_ERROR_LAMBDA_ERROR;
     }
 
+#ifndef BENCHMARK
     RsVerification::verify_lambda(lambda, deg_lambda);
+#endif
 
     /* Find roots of the error+erasure locator polynomial. By Chien Search */
     int count = 0;
