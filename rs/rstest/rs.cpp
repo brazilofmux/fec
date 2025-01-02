@@ -837,7 +837,7 @@ int RS_ENCODER::RSDecode(GF recd[nn]) {
     // Check for errors
     bool has_error = false;
     for (int i = 1; i <= 2 * tt; i++) {
-        if (syndromes[i] != 0) {
+        if (syndromes[i] != 0 && !has_error) {
             has_error = true;
         }
     }
@@ -1130,7 +1130,7 @@ int RS_ENCODER::RSDecodeErasures(GF data[nn], int eras_pos[], int no_eras) {
     // Check for errors
     bool syn_error = false;
     for (int i = 1; i <= 2 * tt; i++) {
-        if (syndromes[i] != 0) {
+        if (syndromes[i] != 0 && !syn_error) {
             syn_error = true;
         }
     }
