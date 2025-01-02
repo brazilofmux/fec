@@ -74,6 +74,7 @@
 #include <memory.h>
 #include <cstdio>
 #include <iostream>
+#include <immintrin.h>
 #include "projdefs.h"
 #include "rs.h"
 #include "RsVerification.h"
@@ -892,76 +893,19 @@ void RS_ENCODER::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndrom
 
     int iPowInit = 0;
     for (int j = 0; j < nn; j += 5) {
-        GF RECD0 = recd[j];
-        GF RECD1 = recd[j+1];
-        GF RECD2 = recd[j+2];
-        GF RECD3 = recd[j+3];
-        GF RECD4 = recd[j+4];
-
-        if (RECD0 != 0) {
-            int iPow0 = iPowInit + Poly2Pow[RECD0];
-            iPow0 = MOD_NN(iPow0);
-
-            for (int i = 1; i <= 2 * tt; i++) {
-                iPow0 = MOD_NN(iPow0);
-                syndromes[i] ^= Pow2Poly[iPow0];
-                iPow0 += j;
+        int j_plus[5] = {j, j + 1, j + 2, j + 3, j + 4};
+        for (int k = 0; k < 5; k++) {
+            GF RECD = recd[j_plus[k]];
+            if (RECD != 0) {
+                int iPow0 = MOD_NN(iPowInit + Poly2Pow[RECD]);
+                for (int i = 1; i <= 2 * tt; i++) {
+                    iPow0 = MOD_NN(iPow0);
+                    syndromes[i] ^= Pow2Poly[iPow0];
+                    iPow0 += j_plus[k];
+                }
             }
+            iPowInit = MOD_NN(iPowInit + b0);
         }
-        iPowInit += b0;
-        iPowInit = MOD_NN(iPowInit);
-
-        if (RECD1 != 0) {
-            int iPow1 = iPowInit + Poly2Pow[RECD1];
-            iPow1 = MOD_NN(iPow1);
-
-            for (int i = 1; i <= 2 * tt; i++) {
-                iPow1 = MOD_NN(iPow1);
-                syndromes[i] ^= Pow2Poly[iPow1];
-                iPow1 += j + 1;
-            }
-        }
-        iPowInit += b0;
-        iPowInit = MOD_NN(iPowInit);
-
-        if (RECD2 != 0) {
-            int iPow2 = iPowInit + Poly2Pow[RECD2];
-            iPow2 = MOD_NN(iPow2);
-
-            for (int i = 1; i <= 2 * tt; i++) {
-                iPow2 = MOD_NN(iPow2);
-                syndromes[i] ^= Pow2Poly[iPow2];
-                iPow2 += j + 2;
-            }
-        }
-        iPowInit += b0;
-        iPowInit = MOD_NN(iPowInit);
-
-        if (RECD3 != 0) {
-            int iPow3 = iPowInit + Poly2Pow[RECD3];
-            iPow3 = MOD_NN(iPow3);
-
-            for (int i = 1; i <= 2 * tt; i++) {
-                iPow3 = MOD_NN(iPow3);
-                syndromes[i] ^= Pow2Poly[iPow3];
-                iPow3 += j + 3;
-            }
-        }
-        iPowInit += b0;
-        iPowInit = MOD_NN(iPowInit);
-
-        if (RECD4 != 0) {
-            int iPow4 = iPowInit + Poly2Pow[RECD4];
-            iPow4 = MOD_NN(iPow4);
-
-            for (int i = 1; i <= 2 * tt; i++) {
-                iPow4 = MOD_NN(iPow4);
-                syndromes[i] ^= Pow2Poly[iPow4];
-                iPow4 += j + 4;
-            }
-        }
-        iPowInit += b0;
-        iPowInit = MOD_NN(iPowInit);
     }
 
     for (int i = 1; i <= 2 * tt; i++) {
@@ -977,10 +921,10 @@ void RS_ENCODER::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndrom
         GF RECD = recd[j];
         if (RECD != 0) {
             int iPow0 = iPowInit + Poly2Pow[RECD];
-            iPow0 = mod_nn(iPow0);
+            iPow0 = MOD_NN(iPow0);
 
             for (int i = 1; i <= 2 * tt; i++) {
-                iPow0 = mod_nn(iPow0);
+                iPow0 = MOD_NN(iPow0);
                 syndromes[i] ^= Pow2Poly[iPow0];
                 iPow0 += j;
             }
