@@ -4,14 +4,14 @@ CXXFLAGS = -O3 -finline-functions -Wall
 CFLAGS = -O3 -Wall
 
 # Main test program
-CPP_SRCS = rstest.cpp rs.cpp rsref.cpp rskarn_wrapper.cpp rs_common.cpp RsComparisonTest.cpp \
+CPP_SRCS = rstest.cpp rs.cpp rsref.cpp rs_common.cpp RsComparisonTest.cpp \
            RsDecodingTest.cpp RsEncodingTest.cpp RsTestConfig.cpp RsVerification.cpp
 C_SRCS = rskarn.c
 OBJS = $(CPP_SRCS:.cpp=.o) $(C_SRCS:.c=.o)
 TARGET = rstest
 
 # Encoder comparison program
-ENCODER_CPP_SRCS = rs_common.cpp rs.cpp rsref.cpp rskarn.cpp rskarn_wrapper.cpp compare_encoders.cpp RsVerification.cpp
+ENCODER_CPP_SRCS = rs_common.cpp rs.cpp rsref.cpp rskarn.cpp compare_encoders.cpp RsVerification.cpp
 ENCODER_C_SRCS =
 ENCODER_OBJS = $(ENCODER_CPP_SRCS:.cpp=.o) $(ENCODER_C_SRCS:.c=.o)
 ENCODER_TEST = compare_encoders

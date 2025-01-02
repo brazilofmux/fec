@@ -2,7 +2,6 @@
 #define RS_KARN_H
 
 #include "rs_common.h"
-#include "rs_decoder_state.h"
 #include "rskarn.h"
 
 // Forward declarations of Karn's original functions
@@ -39,13 +38,6 @@ public:
     }
 
 private:
-    // Individual decode stages using Karn's code
-    int calculate_syndromes(GF recd[nn], rs_decoder_state& state);
-    int berlekamp_massey(rs_decoder_state& state);
-    int chien_search(rs_decoder_state& state);
-    int forney_algorithm(GF recd[nn], rs_decoder_state& state);
-    int calculate_phi(int eras_pos[2*MAX_TT], int no_eras, rs_decoder_state& state);
-
     int tt;  // Number of correctable errors
 };
 
