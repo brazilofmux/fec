@@ -172,56 +172,63 @@ int RS_ENCODER_REF::construct_erasure_locator(std::vector<GF>& lambda, const int
 }
 
 void RS_ENCODER_REF::berlekamp_massey(const std::vector<GF>& syndromes, std::vector<GF>& lambda, int no_eras) {
-    std::vector<GF> b(2 * tt + 1, 0);
-    for (int i = 0; i < 2 * tt + 1; i++)
-        b[i] = Poly2Pow[lambda[i]];
+    // Pre-allocate vectors with proper size to avoid reallocations
+    std::vector<GF> b(2 * tt + 1);
+    std::vector<GF> t(2 * tt + 1);
 
-    std::vector<GF> t(2 * tt + 1, 0);
+    // Initialize b vector more efficiently
+    std::transform(lambda.begin(), lambda.begin() + 2 * tt + 1, b.begin(),
+                  [](GF val) { return Poly2Pow[val]; });
 
-    /*
-     * Begin Berlekamp-Massey algorithm to determine error+erasure
-     * locator polynomial
-     */
     int r = no_eras;
     int el = no_eras;
-    while (++r <= 2*tt) { /* r is the step number */
-        /* Compute discrepancy at the r-th step in poly-form */
-        int discr_r = 0;
-        for (int i = 0; i < r; i++){
-            if ((lambda[i] != 0) && (syndromes[r - i] != GF_INFINITY)) {
-                discr_r ^= Pow2Poly[mod_nn(Poly2Pow[lambda[i]] + syndromes[r - i])];
+    const int max_iter = 2 * tt;
+
+    while (++r <= max_iter) {
+        // Calculate discrepancy more efficiently
+        GF discr_r = 0;
+        const int r_bound = r;
+        for (int i = 0; i < r_bound; i++) {
+            const GF lambda_i = lambda[i];
+            const GF syndrome_r_i = syndromes[r - i];
+
+            if (lambda_i && syndrome_r_i != GF_INFINITY) {
+                const int sum = mod_nn(Poly2Pow[lambda_i] + syndrome_r_i);
+                discr_r ^= Pow2Poly[sum];
             }
         }
-        RsVerification::print_berlekamp_step(r, discr_r, r, lambda, r);
 
-        discr_r = Poly2Pow[discr_r]; /* Index form */
+        discr_r = Poly2Pow[discr_r];
+
         if (discr_r == GF_INFINITY) {
-            /* 2 lines below: B(x) <-- x*B(x) */
-            std::copy_backward(b.begin(), b.begin() + (2 * tt), b.begin() + (2 * tt + 1));
+            // Shift b vector right by 1
+            std::copy_backward(b.begin(), b.end() - 1, b.end());
             b[0] = GF_INFINITY;
         } else {
-            /* 7 lines below: T(x) <-- lambda(x) - discr_r*x*b(x) */
+            // Calculate temporary polynomial t
             t[0] = lambda[0];
-            for (int i = 0 ; i < 2*tt; i++) {
-                if(b[i] != GF_INFINITY)
-                    t[i+1] = lambda[i+1] ^ Pow2Poly[mod_nn(discr_r + b[i])];
-                else
-                    t[i+1] = lambda[i+1];
+            for (int i = 0; i < max_iter; i++) {
+                t[i + 1] = (b[i] != GF_INFINITY) ?
+                    lambda[i + 1] ^ Pow2Poly[mod_nn(discr_r + b[i])] :
+                    lambda[i + 1];
             }
+
             if (2 * el <= r + no_eras - 1) {
                 el = r + no_eras - el;
-                /*
-                 * 2 lines below: B(x) <-- inv(discr_r) *
-                 * lambda(x)
-                 */
-                for (int i = 0; i <= 2*tt; i++)
-                    b[i] = (lambda[i] == 0) ? GF_INFINITY : mod_nn(Poly2Pow[lambda[i]] - discr_r + nn);
+                // Update b polynomial
+                for (int i = 0; i <= max_iter; i++) {
+                    b[i] = (lambda[i] == 0) ?
+                        GF_INFINITY :
+                        mod_nn(Poly2Pow[lambda[i]] - discr_r + nn);
+                }
             } else {
-                /* 2 lines below: B(x) <-- x*B(x) */
-                std::copy_backward(b.begin(), b.begin() + (2 * tt), b.begin() + (2 * tt + 1));
+                // Shift b vector right by 1
+                std::copy_backward(b.begin(), b.end() - 1, b.end());
                 b[0] = GF_INFINITY;
             }
-            std::copy(t.begin(), t.begin() + (2 * tt + 1), lambda.begin());
+
+            // Update lambda with t
+            std::copy(t.begin(), t.end(), lambda.begin());
         }
     }
 }
