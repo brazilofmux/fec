@@ -6,33 +6,52 @@ RS_FACTORY& RS_FACTORY::instance() {
     return instance;
 }
 
-std::unique_ptr<RS_ENCODER_BASE> RS_FACTORY::create_encoder(int tt, int b0) {
-    // Ensure tables are initialized
+std::unique_ptr<RS_CODEC> RS_FACTORY::create_codec(int tt, int b0) {
     RS_TABLES::instance().ensure_initialized();
 
-    // Create appropriate encoder (implementation to come)
-    return nullptr;  // Temporary
+    // Get or create shared decoder
+    auto decoder = get_shared_decoder(tt);
+
+    // Create specialized encoder
+    auto encoder = create_specialized_encoder(tt, b0);
+
+    return std::make_unique<RS_CODEC>(std::move(encoder), decoder);
 }
 
-// Example specialized encoder:
-class RS_ENCODER_T1 final : public RS_ENCODER_BASE {
-public:
-    explicit RS_ENCODER_T1(int b0) : RS_ENCODER_BASE(1, b0) {
-        RSGenTable();
+// Create a codec with specialized encoder AND decoder
+std::unique_ptr<RS_CODEC> RS_FACTORY::create_specialized_codec(int tt, int b0) {
+    RS_TABLES::instance().ensure_initialized();
+
+    // Create specialized encoder and decoder
+    auto encoder = create_specialized_encoder(tt, b0);
+    auto decoder = create_specialized_decoder(tt);
+
+    return std::make_unique<RS_CODEC>(std::move(encoder), decoder);
+}
+
+std::shared_ptr<RS_DECODER_BASE> RS_FACTORY::get_shared_decoder(int tt) {
+    if (!shared_decoder || shared_decoder->get_tt() != tt) {
+        shared_decoder = std::shared_ptr<RS_DECODER_BASE>(new RS_DECODER_GENERAL(tt));
     }
+    return shared_decoder;
+}
 
-    void RSEncode(GF data[MAX_KK], GF bb[2 * MAX_TT]) override {
-        // Implementation here...
+std::unique_ptr<RS_ENCODER_BASE> RS_FACTORY::create_specialized_encoder(int tt, int b0) {
+    switch (tt) {
+    case 1:
+        return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T1(b0));
+    case 2:
+        return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T2(b0));
+    default:
+        return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_GENERAL(tt, b0));
     }
+}
 
-    // Other methods...
-
-private:
-    void RSGenTable() {
-        const GF* pow2poly = get_pow2poly();
-        const GF* poly2pow = get_poly2pow();
-        // Implementation here...
+std::shared_ptr<RS_DECODER_BASE> RS_FACTORY::create_specialized_decoder(int tt) {
+    switch (tt) {
+    case 1:
+        return std::shared_ptr<RS_DECODER_BASE>(new RS_DECODER_T1(tt));
+    default:
+        return std::shared_ptr<RS_DECODER_BASE>(new RS_DECODER_GENERAL(tt));
     }
-
-    GF ptable[512];
-};
+}

@@ -161,8 +161,15 @@
     <ClInclude Include="rskarn.h" />
     <ClInclude Include="rsref.h" />
     <ClInclude Include="RsTestConfig.h" />
+    <ClInclude Include="rs_codec.h" />
     <ClInclude Include="rs_common.h" />
+    <ClInclude Include="rs_decoder_base.h" />
+    <ClInclude Include="rs_decoder_general.h" />
+    <ClInclude Include="rs_decoder_t1.h" />
     <ClInclude Include="rs_encoder_base.h" />
+    <ClInclude Include="rs_encoder_general.h" />
+    <ClInclude Include="rs_encoder_t1.h" />
+    <ClInclude Include="rs_encoder_t2.h" />
     <ClInclude Include="rs_factory.h" />
     <ClInclude Include="rs_tables.h" />
   </ItemGroup>

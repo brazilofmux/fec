@@ -207,22 +207,46 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-// Example usage:
 void example_usage() {
-    // Get a tt=1 optimized encoder
-    auto encoder_t1 = RS_FACTORY::instance().create_encoder(1, 1);
+    // Initialize test data
+    GF data[MAX_KK] = { 0 };
+    for (int i = 0; i < MAX_KK; i++) {
+        data[i] = i & 0xFF;
+    }
+    GF parity[2 * MAX_TT] = { 0 };
 
-    // Get a tt=2 optimized encoder
-    auto encoder_t2 = RS_FACTORY::instance().create_encoder(2, 1);
+    // Get our two test codecs
+    auto codec1 = RS_FACTORY::instance().create_codec(1, 1);
+    auto codec2 = RS_FACTORY::instance().create_specialized_codec(1, 1);
 
-    // Get general purpose encoder for tt=3
-    auto encoder_t3 = RS_FACTORY::instance().create_encoder(3, 1);
+    // Make full test blocks
+    GF block1[nn] = { 0 };
+    GF block2[nn] = { 0 };
+    memcpy(block1, data, MAX_KK);
+    memcpy(block2, data, MAX_KK);
 
-    // Use them
-    GF data[MAX_KK];
-    GF parity[2 * MAX_TT];
+    // Encode both blocks
+    codec1->RSEncode(data, parity);
+    memcpy(block1 + MAX_KK, parity, 2 * MAX_TT);
 
-    encoder_t1->RSEncode(data, parity);  // Uses highly optimized tt=1 code
-    encoder_t2->RSEncode(data, parity);  // Uses highly optimized tt=2 code
-    encoder_t3->RSEncode(data, parity);  // Uses general implementation
+    codec2->RSEncode(data, parity);
+    memcpy(block2 + MAX_KK, parity, 2 * MAX_TT);
+
+    // Compare results
+    if (memcmp(block1, block2, nn) == 0) {
+        printf("Both encoders give same result\n");
+    }
+
+    // Now test decoders
+    // Introduce an error in both blocks
+    block1[10] ^= 0x01;  // Flip a bit
+    block2[10] ^= 0x01;  // Same error
+
+    int result1 = codec1->RSDecode(block1);
+    int result2 = codec2->RSDecode(block2);
+
+    if (result1 == result2 && memcmp(block1, block2, nn) == 0) {
+        printf("Both decoders give same result\n");
+    }
 }
+
