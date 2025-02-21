@@ -21,9 +21,6 @@
 #define ASCENDING_ENCODE
 #endif
 
-#define RS_ERROR_CHIEN_SEARCH -2 // Roots of lamda (by Chien Search) not equal to degree of lamda.
-#define RS_ERROR_LAMBDA_ERROR -3 // Degree of lamda too high to yield necessary number of roots.
-
 class RS_ENCODER
 {
 public:

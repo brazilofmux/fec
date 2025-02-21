@@ -2,6 +2,7 @@
 #define RS_DECODER_BASE_H
 
 #include "rs_common.h"
+#include "rs_tables.h"
 
 class RS_DECODER_BASE {
 public:
@@ -21,6 +22,10 @@ protected:
 
     static const GF* get_pow2poly() { return RS_TABLES::instance().get_pow2poly(); }
     static const GF* get_poly2pow() { return RS_TABLES::instance().get_poly2pow(); }
+
+    static GF mod_nn(int x) {
+        return RS_TABLES::instance().mod_nn(x);
+    }
 };
 
 #endif // RS_DECODER_BASE_H
