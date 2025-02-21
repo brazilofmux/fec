@@ -149,6 +149,8 @@
     <ClCompile Include="RsTestConfig.cpp" />
     <ClCompile Include="RsVerification.cpp" />
     <ClCompile Include="rs_common.cpp" />
+    <ClCompile Include="rs_factory.cpp" />
+    <ClCompile Include="rs_tables.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="projdefs.h" />
@@ -160,6 +162,9 @@
     <ClInclude Include="rsref.h" />
     <ClInclude Include="RsTestConfig.h" />
     <ClInclude Include="rs_common.h" />
+    <ClInclude Include="rs_encoder_base.h" />
+    <ClInclude Include="rs_factory.h" />
+    <ClInclude Include="rs_tables.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\librs\librs.vcxproj">

@@ -17,6 +17,7 @@
 #include "RsEncodingTest.h"
 #include "RsTestConfig.h"
 #include "RsVerification.h"
+#include "rs_factory.h"
 
 struct DecodingStats {
     int total_codewords;
@@ -204,4 +205,24 @@ int main(int argc, char *argv[]) {
     }
 
     return 0;
+}
+
+// Example usage:
+void example_usage() {
+    // Get a tt=1 optimized encoder
+    auto encoder_t1 = RS_FACTORY::instance().create_encoder(1, 1);
+
+    // Get a tt=2 optimized encoder
+    auto encoder_t2 = RS_FACTORY::instance().create_encoder(2, 1);
+
+    // Get general purpose encoder for tt=3
+    auto encoder_t3 = RS_FACTORY::instance().create_encoder(3, 1);
+
+    // Use them
+    GF data[MAX_KK];
+    GF parity[2 * MAX_TT];
+
+    encoder_t1->RSEncode(data, parity);  // Uses highly optimized tt=1 code
+    encoder_t2->RSEncode(data, parity);  // Uses highly optimized tt=2 code
+    encoder_t3->RSEncode(data, parity);  // Uses general implementation
 }
