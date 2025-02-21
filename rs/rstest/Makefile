@@ -5,7 +5,8 @@ CFLAGS = -O3 -Wall
 
 # Main test program
 CPP_SRCS = rstest.cpp rs.cpp rsref.cpp rs_common.cpp RsComparisonTest.cpp \
-           RsDecodingTest.cpp RsEncodingTest.cpp RsTestConfig.cpp RsVerification.cpp
+           RsDecodingTest.cpp RsEncodingTest.cpp RsTestConfig.cpp RsVerification.cpp \
+           rs_factory.cpp rs_tables.cpp rs_encoder_t1.cpp
 C_SRCS = rskarn.c
 OBJS = $(CPP_SRCS:.cpp=.o) $(C_SRCS:.c=.o)
 TARGET = rstest
