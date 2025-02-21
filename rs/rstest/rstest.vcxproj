@@ -149,6 +149,7 @@
     <ClCompile Include="RsTestConfig.cpp" />
     <ClCompile Include="RsVerification.cpp" />
     <ClCompile Include="rs_common.cpp" />
+    <ClCompile Include="rs_encoder_t1.cpp" />
     <ClCompile Include="rs_factory.cpp" />
     <ClCompile Include="rs_tables.cpp" />
   </ItemGroup>

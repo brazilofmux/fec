@@ -5,14 +5,18 @@ RS_TABLES& RS_TABLES::instance() {
     return instance;
 }
 
-RS_TABLES::RS_TABLES() : is_initialized_(false) {
-    pow2poly_ = new GF[n];
-    poly2pow_ = new GF[n];
+RS_TABLES::RS_TABLES()
+    : is_initialized_(false)
+    , pow2poly_(new GF[n])
+    , poly2pow_(new GF[n])
+    , mod_table_(nullptr)  // Will be initialized later
+{
 }
 
 RS_TABLES::~RS_TABLES() {
     delete[] pow2poly_;
     delete[] poly2pow_;
+    delete[] mod_table_;
 }
 
 void RS_TABLES::ensure_initialized() {
@@ -23,6 +27,8 @@ void RS_TABLES::ensure_initialized() {
 }
 
 void RS_TABLES::initialize_gf() {
+    initialize_mod_table();
+
     int iPoly = 1;
     const int PrimitivePolynomial = 0x1D;
 
