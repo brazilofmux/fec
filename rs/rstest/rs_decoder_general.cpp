@@ -108,7 +108,7 @@ void RS_DECODER_GENERAL::berlekamp_massey(const std::vector<GF>& syndromes,
             const GF syndrome_r_i = syndromes[r - i];
 
             if (lambda_i && syndrome_r_i != GF_INFINITY) {
-                const int sum = mod_nn(poly2pow_[lambda_i] + syndrome_r_i);
+                const int sum = mod_nn_full(poly2pow_[lambda_i] + syndrome_r_i);
                 discr_r ^= pow2poly_[sum];
             }
         }
@@ -125,7 +125,7 @@ void RS_DECODER_GENERAL::berlekamp_massey(const std::vector<GF>& syndromes,
             t[0] = lambda[0];
             for (int i = 0; i < max_iter; i++) {
                 t[i + 1] = (b[i] != GF_INFINITY) ?
-                    lambda[i + 1] ^ pow2poly_[mod_nn(discr_r + b[i])] :
+                    lambda[i + 1] ^ pow2poly_[mod_nn_full(discr_r + b[i])] :
                     lambda[i + 1];
             }
 
@@ -135,7 +135,7 @@ void RS_DECODER_GENERAL::berlekamp_massey(const std::vector<GF>& syndromes,
                 for (int i = 0; i <= max_iter; i++) {
                     b[i] = (lambda[i] == 0) ?
                         GF_INFINITY :
-                        mod_nn(poly2pow_[lambda[i]] - discr_r + nn);
+                        mod_nn_full(poly2pow_[lambda[i]] - discr_r + nn);
                 }
             }
             else {
@@ -211,15 +211,15 @@ int RS_DECODER_GENERAL::forney_correction(const std::vector<GF>& omega, int deg_
         GF num1 = 0;
         for (int i = deg_omega; i >= 0; i--) {
             if (omega[i] != GF_INFINITY)
-                num1 ^= pow2poly_[mod_nn(omega[i] + i * root[j])];
+                num1 ^= pow2poly_[mod_nn_full(omega[i] + i * root[j])];
         }
-        GF num2 = pow2poly_[mod_nn(root[j] * (b0_ - 1) + nn)];
+        GF num2 = pow2poly_[mod_nn_full(root[j] * (b0_ - 1) + nn)];
         GF den = 0;
 
         /* lambda[i+1] for i even is the formal derivative lambda_pr of lambda[i] */
         for (int i = std::min(deg_lambda, 2 * tt_ - 1) & ~1; i >= 0; i -= 2) {
             if (lambda[i + 1] != GF_INFINITY)
-                den ^= pow2poly_[mod_nn(lambda[i + 1] + i * root[j])];
+                den ^= pow2poly_[mod_nn_full(lambda[i + 1] + i * root[j])];
         }
 
         if (den == 0) {

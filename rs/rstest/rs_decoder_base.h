@@ -23,8 +23,16 @@ protected:
     static const GF* get_pow2poly() { return RS_TABLES::instance().get_pow2poly(); }
     static const GF* get_poly2pow() { return RS_TABLES::instance().get_poly2pow(); }
 
-    static GF mod_nn(int x) {
+    static inline GF mod_nn(int x) {
         return RS_TABLES::instance().mod_nn(x);
+    }
+
+    static inline int mod_nn_full(int x) {
+        while (x >= nn) {
+            x -= nn;
+            x = (x >> 8) + (x & nn);
+        }
+        return x;
     }
 };
 
