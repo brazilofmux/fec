@@ -2,6 +2,7 @@
 #define RS_ENCODER_T2_H
 
 #include <vector>
+#include <cstdint>
 #include "rs_encoder_base.h"
 
 class RS_ENCODER_T2 final : public RS_ENCODER_BASE {

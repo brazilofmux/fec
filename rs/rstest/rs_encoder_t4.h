@@ -1,8 +1,10 @@
 #ifndef RS_ENCODER_T4_H
 #define RS_ENCODER_T4_H
 
-#include "rs_encoder_base.h"
+#include <cstdint>
+#include <cstring>
 #include <vector>
+#include "rs_encoder_base.h"
 
 class RS_ENCODER_T4 final : public RS_ENCODER_BASE {
 public:
