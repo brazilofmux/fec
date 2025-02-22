@@ -249,4 +249,3 @@ void example_usage() {
         printf("Both decoders give same result\n");
     }
 }
-

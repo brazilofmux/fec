@@ -15,10 +15,11 @@ private:
     void RSGenPoly();
     void RSGenTable();
 
-    // For tt=1: TABLE_SIZE = 256 * 2
+    const GF* pow2poly_;
+    const GF* poly2pow_;
+    std::vector<GF> gg;
     static constexpr int TABLE_SIZE = 256 * 2;
     GF* ptable;
-    std::vector<GF> gg;
 };
 
 #endif

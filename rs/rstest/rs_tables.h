@@ -3,7 +3,6 @@
 
 #include "rs_common.h"
 
-// Class to manage GF tables
 class RS_TABLES {
 public:
 
@@ -15,7 +14,7 @@ public:
     void ensure_initialized();
 
     GF mod_nn(int x) const {
-        return mod_table_[x + nn]; // Access pre-computed table
+        return mod_table_[x + nn];
     }
 
 private:

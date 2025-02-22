@@ -9,7 +9,7 @@ RS_TABLES::RS_TABLES()
     : is_initialized_(false)
     , pow2poly_(new GF[n])
     , poly2pow_(new GF[n])
-    , mod_table_(nullptr)  // Will be initialized later
+    , mod_table_(nullptr)
 {
 }
 
@@ -30,7 +30,7 @@ void RS_TABLES::initialize_gf() {
     initialize_mod_table();
 
     int iPoly = 1;
-    const int PrimitivePolynomial = 0x1D;
+    const int PrimitivePolynomial = 0x1D;  // [x^8] + x^4 + x^3 + x^2 + 1
 
     // Handle special infinite case
     pow2poly_[n - 1] = 0;

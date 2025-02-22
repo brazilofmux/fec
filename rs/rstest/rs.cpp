@@ -1196,7 +1196,7 @@ void RS_ENCODER::Init(void)
 
         // Create Modulus Table
         //
-	pModTable = ModTable+nn;
+        pModTable = ModTable+nn;
         for (int i = -nn; i <= 3*nn; i++)
         {
             pModTable[i] = (nn+i)%nn;

@@ -6,7 +6,7 @@
 
 RS_DECODER_GENERAL::RS_DECODER_GENERAL(int tt)
     : RS_DECODER_BASE(tt)
-    , b0_((nn - 2 * tt + 1) / 2)
+    , b0_((kk_ + 1) / 2)
     , pow2poly_(get_pow2poly())
     , poly2pow_(get_poly2pow())
 {

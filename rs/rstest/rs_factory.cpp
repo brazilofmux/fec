@@ -3,18 +3,13 @@
 
 RS_FACTORY& RS_FACTORY::instance() {
     static RS_FACTORY instance;
+    RS_TABLES::instance().ensure_initialized();
     return instance;
 }
 
 std::unique_ptr<RS_CODEC> RS_FACTORY::create_codec(int tt, int b0) {
-    RS_TABLES::instance().ensure_initialized();
-
-    // Get or create shared decoder
     auto decoder = get_shared_decoder(tt);
-
-    // Create specialized encoder
     auto encoder = create_specialized_encoder(tt, b0);
-
     return std::make_unique<RS_CODEC>(std::move(encoder), decoder);
 }
 
