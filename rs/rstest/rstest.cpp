@@ -89,13 +89,13 @@ bool rs_fopen(FILE** pFile, const char* filename, const char* mode)
 }
 
 void run_benchmarks() {
-    const int tt_values[] = {1,2,3,4,5,6,7,8,16,24,32,40,48,56,64};
+    const int tt_values[] = { 1,2,3,4,5,6,7,8,16,24,32,40,48,56,64 };
     const int iterations = 100000;  // Adjustable based on speed needed
 
     // Pre-allocate our buffers
     GF data[MAX_KK];
     GF recd[nn];
-    GF bb[2*MAX_TT];
+    GF bb[2 * MAX_TT];
 
     // Fill data buffer with some pattern
     for (int i = 0; i < MAX_KK; i++) {
@@ -107,8 +107,8 @@ void run_benchmarks() {
     printf("// tt  Encode  w/errors  without  w/errors  without\n");
 
     for (const int tt_val : tt_values) {
-        RS_ENCODER rs(tt_val);
-        const int kk = nn - 2*tt_val;
+        auto codec = RS_FACTORY::instance().create_codec(tt_val, (nn - 2 * tt_val + 1) / 2);
+        const int kk = nn - 2 * tt_val;
         double encode_time = 0.0;
         double decode_time_clean = 0.0;
         double decode_time_errors = 0.0;
@@ -116,39 +116,39 @@ void run_benchmarks() {
         // Time encoding
         auto start = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < iterations; i++) {
-            rs.RSEncode(data, bb);
+            codec->RSEncode(data, bb);
         }
         auto end = std::chrono::high_resolution_clock::now();
         encode_time = std::chrono::duration<double, std::micro>(end - start).count() / iterations;
 
         // Time decoding without errors
-        memcpy(recd, bb, 2*tt_val);        // Copy parity
+        memcpy(recd, bb, 2 * tt_val);        // Copy parity
         memcpy(recd + nn - kk, data, kk);  // Copy data
 
         start = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < iterations; i++) {
-            rs.RSDecode(recd);
+            codec->RSDecode(recd);
         }
         end = std::chrono::high_resolution_clock::now();
         decode_time_clean = std::chrono::duration<double, std::micro>(end - start).count() / iterations;
 
         // Time decoding with errors
-        memcpy(recd, bb, 2*tt_val);        // Copy parity
+        memcpy(recd, bb, 2 * tt_val);        // Copy parity
         memcpy(recd + nn - kk, data, kk);  // Copy data
         // Inject tt_val/2 errors at fixed positions
-        for (int i = 0; i < tt_val/2; i++) {
-            recd[i*2] ^= 0xFF;
+        for (int i = 0; i < tt_val / 2; i++) {
+            recd[i * 2] ^= 0xFF;
         }
 
         start = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < iterations; i++) {
-            rs.RSDecode(recd);
+            codec->RSDecode(recd);
         }
         end = std::chrono::high_resolution_clock::now();
         decode_time_errors = std::chrono::duration<double, std::micro>(end - start).count() / iterations;
 
-        printf("%3d  %6.2f  %8.2f  %8.2f    -----    -----\n",
-               tt_val, encode_time, decode_time_errors, decode_time_clean);
+        printf("// %3d  %6.2f  %8.2f  %8.2f    -----    -----\n",
+            tt_val, encode_time, decode_time_errors, decode_time_clean);
     }
 }
 
