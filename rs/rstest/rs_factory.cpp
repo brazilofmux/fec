@@ -37,6 +37,14 @@ std::unique_ptr<RS_ENCODER_BASE> RS_FACTORY::create_specialized_encoder(int tt, 
         return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T1(b0));
     case 2:
         return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T2(b0));
+    case 4:
+        return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T4(b0));
+    case 8:
+        return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T8(b0));
+    case 14:
+        return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T14(b0));
+    case 16:
+        return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T16(b0));
     default:
         return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_GENERAL(tt, b0));
     }
