@@ -1,7 +1,7 @@
 /*
  * Reed-Solomon coding and decoding
  * Phil Karn (karn@ka9q.ampr.org) September 1996
- * 
+ *
  * This file is derived from the program "new_rs_erasures.c" by Robert
  * Morelos-Zaragoza (robert@spectra.eng.hawaii.edu) and Hari Thirumoorthy
  * (harit@spectra.eng.hawaii.edu), Aug 1995
@@ -181,7 +181,7 @@ void init_rs(int tt)
         a(0) + a(1) @ + a(2) @^2 + ... + a(m-1) @^(m-1)
    we consider the integer "i" whose binary representation with a(0) being LSB
    and a(m-1) MSB is (a(0),a(1),...,a(m-1)) and locate the entry
-   "index_of[i]". Now, @^index_of[i] is that element whose polynomial 
+   "index_of[i]". Now, @^index_of[i] is that element whose polynomial
     representation is (a(0),a(1),a(2),...,a(m-1)).
    NOTE:
         The element alpha_to[2^m-1] = 0 always signifying that the
@@ -189,7 +189,7 @@ void init_rs(int tt)
         Similarily, the element index_of[0] = A0 always signifying
    that the power of alpha which has the polynomial representation
    (0,0,...,0) is "infinity".
- 
+
 */
 
 void
@@ -314,7 +314,7 @@ encode_rs(dtype data[], dtype bb[], int tt)
  *
  * Return number of symbols corrected, or -1 if codeword is illegal
  * or uncorrectable.
- * 
+ *
  * First "no_eras" erasures are declared by the calling program. Then, the
  * maximum # of errors correctable is t_after_eras = floor((NN-KK-no_eras)/2).
  * If the number of channel errors is not greater than "t_after_eras" the

@@ -5,14 +5,14 @@
 #include <vector>
 #include <functional>
 #include "rs.h"          // Original implementation
-#include "rsref.h"       // Reference implementation 
+#include "rsref.h"       // Reference implementation
 #include "rskarn_wrapper.h" // Wrapper for Karn's implementation
 #include "RsVerification.h"
 
 void print_hex(const char* label, const GF* data, int len) {
     std::cout << label << ": ";
     for (int i = 0; i < len; i++) {
-        std::cout << std::hex << std::setfill('0') << std::setw(2) 
+        std::cout << std::hex << std::setfill('0') << std::setw(2)
                   << static_cast<int>(data[i]) << " ";
         if ((i + 1) % 16 == 0 && i + 1 < len) {
             std::cout << "\n" << std::string(strlen(label) + 2, ' ');
@@ -26,7 +26,7 @@ struct EncoderResults {
     void clear() { memset(bb, 0, sizeof(bb)); }
 };
 
-void compare_results(const EncoderResults& karn, 
+void compare_results(const EncoderResults& karn,
                     const EncoderResults& ref,
                     const EncoderResults& orig,
                     int tt) {
@@ -35,7 +35,7 @@ void compare_results(const EncoderResults& karn,
     print_hex("Karn     ", karn.bb, 2*tt);
     print_hex("Reference", ref.bb, 2*tt);
     print_hex("Original ", orig.bb, 2*tt);
-    
+
     for (int i = 0; i < 2*tt; i++) {
         if (karn.bb[i] != ref.bb[i] || karn.bb[i] != orig.bb[i]) {
             all_match = false;
@@ -46,7 +46,7 @@ void compare_results(const EncoderResults& karn,
                       << std::dec << std::endl;
         }
     }
-    
+
     if (all_match) {
         std::cout << "✓ All implementations match\n";
     } else {
@@ -60,20 +60,20 @@ void run_standard_tests(int tt) {
     RS_ENCODER orig(tt);
 
     const int kk = nn - 2*tt;  // Data length
-    
+
     // Define test cases
     struct TestCase {
         const char* name;
         void (*fill_data)(GF*);  // Function pointer instead of std::function
     };
-    
+
     // Create test cases array
     TestCase test_cases[] = {
         {"Zero data", +[](GF* data) { memset(data, 0, MAX_KK); }},
         {"All ones", +[](GF* data) { memset(data, 1, MAX_KK); }},
-        {"Sequential", +[](GF* data) { 
-            for (int i = 0; i < MAX_KK; i++) 
-                data[i] = i & 0xFF; 
+        {"Sequential", +[](GF* data) {
+            for (int i = 0; i < MAX_KK; i++)
+                data[i] = i & 0xFF;
         }},
         {"Random data", +[](GF* data) {
             std::random_device rd;
@@ -87,7 +87,7 @@ void run_standard_tests(int tt) {
 
     for (const auto& test : test_cases) {
         std::cout << "\nRunning test: " << test.name << std::endl;
-        
+
         GF data[MAX_KK];
         test.fill_data(data);
         print_hex("Input", data, kk);
@@ -109,13 +109,13 @@ int main(int argc, char* argv[]) {
     // Initialize all implementations
     RS_Init();  // Common initialization
     RS_ENCODER::Init();
-    
+
     std::cout << "Reed-Solomon Encoder Comparison Test\n";
     std::cout << "===================================\n";
 
     // Test different error correction capacities
     int tt_values[] = {1, 2, 4, 8, 16, 32};
-    
+
     for (int tt : tt_values) {
         std::cout << "\nTesting with tt=" << tt << " (correctable errors)\n";
         std::cout << "--------------------------------------------\n";
