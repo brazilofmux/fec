@@ -9,6 +9,8 @@
 #include "rs_encoder_t8.h"
 #include "rs_encoder_t14.h"
 #include "rs_encoder_t16.h"
+#include "rs_encoder_t32.h"
+#include "rs_encoder_t64.h"
 #include "rs_encoder_general.h"
 #include "rs_decoder_t1.h"
 #include "rs_decoder_general.h"
