@@ -1,5 +1,5 @@
 #include "rs_encoder_general.h"
-#include <memory.h>
+#include <memory>
 
 RS_ENCODER_GENERAL::RS_ENCODER_GENERAL(int tt, int b0)
     : RS_ENCODER_BASE(tt, b0)
@@ -24,7 +24,7 @@ void RS_ENCODER_GENERAL::RSGenPoly() {
     for (int i = 2; i <= 2 * tt_; i++) {
         gg[i] = 1;
 
-        // Below multiply (gg[0]+gg[1]*x + ... +gg[i]x^i) by (@^(b0+i-1) + x)
+        // Multiply (gg[0]+gg[1]*x + ... +gg[i]x^i) by (@^(b0+i-1) + x)
         for (int j = i - 1; j > 0; j--) {
             if (gg[j] != 0) {
                 int iMod = mod_nn(poly2pow_[gg[j]] + b0_ + i - 1);
@@ -51,7 +51,7 @@ void RS_ENCODER_GENERAL::RSGenTable() {
     for (int ch = 0; ch < 256; ch++) {
         int feedback = poly2pow_[ch];
 
-        // Match the original implementation's indexing and access
+        // Generate coefficients for this feedback value
         for (int j = 0; j < 2 * tt_; j++) {
             if (gg[j + 1] != GF_INFINITY && feedback != GF_INFINITY) {
                 int iMod = mod_nn(gg[j + 1] + feedback);
@@ -65,19 +65,60 @@ void RS_ENCODER_GENERAL::RSGenTable() {
 }
 
 void RS_ENCODER_GENERAL::RSEncode(GF data[MAX_KK], GF bb[2 * MAX_TT]) {
-    for (int i = 0; i < kk_; i++) {
-        GF feedback = bb[0] ^ data[i];
+    // Clear parity buffer
+    memset(bb, 0, 2 * tt_);
+
+    // Pre-calculate block counts
+    const int cnt = 2 * tt_ - 1;
+    const int cDO16 = cnt >> 4;
+    const int cDO8 = (cnt & 8) >> 3;
+    const int cDO4 = (cnt & 4) >> 2;
+    const int cDO2 = (cnt & 2) >> 1;
+    const int cDO1 = cnt & 1;
+
+    // Process all data bytes
+    const GF* data_ptr = data;
+    int kk_remaining = kk_;
+    while (kk_remaining--) {
+        const GF feedback = bb[0] ^ (*data_ptr++);
         GF* TableRow = ptable + 2 * tt_ * feedback;
 
-        // Process pairs of bytes
-        int j;
-        for (j = 0; j < 2 * tt_ - 2; j += 2) {
-            bb[j] = bb[j + 1] ^ TableRow[j];
-            bb[j + 1] = bb[j + 2] ^ TableRow[j + 1];
+        int j = 0;
+
+        // Process 16-byte blocks
+        int cnt16 = cDO16;
+        while (cnt16--) {
+            process_block8(bb + j, TableRow + j);
+            process_block8(bb + j + 8, TableRow + j + 8);
+            j += 16;
         }
 
-        // Handle final bytes
-        bb[j] = bb[j + 1] ^ TableRow[j];
-        bb[j + 1] = feedback;
+        // Process 8-byte block if needed
+        if (cDO8) {
+            process_block8(bb + j, TableRow + j);
+            j += 8;
+        }
+
+        // Process 4-byte block if needed
+        if (cDO4) {
+            process_block4(bb + j, TableRow + j);
+            j += 4;
+        }
+
+        // Process 2 bytes if needed
+        if (cDO2) {
+            process_byte1(bb, TableRow, j);
+            process_byte1(bb, TableRow, j + 1);
+            j += 2;
+        }
+
+        // Process 1 byte if needed
+        if (cDO1) {
+            process_byte1(bb, TableRow, j);
+            j++;
+        }
+
+        // Final feedback byte
+        bb[j] = feedback;
     }
 }

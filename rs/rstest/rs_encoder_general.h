@@ -19,6 +19,23 @@ private:
     const GF* poly2pow_;
     std::vector<GF> gg;     // Generator polynomial coefficients
     GF* ptable;             // Lookup table for encoding
+
+    // Helpers for block operations
+    static inline void process_block8(GF* bb, const GF* TableRow) {
+        uint64_t next_block = *reinterpret_cast<uint64_t*>(bb + 1);
+        uint64_t table_block = *reinterpret_cast<const uint64_t*>(TableRow);
+        *reinterpret_cast<uint64_t*>(bb) = next_block ^ table_block;
+    }
+
+    static inline void process_block4(GF* bb, const GF* TableRow) {
+        uint32_t next_block = *reinterpret_cast<uint32_t*>(bb + 1);
+        uint32_t table_block = *reinterpret_cast<const uint32_t*>(TableRow);
+        *reinterpret_cast<uint32_t*>(bb) = next_block ^ table_block;
+    }
+
+    static inline void process_byte1(GF* bb, const GF* TableRow, int pos) {
+        bb[pos] = bb[pos + 1] ^ TableRow[pos];
+    }
 };
 
-#endif
+#endif // RS_ENCODER_GENERAL_H

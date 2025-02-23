@@ -147,7 +147,7 @@ void run_benchmarks() {
         end = std::chrono::high_resolution_clock::now();
         decode_time_errors = std::chrono::duration<double, std::micro>(end - start).count() / iterations;
 
-        printf("// %3d  %6.2f  %8.2f  %8.2f    -----    -----\n",
+        printf("//%3d  %6.2f  %8.2f  %8.2f    -----    -----\n",
             tt_val, encode_time, decode_time_errors, decode_time_clean);
     }
 }
