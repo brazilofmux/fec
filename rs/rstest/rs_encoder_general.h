@@ -2,6 +2,8 @@
 #define RS_ENCODER_GENERAL_H
 
 #include "rs_encoder_base.h"
+#include <cstdint>
+#include <cstring>
 #include <vector>
 
 class RS_ENCODER_GENERAL : public RS_ENCODER_BASE {
