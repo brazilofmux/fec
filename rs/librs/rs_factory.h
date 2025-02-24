@@ -18,7 +18,7 @@
 //             ---Errors Only---  -Errors+Erasures-
 //             ----Decoding-----  ----Decoding-----
 // tt  Encode  w/errors  without  w/errors  without
-//  1    0.52      1.25      1.24    -----    -----
+//  1    0.51      0.92      0.93    -----    -----
 //  2    0.55      1.76      1.75    -----    -----
 //  3    1.31      2.30      2.30    -----    -----
 //  4    1.32      2.98      3.08    -----    -----

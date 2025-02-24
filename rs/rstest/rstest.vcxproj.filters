@@ -84,6 +84,9 @@
     <ClCompile Include="rs_decoder_base.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="rs_decoder_t1.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="rs.h">
