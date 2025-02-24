@@ -107,7 +107,7 @@ void run_benchmarks() {
     printf("// tt  Encode  w/errors  without  w/errors  without\n");
 
     for (const int tt_val : tt_values) {
-        auto codec = RS_FACTORY::instance().create_codec(tt_val, (nn - 2 * tt_val + 1) / 2);
+        auto codec = RS_FACTORY::instance().create_specialized_codec(tt_val, (nn - 2 * tt_val + 1) / 2);
         const int kk = nn - 2 * tt_val;
         double encode_time = 0.0;
         double decode_time_clean = 0.0;

@@ -56,10 +56,8 @@ std::unique_ptr<RS_ENCODER_BASE> RS_FACTORY::create_specialized_encoder(int tt, 
 
 std::shared_ptr<RS_DECODER_BASE> RS_FACTORY::create_specialized_decoder(int tt, int b0) {
     switch (tt) {
-#if 0
     case 1:
-        return std::shared_ptr<RS_DECODER_BASE>(new RS_DECODER_T1(tt, b0));
-#endif
+        return std::shared_ptr<RS_DECODER_BASE>(new RS_DECODER_T1(b0));
     default:
         return std::shared_ptr<RS_DECODER_BASE>(new RS_DECODER_GENERAL(tt, b0));
     }
