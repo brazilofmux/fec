@@ -21,8 +21,10 @@ protected:
         poly2pow_(RS_TABLES::instance().get_poly2pow()) {
     }
 
+    // Virtual method for syndrome calculation
+    virtual void calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) = 0;
+
     // Shared decoding methods
-    void calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes);
     int construct_erasure_locator(std::vector<GF>& lambda, const int* eras_pos, int no_eras);
     void berlekamp_massey(const std::vector<GF>& syndromes, std::vector<GF>& lambda, int no_eras);
     int convert_to_index_and_get_degree(std::vector<GF>& poly);

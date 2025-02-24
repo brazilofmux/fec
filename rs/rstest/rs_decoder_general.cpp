@@ -3,6 +3,31 @@
 
 RS_DECODER_GENERAL::RS_DECODER_GENERAL(int tt, int b0) : RS_DECODER_BASE(tt, b0) {}
 
+void RS_DECODER_GENERAL::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
+    syndromes.assign(2 * tt_ + 1, 0);
+
+    int iPowInit = 0;
+    for (int j = 0; j < nn; j++) {
+        GF RECD = recd[j];
+        if (RECD != 0) {
+            int iPow0 = iPowInit + poly2pow_[RECD];
+            iPow0 = mod_nn(iPow0);
+
+            for (int i = 1; i <= 2 * tt_; i++) {
+                iPow0 = mod_nn(iPow0);
+                syndromes[i] ^= pow2poly_[iPow0];
+                iPow0 += j;
+            }
+        }
+        iPowInit += b0_;
+        iPowInit = mod_nn(iPowInit);
+    }
+
+    for (int i = 1; i <= 2 * tt_; i++) {
+        syndromes[i] = poly2pow_[syndromes[i]];
+    }
+}
+
 int RS_DECODER_GENERAL::RSDecode(GF recd[nn]) {
     // Step 1: Calculate syndromes
     std::vector<GF> syndromes;
