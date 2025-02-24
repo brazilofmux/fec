@@ -6,7 +6,8 @@
 RS_DECODER_GENERAL::RS_DECODER_GENERAL(int tt, int b0) : RS_DECODER_BASE(tt, b0) { }
 
 #if 0
-// The following is a more mathematical version
+// A more mathematical version that doesn't perform well:
+//
 void RS_DECODER_GENERAL::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
     syndromes.assign(2 * tt_ + 1, 0);
 
@@ -25,28 +26,38 @@ void RS_DECODER_GENERAL::calculate_syndromes(const GF recd[nn], std::vector<GF>&
 #endif
 
 #if 1
+// Claude 3.7 Sonnet version:
+//
 void RS_DECODER_GENERAL::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
     syndromes.assign(2 * tt_ + 1, 0);
-    std::vector<int> offset(2 * tt_ + 1);
-    for (int i = 1; i <= 2 * tt_; i++) {
-        offset[i] = b0_ + i - 1;
+
+    // Pre-calculate all powers for each received byte position
+    std::vector<int> base_powers(nn);
+    for (int j = 0; j < nn; j++) {
+        base_powers[j] = mod_nn_full(j * b0_);
     }
 
+    // Process non-zero bytes only
     for (int j = 0; j < nn; j++) {
         if (recd[j] != 0) {
             const int log_recd = poly2pow_[recd[j]];
+            int power = mod_nn_full(base_powers[j] + log_recd);
+
             for (int i = 1; i <= 2 * tt_; i++) {
-                const int power = mod_nn_full(j * offset[i] + log_recd);
                 syndromes[i] ^= pow2poly_[power];
+                power = mod_nn_full(power + j);
             }
         }
     }
 
+    // Convert to index form at the end
     for (int i = 1; i <= 2 * tt_; i++) {
         syndromes[i] = poly2pow_[syndromes[i]];
     }
 }
 #elif 1
+// My 25+ year old version:
+//
 void RS_DECODER_GENERAL::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
     syndromes.assign(2 * tt_ + 1, 0);
 
