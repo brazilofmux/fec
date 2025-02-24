@@ -147,7 +147,23 @@
     <ClInclude Include="base64.h" />
     <ClInclude Include="crc.h" />
     <ClInclude Include="projdefs.h" />
-    <ClInclude Include="rs.h" />
+    <ClInclude Include="rs_codec.h" />
+    <ClInclude Include="rs_common.h" />
+    <ClInclude Include="rs_decoder_base.h" />
+    <ClInclude Include="rs_decoder_general.h" />
+    <ClInclude Include="rs_decoder_t1.h" />
+    <ClInclude Include="rs_encoder_base.h" />
+    <ClInclude Include="rs_encoder_general.h" />
+    <ClInclude Include="rs_encoder_t1.h" />
+    <ClInclude Include="rs_encoder_t14.h" />
+    <ClInclude Include="rs_encoder_t16.h" />
+    <ClInclude Include="rs_encoder_t2.h" />
+    <ClInclude Include="rs_encoder_t32.h" />
+    <ClInclude Include="rs_encoder_t4.h" />
+    <ClInclude Include="rs_encoder_t64.h" />
+    <ClInclude Include="rs_encoder_t8.h" />
+    <ClInclude Include="rs_factory.h" />
+    <ClInclude Include="rs_tables.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\librs\librs.vcxproj">

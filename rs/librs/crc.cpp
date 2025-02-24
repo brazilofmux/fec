@@ -7,7 +7,8 @@
 // Copyright (C) 2008 Stephen Dennis. All rights reserved.
 //
 
-#include "pch.h"
+#include "projdefs.h"
+#include "crc.h"
 
 static UINT32 CRC32_Table[256] =
 {

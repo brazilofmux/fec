@@ -5,7 +5,7 @@
 #include <fcntl.h>
 
 #include "projdefs.h"
-#include "rs.h"
+#include "rs_factory.h"
 #include "crc.h"
 #include "base64.h"
 
@@ -63,8 +63,6 @@ int main(int argc, char* argv[])
     }
     else usage(argv[0]);
 
-    RS_Init();
-
     FILE* fp_in = nullptr;
     if (!rs_fopen(&fp_in, argv[2], "rb") || nullptr == fp_in)
     {
@@ -79,7 +77,7 @@ int main(int argc, char* argv[])
     }
     setvbuf(fp_out, out_file_buffer, _IOFBF, sizeof(out_file_buffer));
 
-    const auto p_encoder = new RS_ENCODER(16);
+    const auto p_encoder = RS_FACTORY::instance().create_specialized_codec(16, 0);
     if (mode == ENCODING)
     {
         // Initialize
@@ -178,8 +176,6 @@ int main(int argc, char* argv[])
         }
         delete[] line;
     }
-
-    delete p_encoder;
 
     fclose(fp_out);
     fclose(fp_in);

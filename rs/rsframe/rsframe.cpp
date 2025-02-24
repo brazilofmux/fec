@@ -8,7 +8,7 @@
 #include <fcntl.h>
 
 #include "projdefs.h"
-#include "rs.h"
+#include "rs_factory.h"
 #include "rsframe.h"
 #include "crc.h"
 
@@ -38,8 +38,8 @@ bool rs_fopen(FILE** pFile, const char* filename, const char* mode)
 
 RSFRAME::RSFRAME(void)
 {
+    memset(work, 0, sizeof(work));
     bDesigned = FALSE;
-    pRSEncoder = nullptr;
     memset(&DesignInfo, 0, sizeof(DesignInfo));
 }
 
@@ -135,13 +135,12 @@ TryAgain2:
 
     bDesigned = TRUE;
     *pDesignInfo = DesignInfo;
-    pRSEncoder = new RS_ENCODER(t);
+    codec = RS_FACTORY::instance().create_specialized_codec(t, (nn-2*t+1)/2);
     return TRUE;
 }
 
 RSFRAME::~RSFRAME(void)
 {
-    delete pRSEncoder;
 }
 
 BOOL RSFRAME::Encode(UBYTE *pPayload, UBYTE *pCheck)
@@ -155,13 +154,13 @@ BOOL RSFRAME::Encode(UBYTE *pPayload, UBYTE *pCheck)
     {
         memset(work, 0, MAX_KK);
         memcpy(work, pPayload + i*kk, kk);
-        pRSEncoder->RSEncode(work, pCheck + i*mm);
+        codec->RSEncode(work, pCheck + i*mm);
     }
     if (DesignInfo.cbCWPayloadPartial)
     {
         memset(work, 0, MAX_KK);
         memcpy(work, pPayload + i*kk, kk_Partial);
-        pRSEncoder->RSEncode(work, pCheck + i*mm);
+        codec->RSEncode(work, pCheck + i*mm);
     }
     return TRUE;
 }
@@ -178,7 +177,7 @@ BOOL RSFRAME::Decode(UBYTE *pPayload, UBYTE *pCheck, ULONG *iError)
         memset(work, 0, nn);
         memcpy(work, pCheck + i*mm, mm);
         memcpy(work + mm, pPayload + i*kk, kk);
-        int cc = pRSEncoder->RSDecode(work);
+        int cc = codec->RSDecode(work);
         if (cc < 0 || (ULONG)cc == DesignInfo.cbCWMaxCorrections)
         {
             *iError = i*kk;
@@ -192,7 +191,7 @@ BOOL RSFRAME::Decode(UBYTE *pPayload, UBYTE *pCheck, ULONG *iError)
         memset(work, 0, nn);
         memcpy(work, pCheck + i*mm, mm);
         memcpy(work + mm, pPayload + i*kk, kk_Partial);
-        int cc= pRSEncoder->RSDecode(work);
+        int cc= codec->RSDecode(work);
         if (cc < 0 || (ULONG)cc == DesignInfo.cbCWMaxCorrections)
         {
             *iError = i*kk;

@@ -35,6 +35,6 @@ public:
 private:
     BOOL bDesigned;
     struct RSFRAME_DESIGN_INFO DesignInfo;
-    RS_ENCODER *pRSEncoder;
+    std::unique_ptr<RS_CODEC>  codec;
     GF work[nn];
 };
