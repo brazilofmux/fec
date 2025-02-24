@@ -1,8 +1,52 @@
 #include <vector>
 #include "rs_decoder_general.h"
+#include <cstdlib>
+#include <stdio.h>
 
-RS_DECODER_GENERAL::RS_DECODER_GENERAL(int tt, int b0) : RS_DECODER_BASE(tt, b0) {}
+RS_DECODER_GENERAL::RS_DECODER_GENERAL(int tt, int b0) : RS_DECODER_BASE(tt, b0) { }
 
+#if 0
+// The following is a more mathematical version
+void RS_DECODER_GENERAL::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
+    syndromes.assign(2 * tt_ + 1, 0);
+
+    for (int i = 1; i <= 2 * tt_; i++) {
+        for (int j = 0; j < nn; j++) {
+            if (recd[j] != 0) {
+                syndromes[i] ^= pow2poly_[mod_nn_full(j * (b0_ + i - 1) + poly2pow_[recd[j]])];
+            }
+        }
+    }
+
+    for (int i = 1; i <= 2 * tt_; i++) {
+        syndromes[i] = poly2pow_[syndromes[i]];
+    }
+}
+#endif
+
+#if 1
+void RS_DECODER_GENERAL::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
+    syndromes.assign(2 * tt_ + 1, 0);
+    std::vector<int> offset(2 * tt_ + 1);
+    for (int i = 1; i <= 2 * tt_; i++) {
+        offset[i] = b0_ + i - 1;
+    }
+
+    for (int j = 0; j < nn; j++) {
+        if (recd[j] != 0) {
+            const int log_recd = poly2pow_[recd[j]];
+            for (int i = 1; i <= 2 * tt_; i++) {
+                const int power = mod_nn_full(j * offset[i] + log_recd);
+                syndromes[i] ^= pow2poly_[power];
+            }
+        }
+    }
+
+    for (int i = 1; i <= 2 * tt_; i++) {
+        syndromes[i] = poly2pow_[syndromes[i]];
+    }
+}
+#elif 1
 void RS_DECODER_GENERAL::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
     syndromes.assign(2 * tt_ + 1, 0);
 
@@ -27,6 +71,7 @@ void RS_DECODER_GENERAL::calculate_syndromes(const GF recd[nn], std::vector<GF>&
         syndromes[i] = poly2pow_[syndromes[i]];
     }
 }
+#endif
 
 int RS_DECODER_GENERAL::RSDecode(GF recd[nn]) {
     // Step 1: Calculate syndromes
