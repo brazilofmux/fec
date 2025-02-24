@@ -2,7 +2,7 @@
 #define RS_ENCODING_TEST_H
 
 #include <random>
-#include "rs.h"
+#include "rs_factory.h"
 #include "RsTestConfig.h"
 #include "RsVerification.h"
 
@@ -15,7 +15,7 @@ private:
     const RsTestConfig& config;
     int tt;
     int kk;
-    RS_ENCODER* encoder;
+    std::unique_ptr<RS_CODEC> codec;
     std::mt19937 rng;
 
     void initialize();

@@ -18,7 +18,7 @@ void RsDecodingTest::initialize() {
     rng.seed(config.getRandomSeed());
 
     // Create encoder
-    encoder = new RS_ENCODER(tt);
+    codec = RS_FACTORY::instance().create_specialized_codec(tt, (kk+1)/2);
 
     // Initialize verification
     RsVerification::init(config.getVerboseLevel() == Verbosity::Debug);
@@ -66,7 +66,7 @@ bool RsDecodingTest::process_codeword(const GF* codeword, const int nn_short, co
     RsVerification::VerificationResults verify_results;
     RsVerification::setResults(&verify_results);
 
-    int decode_flag = encoder->RSDecode(recd);
+    int decode_flag = codec->RSDecode(recd);
 
     if (config.getVerboseLevel() == Verbosity::Debug) {
         std::cout << "decode_rs() returned " << decode_flag << "\n";

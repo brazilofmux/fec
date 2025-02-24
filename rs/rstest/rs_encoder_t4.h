@@ -26,8 +26,8 @@ private:
     // Helper for 32-bit operations - processes 4 bytes at once
     static inline void process_block4(GF* bb, const GF* TableRow) {
         // Original DO4 macro converted to function:
-        // #define DO4(x) { \
-        //     *((UINT32 *)(bb+x)) = *((UINT32 *)(bb+x+1)) \
+        // #define DO4(x) {
+        //     *((UINT32 *)(bb+x)) = *((UINT32 *)(bb+x+1))
         //                         ^ (*((UINT32 *)(TableRow+x))); }
         uint32_t next_block = *reinterpret_cast<uint32_t*>(bb + 1);
         uint32_t table_block = *reinterpret_cast<const uint32_t*>(TableRow);

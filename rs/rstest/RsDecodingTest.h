@@ -2,7 +2,7 @@
 #define RS_DECODING_TEST_H
 
 #include <random>
-#include "rs.h"
+#include "rs_factory.h"
 #include "RsTestConfig.h"
 #include "RsVerification.h"
 
@@ -34,7 +34,7 @@ private:
     std::mt19937 rng;
     std::uniform_real_distribution<double> uniform_dist;
     std::uniform_int_distribution<int> byte_dist;
-    RS_ENCODER* encoder;
+    std::unique_ptr<RS_CODEC> codec;
 
     bool process_codeword(const GF* codeword, const int nn_short, const int kk_short);
     void print_stats() const;

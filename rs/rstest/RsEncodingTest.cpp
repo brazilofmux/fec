@@ -8,7 +8,7 @@ RsEncodingTest::RsEncodingTest(const RsTestConfig& cfg)
     : config(cfg),
       tt(cfg.getTT()),
       kk(nn - 2*tt),
-      encoder(nullptr) {
+      codec(nullptr) {
     initialize();
 }
 
@@ -17,7 +17,7 @@ void RsEncodingTest::initialize() {
     rng.seed(config.getRandomSeed());
 
     // Create encoder
-    encoder = new RS_ENCODER(tt);
+    codec = RS_FACTORY::instance().create_specialized_codec(tt, (kk+1)/2);
 
     // Initialize verification framework
     RsVerification::init(config.getVerboseLevel() == Verbosity::Debug);
@@ -70,7 +70,7 @@ bool RsEncodingTest::encode_and_save_codewords(const char* filename) {
         }
 
         // Encode
-        encoder->RSEncode(data, bb);
+        codec->RSEncode(data, bb);
 
         // Write parity and data
         if (fwrite(bb, sizeof(GF), nn_short - kk_short, fp_out) != static_cast<size_t>(nn_short - kk_short) ||
