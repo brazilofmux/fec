@@ -44,9 +44,9 @@ public:
 private:
     RS_FACTORY() = default;
 
-    std::shared_ptr<RS_DECODER_BASE> get_shared_decoder(int tt);
+    std::shared_ptr<RS_DECODER_BASE> get_shared_decoder(int tt, int b0);
     std::unique_ptr<RS_ENCODER_BASE> create_specialized_encoder(int tt, int b0);
-    std::shared_ptr<RS_DECODER_BASE> create_specialized_decoder(int tt);
+    std::shared_ptr<RS_DECODER_BASE> create_specialized_decoder(int tt, int b0);
     std::shared_ptr<RS_DECODER_BASE> shared_decoder;
 };
 

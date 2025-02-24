@@ -150,6 +150,7 @@
     <ClCompile Include="RsVerification.cpp" />
     <ClCompile Include="rs_common.cpp" />
     <ClCompile Include="rs_decoder_general.cpp" />
+    <ClCompile Include="rs_decoder_base.cpp" />
     <ClCompile Include="rs_encoder_general.cpp" />
     <ClCompile Include="rs_encoder_t1.cpp" />
     <ClCompile Include="rs_encoder_t14.cpp" />

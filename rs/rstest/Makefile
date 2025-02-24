@@ -6,7 +6,7 @@ CFLAGS = -O3 -Wall
 # Main test program
 CPP_SRCS = rstest.cpp rs.cpp rsref.cpp rs_common.cpp RsComparisonTest.cpp \
            RsDecodingTest.cpp RsEncodingTest.cpp RsTestConfig.cpp RsVerification.cpp \
-           rs_factory.cpp rs_tables.cpp rs_encoder_general.cpp rs_decoder_general.cpp \
+           rs_factory.cpp rs_tables.cpp rs_decoder_base.cpp rs_decoder_general.cpp rs_encoder_general.cpp \
            rs_encoder_t1.cpp rs_encoder_t2.cpp rs_encoder_t4.cpp rs_encoder_t8.cpp \
            rs_encoder_t14.cpp rs_encoder_t16.cpp rs_encoder_t32.cpp rs_encoder_t64.cpp
 C_SRCS = rskarn.c
