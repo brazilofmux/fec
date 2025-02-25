@@ -3,6 +3,8 @@
 // Copyright (C) 2025 Stephen Dennis. All rights reserved.
 //
 
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>

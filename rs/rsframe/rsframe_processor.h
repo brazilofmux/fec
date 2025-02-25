@@ -16,8 +16,6 @@ public:
     RSFrameProcessor(ULONG frameLength = 64 * 1024 - sizeof(UINT32), ULONG maxCorrections = 16)
         : frameLength_(frameLength), maxCorrections_(maxCorrections) {
 
-        RS_Init();
-
         // Design the Reed-Solomon code
         if (!rsframe_.Design1(frameLength_, maxCorrections_, &designInfo_) ||
             designInfo_.cbPayloadLength <= sizeof(UINT64) + sizeof(UINT32) + sizeof(USHORT)) {
