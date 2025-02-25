@@ -14,6 +14,8 @@ public:
 
 private:
     void calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) override;
+    // Precomputed power tables as class members
+    std::vector<std::vector<GF>> precomp_powers;
 };
 
 #endif // RS_DECODER_GENERAL_H

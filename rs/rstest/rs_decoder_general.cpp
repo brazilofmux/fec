@@ -3,86 +3,35 @@
 #include <cstdlib>
 #include <stdio.h>
 
-RS_DECODER_GENERAL::RS_DECODER_GENERAL(int tt, int b0) : RS_DECODER_BASE(tt, b0) { }
+RS_DECODER_GENERAL::RS_DECODER_GENERAL(int tt, int b0) : RS_DECODER_BASE(tt, b0) {
+    // Precompute powers for each syndrome
+    precomp_powers.resize(2 * tt_ + 1);
+    for (int i = 1; i <= 2 * tt_; i++) {
+        precomp_powers[i].resize(256);
+        for (int j = 0; j < 256; j++) {
+            precomp_powers[i][j] = (j == 0) ? 0 : pow2poly_[mod_nn(poly2pow_[j] + b0_ + i - 1)];
+        }
+    }
+}
 
-#if 0
-// A more mathematical version that doesn't perform well:
-//
 void RS_DECODER_GENERAL::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
     syndromes.assign(2 * tt_ + 1, 0);
 
-    for (int i = 1; i <= 2 * tt_; i++) {
-        for (int j = 0; j < nn; j++) {
-            if (recd[j] != 0) {
-                syndromes[i] ^= pow2poly_[mod_nn_full(j * (b0_ + i - 1) + poly2pow_[recd[j]])];
-            }
+    // Initialize LFSR states
+    std::vector<GF> lfsr(2 * tt_ + 1, 0);
+
+    // Process each byte through all LFSRs
+    for (int j = nn - 1; j >= 0; j--) {
+        for (int i = 1; i <= 2 * tt_; i++) {
+            lfsr[i] = precomp_powers[i][lfsr[i]] ^ recd[j];
         }
     }
 
+    // Convert to index form
     for (int i = 1; i <= 2 * tt_; i++) {
-        syndromes[i] = poly2pow_[syndromes[i]];
+        syndromes[i] = poly2pow_[lfsr[i]];
     }
 }
-#endif
-
-#if 1
-// Claude 3.7 Sonnet version:
-//
-void RS_DECODER_GENERAL::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
-    syndromes.assign(2 * tt_ + 1, 0);
-
-    // Pre-calculate all powers for each received byte position
-    std::vector<int> base_powers(nn);
-    for (int j = 0; j < nn; j++) {
-        base_powers[j] = mod_nn_full(j * b0_);
-    }
-
-    // Process non-zero bytes only
-    for (int j = 0; j < nn; j++) {
-        if (recd[j] != 0) {
-            const int log_recd = poly2pow_[recd[j]];
-            int power = mod_nn_full(base_powers[j] + log_recd);
-
-            for (int i = 1; i <= 2 * tt_; i++) {
-                syndromes[i] ^= pow2poly_[power];
-                power = mod_nn_full(power + j);
-            }
-        }
-    }
-
-    // Convert to index form at the end
-    for (int i = 1; i <= 2 * tt_; i++) {
-        syndromes[i] = poly2pow_[syndromes[i]];
-    }
-}
-#elif 1
-// My 25+ year old version:
-//
-void RS_DECODER_GENERAL::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
-    syndromes.assign(2 * tt_ + 1, 0);
-
-    int iPowInit = 0;
-    for (int j = 0; j < nn; j++) {
-        GF RECD = recd[j];
-        if (RECD != 0) {
-            int iPow0 = iPowInit + poly2pow_[RECD];
-            iPow0 = mod_nn(iPow0);
-
-            for (int i = 1; i <= 2 * tt_; i++) {
-                iPow0 = mod_nn(iPow0);
-                syndromes[i] ^= pow2poly_[iPow0];
-                iPow0 += j;
-            }
-        }
-        iPowInit += b0_;
-        iPowInit = mod_nn(iPowInit);
-    }
-
-    for (int i = 1; i <= 2 * tt_; i++) {
-        syndromes[i] = poly2pow_[syndromes[i]];
-    }
-}
-#endif
 
 int RS_DECODER_GENERAL::RSDecode(GF recd[nn]) {
     // Step 1: Calculate syndromes

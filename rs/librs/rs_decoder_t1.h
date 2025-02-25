@@ -14,6 +14,8 @@ public:
 
 private:
     void calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) override;
+    GF precomp_power1[256];
+    GF precomp_power2[256];
 };
 
 #endif // RS_DECODER_T1_H
