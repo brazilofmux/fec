@@ -92,8 +92,9 @@ int RS_DECODER_GENERAL::RSDecode(GF recd[nn]) {
     // Check for errors
     bool has_error = false;
     for (int i = 1; i <= 2 * tt_; i++) {
-        if (syndromes[i] != 0 && !has_error) {
+        if (syndromes[i] != 0) {
             has_error = true;
+            break;
         }
     }
 
