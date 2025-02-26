@@ -159,14 +159,20 @@ int RS_DECODER_BASE::construct_erasure_locator(std::vector<GF>& lambda, const in
         return 0; // No erasures
     }
 
+    // Initialize lambda
     lambda.assign(lambda.size(), 0);
     lambda[0] = 1;
 
-    for (int i = 0; i < no_eras; i++) {
+    // First erasure position directly sets lambda[1]
+    lambda[1] = pow2poly_[eras_pos[0]];
+
+    // Process remaining erasure positions
+    for (int i = 1; i < no_eras; i++) {
         GF u = eras_pos[i];
-        for (int j = no_eras; j > 0; j--) {
-            if (lambda[j - 1] != GF_INFINITY) {
-                lambda[j] ^= pow2poly_[mod_nn(u + poly2pow_[lambda[j - 1]])];
+        for (int j = i + 1; j > 0; j--) {
+            GF tmp = poly2pow_[lambda[j - 1]];
+            if (tmp != GF_INFINITY) {
+                lambda[j] ^= pow2poly_[mod_nn(u + tmp)];
             }
         }
     }
