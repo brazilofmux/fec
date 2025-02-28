@@ -5,27 +5,22 @@ CFLAGS = -O3 -Wall
 
 # Main test program
 CPP_SRCS = rstest.cpp rs.cpp rsref.cpp rs_common.cpp RsComparisonTest.cpp \
-           RsDecodingTest.cpp RsEncodingTest.cpp RsTestConfig.cpp RsVerification.cpp \
-           rs_factory.cpp rs_tables.cpp rs_decoder_base.cpp rs_decoder_general.cpp rs_encoder_general.cpp \
-           rs_decoder_t1.cpp \
-           rs_encoder_t1.cpp rs_encoder_t2.cpp rs_encoder_t4.cpp rs_encoder_t8.cpp \
-           rs_encoder_t14.cpp rs_encoder_t16.cpp rs_encoder_t32.cpp rs_encoder_t64.cpp
+           RsDecodingTest.cpp RsEncodingTest.cpp RsTestConfig.cpp RsVerification.cpp
 C_SRCS = rskarn.c
 OBJS = $(CPP_SRCS:.cpp=.o) $(C_SRCS:.c=.o)
 TARGET = rstest
 
 # Encoder comparison program
 ENCODER_CPP_SRCS = rs_common.cpp rs.cpp rsref.cpp rskarn.cpp compare_encoders.cpp RsVerification.cpp
-ENCODER_C_SRCS =
-ENCODER_OBJS = $(ENCODER_CPP_SRCS:.cpp=.o) $(ENCODER_C_SRCS:.c=.o)
+ENCODER_OBJS = $(ENCODER_CPP_SRCS:.cpp=.o)
 ENCODER_TEST = compare_encoders
 
 .PHONY: all clean
 
 all: $(TARGET) $(ENCODER_TEST)
 
-$(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $@ $(OBJS)
+$(TARGET): $(OBJS) ../librs/librs.a
+	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) ../librs/librs.a
 
 $(ENCODER_TEST): $(ENCODER_OBJS)
 	$(CXX) $(CXXFLAGS) -o $@ $(ENCODER_OBJS)
