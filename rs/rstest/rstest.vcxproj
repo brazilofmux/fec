@@ -149,20 +149,6 @@
     <ClCompile Include="RsTestConfig.cpp" />
     <ClCompile Include="RsVerification.cpp" />
     <ClCompile Include="rs_common.cpp" />
-    <ClCompile Include="rs_decoder_general.cpp" />
-    <ClCompile Include="rs_decoder_base.cpp" />
-    <ClCompile Include="rs_decoder_t1.cpp" />
-    <ClCompile Include="rs_encoder_general.cpp" />
-    <ClCompile Include="rs_encoder_t1.cpp" />
-    <ClCompile Include="rs_encoder_t14.cpp" />
-    <ClCompile Include="rs_encoder_t16.cpp" />
-    <ClCompile Include="rs_encoder_t2.cpp" />
-    <ClCompile Include="rs_encoder_t32.cpp" />
-    <ClCompile Include="rs_encoder_t4.cpp" />
-    <ClCompile Include="rs_encoder_t64.cpp" />
-    <ClCompile Include="rs_encoder_t8.cpp" />
-    <ClCompile Include="rs_factory.cpp" />
-    <ClCompile Include="rs_tables.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="projdefs.h" />
