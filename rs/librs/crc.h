@@ -2,9 +2,9 @@
 // Copyright (C) 2008 Stephen Dennis. All rights reserved.
 //
 
-UINT32 CRC32_ProcessBuffer
-(
-    UINT32         ulCrc,
-    const void    *arg_pBuffer,
-    unsigned int   nBuffer
-);
+#include <stdint.h>
+
+#define CRC32_INITIAL        0xFFFFFFFFU
+#define CRC32_VALID_RESULT   0x2144DF1CU
+
+uint32_t CRC32_ProcessBuffer(uint32_t ulCrc, const void *arg_pBuffer, unsigned int nBuffer);

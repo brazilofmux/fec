@@ -7,11 +7,11 @@
 // Copyright (C) 2008 Stephen Dennis. All rights reserved.
 //
 
-#include "projdefs.h"
+#include <stdint.h>
+#include <string.h>
 #include "crc.h"
 
-static UINT32 CRC32_Table[256] =
-{
+static uint32_t CRC32_Table[256] = {
     0x00000000, 0x77073096, 0xee0e612c, 0x990951ba,
     0x076dc419, 0x706af48f, 0xe963a535, 0x9e6495a3,
     0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988,
@@ -78,102 +78,43 @@ static UINT32 CRC32_Table[256] =
     0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d
 };
 
-#define CRC32_INITIAL        0xFFFFFFFFU
-#define CRC32_VALID_RESULT   0x2144DF1CU
+uint32_t CRC32_ProcessBuffer(uint32_t ulCrc, const void *arg_pBuffer, unsigned int nBuffer) {
+    const unsigned char *pBuffer = (const unsigned char *)arg_pBuffer;
 
-// Proper CRC-32 routines.
-//
-// Visual C++ generates an inner loop that is 38 instructions per 16 data
-// bytes or 2.375 instructions per byte. Or, 13.62ns per byte on my
-// Pentium II 400. That's 73.41 MB/second.
-//
-UINT32 CRC32_ProcessBuffer
-(
-    UINT32         ulCrc,
-    const void    *arg_pBuffer,
-    unsigned int   nBuffer
-)
-{
-    unsigned char *pBuffer = (unsigned char *)arg_pBuffer;
-JustAfew:
-
-    if (nBuffer <= 8)
-    {
-        pBuffer -= 8 - nBuffer;
-        switch (nBuffer)
-        {
-        case 8: ulCrc ^= *(UINT32 *)(pBuffer + 0);
-                ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-                ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-                ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-                ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-                ulCrc ^= *(UINT32 *)(pBuffer + 4);
-                ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-                ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-                ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-                ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-                return ulCrc;
-
-        case 7: ulCrc  = CRC32_Table[pBuffer[1] ^ (unsigned char)ulCrc] ^ (ulCrc >> 8);
-        case 6: ulCrc  = CRC32_Table[pBuffer[2] ^ (unsigned char)ulCrc] ^ (ulCrc >> 8);
-        case 5: ulCrc  = CRC32_Table[pBuffer[3] ^ (unsigned char)ulCrc] ^ (ulCrc >> 8);
-        case 4: ulCrc ^= *(UINT32 *)(pBuffer + 4);
-                ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-                ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-                ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-                ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-                return ulCrc;
-
-        case 3: ulCrc  = CRC32_Table[pBuffer[5] ^ (unsigned char)ulCrc] ^ (ulCrc >> 8);
-        case 2: ulCrc  = CRC32_Table[pBuffer[6] ^ (unsigned char)ulCrc] ^ (ulCrc >> 8);
-        case 1: ulCrc  = CRC32_Table[pBuffer[7] ^ (unsigned char)ulCrc] ^ (ulCrc >> 8);
-        case 0: return ulCrc;
+    // Handle small buffers
+    if (nBuffer <= 8) {
+        while (nBuffer--) {
+            ulCrc = CRC32_Table[(unsigned char)ulCrc ^ *pBuffer++] ^ (ulCrc >> 8);
         }
+        return ulCrc;
     }
 
-    // We may need to do some alignment work up front, and at the end, so that
-    // the main loop is aligned and only has to worry about 8 byte at a time.
-    //
-    // The low-order two bits of pBuffer and nBuffer in total control the
-    // upfront work.
-    //
-    struct
-    {
-        unsigned char *p;
-        UINT64 ui;
-    } foo;
-
-    foo.ui = 0;
-    foo.p = pBuffer;
-    unsigned int nFront = foo.ui & 3;
-    nBuffer -= nFront;
-    switch (nFront)
-    {
-    case 3:
-        ulCrc  = CRC32_Table[*pBuffer++ ^ (unsigned char)ulCrc] ^ (ulCrc >> 8);
-    case 2:
-        ulCrc  = CRC32_Table[*pBuffer++ ^ (unsigned char)ulCrc] ^ (ulCrc >> 8);
-    case 1:
-        ulCrc  = CRC32_Table[*pBuffer++ ^ (unsigned char)ulCrc] ^ (ulCrc >> 8);
+    // Align to 8-byte boundary
+    while (((uintptr_t)pBuffer & 7) && nBuffer) {
+        ulCrc = CRC32_Table[(unsigned char)ulCrc ^ *pBuffer++] ^ (ulCrc >> 8);
+        nBuffer--;
     }
 
-    int nMain = nBuffer >> 3;
-    while (nMain)
-    {
-        nMain--;
-        ulCrc ^= *(UINT32 *)pBuffer;
-        ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-        ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-        ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-        ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-        ulCrc ^= *(UINT32 *)(pBuffer + 4);
-        ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-        ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-        ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
-        ulCrc  = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
+    // Process main loop in 8-byte chunks
+    while (nBuffer >= 8) {
+        ulCrc ^= *(const uint32_t *)pBuffer;
+        ulCrc = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
+        ulCrc = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
+        ulCrc = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
+        ulCrc = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
+        ulCrc ^= *(const uint32_t *)(pBuffer + 4);
+        ulCrc = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
+        ulCrc = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
+        ulCrc = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
+        ulCrc = CRC32_Table[(unsigned char)ulCrc] ^ (ulCrc >> 8);
         pBuffer += 8;
+        nBuffer -= 8;
     }
 
-    nBuffer &= 7;
-    goto JustAfew;
+    // Handle remaining bytes
+    while (nBuffer--) {
+        ulCrc = CRC32_Table[(unsigned char)ulCrc ^ *pBuffer++] ^ (ulCrc >> 8);
+    }
+
+    return ulCrc;
 }
