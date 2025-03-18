@@ -12,21 +12,21 @@
 #define	V27POLYA	0x6d
 #define	V27POLYB	0x4f
 
-void *create_viterbi27(int len);
+struct v27 *create_viterbi27(int len);
 void set_viterbi27_polynomial(int polys[2]);
 int init_viterbi27(void *vp,int starting_state);
 int update_viterbi27_blk(void *vp,unsigned char sym[],int npairs);
 int chainback_viterbi27(void *vp, unsigned char *data,unsigned int nbits,unsigned int endstate);
 void delete_viterbi27(void *vp);
 
-void *create_viterbi27_sse2(int len);
+struct v27 *create_viterbi27_sse2(int len);
 void set_viterbi27_polynomial_sse2(int polys[2]);
 int init_viterbi27_sse2(void *p,int starting_state);
 int chainback_viterbi27_sse2(void *p,unsigned char *data,unsigned int nbits,unsigned int endstate);
 void delete_viterbi27_sse2(void *p);
 int update_viterbi27_blk_sse2(void *p,unsigned char *syms,int nbits);
 
-void *create_viterbi27_port(int len);
+struct v27 *create_viterbi27_port(int len);
 void set_viterbi27_polynomial_port(int polys[2]);
 int init_viterbi27_port(void *p,int starting_state);
 int chainback_viterbi27_port(void *p,unsigned char *data,unsigned int nbits,unsigned int endstate);

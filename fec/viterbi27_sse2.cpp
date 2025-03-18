@@ -52,7 +52,7 @@ void set_viterbi27_polynomial_sse2(int polys[2]){
 
 
 /* Create a new instance of a Viterbi decoder */
-void *create_viterbi27_sse2(int len){
+struct v27 *create_viterbi27_sse2(int len){
   void *p;
   struct v27 *vp;
 
@@ -61,11 +61,12 @@ void *create_viterbi27_sse2(int len){
     set_viterbi27_polynomial_sse2(polys);
   }
   /* Ordinary malloc() only returns 8-byte alignment, we need 16 */
-  if(posix_memalign(&p, sizeof(__m128i),sizeof(struct v27)))
+  if (posix_memalign(&p, sizeof(__m128i), sizeof(struct v27)))
     return nullptr;
   vp = (struct v27 *)p;
 
-  if((p = malloc((len+6)*sizeof(decision_t))) == nullptr){
+  p = new decision_t[len+6];
+  if (p == nullptr) {
     free(vp);
     return nullptr;
   }
@@ -112,7 +113,7 @@ void delete_viterbi27_sse2(void *p){
   struct v27 *vp = static_cast<struct v27 *>(p);
 
   if(vp != nullptr){
-    free(vp->decisions);
+    delete vp->decisions;
     free(vp);
   }
 }

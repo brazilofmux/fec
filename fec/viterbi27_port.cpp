@@ -51,21 +51,22 @@ void set_viterbi27_polynomial_port(int polys[2]){
 }
 
 /* Create a new instance of a Viterbi decoder */
-void *create_viterbi27_port(int len){
+struct v27 *create_viterbi27_port(int len){
   struct v27 *vp;
 
   if(!Init){
     int polys[2] = { V27POLYA, V27POLYB };
     set_viterbi27_polynomial_port(polys);
   }
-  if((vp = static_cast<struct v27 *>(malloc(sizeof(struct v27)))) == nullptr)
+  vp = new struct v27;
+  if (vp == nullptr)
      return nullptr;
-  if((vp->decisions = static_cast<decision_t *>(malloc((len+6)*sizeof(decision_t)))) == nullptr){
-    free(vp);
+  vp->decisions = new decision_t[len+6];
+  if (vp->decisions == nullptr) {
+    delete vp;
     return nullptr;
   }
-  init_viterbi27_port(vp,0);
-
+  init_viterbi27_port(vp, 0);
   return vp;
 }
 
@@ -105,9 +106,9 @@ int chainback_viterbi27_port(
 void delete_viterbi27_port(void *p){
   struct v27 *vp = static_cast<struct v27 *>(p);
 
-  if(vp != nullptr){
-    free(vp->decisions);
-    free(vp);
+  if (vp != nullptr) {
+    delete vp->decisions;
+    delete vp;
   }
 }
 
