@@ -119,8 +119,6 @@ void delete_viterbi27_sse2(void *p){
 }
 
 
-#if 1
-/* This code is turned off because it's slower than my hand-crafted assembler in sse2bfly27.s. But it does work. */
 int update_viterbi27_blk_sse2(void *p,unsigned char *syms,int nbits){
   struct v27 *vp = static_cast<struct v27 *>(p);
   decision_t *d;
@@ -179,4 +177,3 @@ int update_viterbi27_blk_sse2(void *p,unsigned char *syms,int nbits){
   vp->dp = d;
   return 0;
 }
-#endif
