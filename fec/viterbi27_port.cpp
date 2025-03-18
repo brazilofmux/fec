@@ -1,6 +1,4 @@
 /* K=7 r=1/2 Viterbi decoder in portable C
- * Copyright Feb 2004, Phil Karn, KA9Q
- * May be used under the terms of the GNU Lesser General Public License (LGPL)
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,7 +25,7 @@ struct v27 {
 
 /* Initialize Viterbi decoder for start of new frame */
 int init_viterbi27_port(void *p,int starting_state){
-  struct v27 *vp = p;
+  struct v27 *vp = static_cast<struct v27 *>(p);
   int i;
 
   if(p == nullptr)
@@ -60,9 +58,9 @@ void *create_viterbi27_port(int len){
     int polys[2] = { V27POLYA, V27POLYB };
     set_viterbi27_polynomial_port(polys);
   }
-  if((vp = malloc(sizeof(struct v27))) == nullptr)
+  if((vp = static_cast<struct v27 *>(malloc(sizeof(struct v27)))) == nullptr)
      return nullptr;
-  if((vp->decisions = malloc((len+6)*sizeof(decision_t))) == nullptr){
+  if((vp->decisions = static_cast<decision_t *>(malloc((len+6)*sizeof(decision_t)))) == nullptr){
     free(vp);
     return nullptr;
   }
@@ -77,7 +75,7 @@ int chainback_viterbi27_port(
       unsigned char *data, /* Decoded output data */
       unsigned int nbits, /* Number of data bits */
       unsigned int endstate){ /* Terminal encoder state */
-  struct v27 *vp = p;
+  struct v27 *vp = static_cast<struct v27 *>(p);
   decision_t *d;
 
   if(p == nullptr)
@@ -105,7 +103,7 @@ int chainback_viterbi27_port(
 
 /* Delete instance of a Viterbi decoder */
 void delete_viterbi27_port(void *p){
-  struct v27 *vp = p;
+  struct v27 *vp = static_cast<struct v27 *>(p);
 
   if(vp != nullptr){
     free(vp->decisions);
@@ -134,7 +132,7 @@ unsigned int metric,m0,m1,decision;\
  * of symbols!
  */
 int update_viterbi27_blk_port(void *p,unsigned char *syms,int nbits){
-  struct v27 *vp = p;
+  struct v27 *vp = static_cast<struct v27 *>(p);
   void *tmp;
   decision_t *d;
 
@@ -184,7 +182,7 @@ int update_viterbi27_blk_port(void *p,unsigned char *syms,int nbits){
     /* Swap pointers to old and new metrics */
     tmp = vp->old_metrics;
     vp->old_metrics = vp->new_metrics;
-    vp->new_metrics = tmp;
+    vp->new_metrics = static_cast<metric_t *>(tmp);
   }    
   vp->dp = d;
   return 0;

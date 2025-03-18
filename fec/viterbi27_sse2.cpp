@@ -25,7 +25,7 @@ struct v27 {
 
 /* Initialize Viterbi decoder for start of new frame */
 int init_viterbi27_sse2(void *p,int starting_state){
-  struct v27 *vp = p;
+  struct v27 *vp = static_cast<struct v27 *>(p);
   int i;
 
   if(p == nullptr)
@@ -81,7 +81,7 @@ int chainback_viterbi27_sse2(
       unsigned char *data, /* Decoded output data */
       unsigned int nbits, /* Number of data bits */
       unsigned int endstate){ /* Terminal encoder state */
-  struct v27 *vp = p;
+  struct v27 *vp = static_cast<struct v27 *>(p);
   decision_t *d;
 
   if(p == nullptr)
@@ -109,7 +109,7 @@ int chainback_viterbi27_sse2(
 
 /* Delete instance of a Viterbi decoder */
 void delete_viterbi27_sse2(void *p){
-  struct v27 *vp = p;
+  struct v27 *vp = static_cast<struct v27 *>(p);
 
   if(vp != nullptr){
     free(vp->decisions);
