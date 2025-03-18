@@ -122,8 +122,8 @@ void run_benchmarks() {
         encode_time = std::chrono::duration<double, std::micro>(end - start).count() / iterations;
 
         // Time decoding without errors
-        memcpy(recd, bb, 2 * tt_val);        // Copy parity
-        memcpy(recd + nn - kk, data, kk);  // Copy data
+        memcpy(recd, data, kk);              // Copy data
+        memcpy(recd + kk, bb, 2 * tt_val);   // Copy parity
 
         start = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < iterations; i++) {
