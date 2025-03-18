@@ -24,6 +24,7 @@ void set_viterbi27_polynomial_sse2(int polys[2]);
 int init_viterbi27_sse2(void *p,int starting_state);
 int chainback_viterbi27_sse2(void *p,unsigned char *data,unsigned int nbits,unsigned int endstate);
 void delete_viterbi27_sse2(void *p);
+int update_viterbi27_blk_sse2(void *p,unsigned char *syms,int nbits);
 
 void *create_viterbi27_port(int len);
 void set_viterbi27_polynomial_port(int polys[2]);
