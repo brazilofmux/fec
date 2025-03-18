@@ -28,7 +28,7 @@ int init_viterbi27_sse2(void *p,int starting_state){
   struct v27 *vp = p;
   int i;
 
-  if(p == NULL)
+  if(p == nullptr)
     return -1;
   for(i=0;i<64;i++)
     vp->metrics1.c[i] = 63;
@@ -62,12 +62,12 @@ void *create_viterbi27_sse2(int len){
   }
   /* Ordinary malloc() only returns 8-byte alignment, we need 16 */
   if(posix_memalign(&p, sizeof(__m128i),sizeof(struct v27)))
-    return NULL;
+    return nullptr;
   vp = (struct v27 *)p;
 
-  if((p = malloc((len+6)*sizeof(decision_t))) == NULL){
+  if((p = malloc((len+6)*sizeof(decision_t))) == nullptr){
     free(vp);
-    return NULL;
+    return nullptr;
   }
   vp->decisions = (decision_t *)p;
   init_viterbi27_sse2(vp,0);
@@ -84,7 +84,7 @@ int chainback_viterbi27_sse2(
   struct v27 *vp = p;
   decision_t *d;
 
-  if(p == NULL)
+  if(p == nullptr)
     return -1;
   d = vp->decisions;
   /* Make room beyond the end of the encoder register so we can
@@ -111,7 +111,7 @@ int chainback_viterbi27_sse2(
 void delete_viterbi27_sse2(void *p){
   struct v27 *vp = p;
 
-  if(vp != NULL){
+  if(vp != nullptr){
     free(vp->decisions);
     free(vp);
   }
@@ -124,7 +124,7 @@ void update_viterbi27_blk_sse2(void *p,unsigned char *syms,int nbits){
   struct v27 *vp = p;
   decision_t *d;
 
-  if(p == NULL)
+  if(p == nullptr)
     return;
   d = (decision_t *)vp->dp;
   while(nbits--){

@@ -30,7 +30,7 @@ int init_viterbi27_port(void *p,int starting_state){
   struct v27 *vp = p;
   int i;
 
-  if(p == NULL)
+  if(p == nullptr)
     return -1;
   for(i=0;i<64;i++)
     vp->metrics1.w[i] = 63;
@@ -60,11 +60,11 @@ void *create_viterbi27_port(int len){
     int polys[2] = { V27POLYA, V27POLYB };
     set_viterbi27_polynomial_port(polys);
   }
-  if((vp = malloc(sizeof(struct v27))) == NULL)
-     return NULL;
-  if((vp->decisions = malloc((len+6)*sizeof(decision_t))) == NULL){
+  if((vp = malloc(sizeof(struct v27))) == nullptr)
+     return nullptr;
+  if((vp->decisions = malloc((len+6)*sizeof(decision_t))) == nullptr){
     free(vp);
-    return NULL;
+    return nullptr;
   }
   init_viterbi27_port(vp,0);
 
@@ -80,7 +80,7 @@ int chainback_viterbi27_port(
   struct v27 *vp = p;
   decision_t *d;
 
-  if(p == NULL)
+  if(p == nullptr)
     return -1;
   d = vp->decisions;
   /* Make room beyond the end of the encoder register so we can
@@ -107,7 +107,7 @@ int chainback_viterbi27_port(
 void delete_viterbi27_port(void *p){
   struct v27 *vp = p;
 
-  if(vp != NULL){
+  if(vp != nullptr){
     free(vp->decisions);
     free(vp);
   }
@@ -138,7 +138,7 @@ int update_viterbi27_blk_port(void *p,unsigned char *syms,int nbits){
   void *tmp;
   decision_t *d;
 
-  if(p == NULL)
+  if(p == nullptr)
     return -1;
   d = (decision_t *)vp->dp;
   while(nbits--){

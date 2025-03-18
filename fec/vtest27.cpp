@@ -15,17 +15,17 @@
 
 #if HAVE_GETOPT_LONG
 struct option Options[] = {
-  {"frame-length",1,NULL,'l'},
-  {"frame-count",1,NULL,'n'},
-  {"ebn0",1,NULL,'e'},
-  {"gain",1,NULL,'g'},
-  {"verbose",0,NULL,'v'},
-  {"force-altivec",0,NULL,'a'},
-  {"force-port",0,NULL,'p'},
-  {"force-mmx",0,NULL,'m'},
-  {"force-sse",0,NULL,'s'},
-  {"force-sse2",0,NULL,'t'},
-  {NULL},
+  {"frame-length",1,nullptr,'l'},
+  {"frame-count",1,nullptr,'n'},
+  {"ebn0",1,nullptr,'e'},
+  {"gain",1,nullptr,'g'},
+  {"verbose",0,nullptr,'v'},
+  {"force-altivec",0,nullptr,'a'},
+  {"force-port",0,nullptr,'p'},
+  {"force-mmx",0,nullptr,'m'},
+  {"force-sse",0,nullptr,'s'},
+  {"force-sse2",0,nullptr,'t'},
+  {nullptr},
 };
 #endif
 
@@ -55,7 +55,7 @@ int main(int argc,char *argv[]){
   srandom(t);
   ebn0 = -100;
 #if HAVE_GETOPT_LONG
-  while((d = getopt_long(argc,argv,"l:n:te:g:vapmst",Options,NULL)) != EOF){
+  while((d = getopt_long(argc,argv,"l:n:te:g:vapmst",Options,nullptr)) != EOF){
 #else
   while((d = getopt(argc,argv,"l:n:te:g:vapmst")) != EOF){
 #endif
@@ -96,7 +96,7 @@ int main(int argc,char *argv[]){
     fprintf(stderr,"Frame limited to %d bits\n",MAXBYTES*8);
     framebits = MAXBYTES*8;
   }
-  if((vp = create_viterbi27(framebits)) == NULL){
+  if((vp = create_viterbi27(framebits)) == nullptr){
     printf("create_viterbi27 failed\n");
     exit(1);
   }
