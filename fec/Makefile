@@ -6,8 +6,9 @@ CFLAGS = -Wall -O2 -I.
 LDFLAGS = -lm
 
 # Source files
-CPP_SRCS = viterbi27.cpp viterbi27_port.cpp viterbi27_sse2.cpp cpu_mode_x86.cpp
-ASM_SRCS = cpu_features.s sse2bfly27.s
+CPP_SRCS = viterbi27.cpp viterbi27_port.cpp viterbi27_sse2.cpp cpu_mode_x86.cpp fec.cpp sim.cpp
+# ASM_SRCS = cpu_features.s sse2bfly27.s
+ASM_SRCS = cpu_features.s
 TEST_SRC = vtest27.cpp
 
 # Object files

@@ -78,10 +78,7 @@ extern int Bitcnt[];
 
 extern "C" {
     int cpu_features(void);
-    int update_viterbi27_blk_sse2(void *p,unsigned char *syms,int nbits);
+    //int update_viterbi27_blk_sse2(void *p,unsigned char *syms,int nbits);
 }
 
 #endif // _FEC_H_
-
-
-
