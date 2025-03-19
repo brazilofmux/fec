@@ -47,22 +47,26 @@ void RS_ENCODER_REF::RSGenPoly() {
 void RS_ENCODER_REF::RSEncode(GF data[MAX_KK], GF bb[2 * MAX_TT]) {
     std::fill(bb, bb + 2 * tt, 0);
 
-    for (int i = 0; i < kk; ++i) {
-        GF feedback = Poly2Pow[data[i] ^ bb[0]];  // Adjust for descending order
+    for (int i = kk - 1; i >= 0; --i) {
+        // Use the last parity byte for feedback (instead of bb[0])
+        GF feedback = Poly2Pow[data[i] ^ bb[2 * tt - 1]];
         if (feedback != GF_INFINITY) {
-            for (int j = 0; j < 2 * tt - 1; ++j) {
-                if (generator_poly[j + 1] != GF_INFINITY) {
-                    bb[j] = bb[j + 1] ^ Pow2Poly[mod_nn(generator_poly[j + 1] + feedback)];
+            // Shift the register right and update using the generator coefficients.
+            for (int j = 2 * tt - 1; j > 0; --j) {
+                if (generator_poly[j] != GF_INFINITY) {
+                    bb[j] = bb[j - 1] ^ Pow2Poly[mod_nn(generator_poly[j] + feedback)];
                 } else {
-                    bb[j] = bb[j + 1];
+                    bb[j] = bb[j - 1];
                 }
             }
-            bb[2 * tt - 1] = Pow2Poly[mod_nn(generator_poly[0] + feedback)];
+            // Update the first register element with the generator_poly[0] term.
+            bb[0] = Pow2Poly[mod_nn(generator_poly[0] + feedback)];
         } else {
-            for (int j = 0; j < 2 * tt - 1; ++j) {
-                bb[j] = bb[j + 1];
+            // If feedback is zero, just shift the register.
+            for (int j = 2 * tt - 1; j > 0; --j) {
+                bb[j] = bb[j - 1];
             }
-            bb[2 * tt - 1] = 0;
+            bb[0] = 0;
         }
     }
 }
