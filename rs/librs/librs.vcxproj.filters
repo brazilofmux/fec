@@ -75,6 +75,9 @@
     <ClInclude Include="rs_encoder_t2.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="rs_encoder_general_descending.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="crc.cpp">
@@ -123,6 +126,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="rs_decoder_t1.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="rs_encoder_general_descending.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

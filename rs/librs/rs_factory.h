@@ -12,6 +12,7 @@
 #include "rs_encoder_t32.h"
 #include "rs_encoder_t64.h"
 #include "rs_encoder_general.h"
+#include "rs_encoder_general_descending.h"
 #include "rs_decoder_t1.h"
 #include "rs_decoder_general.h"
 

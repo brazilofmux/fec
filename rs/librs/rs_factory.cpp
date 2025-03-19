@@ -32,25 +32,33 @@ std::shared_ptr<RS_DECODER_BASE> RS_FACTORY::get_shared_decoder(int tt, int b0) 
 }
 
 std::unique_ptr<RS_ENCODER_BASE> RS_FACTORY::create_specialized_encoder(int tt, int b0) {
-    switch (tt) {
-    case 1:
-        return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T1(b0));
-    case 2:
-        return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T2(b0));
-    case 4:
-        return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T4(b0));
-    case 8:
-        return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T8(b0));
-    case 14:
-        return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T14(b0));
-    case 16:
-        return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T16(b0));
-    case 32:
-        return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T32(b0));
-    case 64:
-        return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T64(b0));
-    default:
-        return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_GENERAL(tt, b0));
+    int kk = nn - 2 * tt;
+    if (b0 == (kk + 1) / 2)
+    {
+        switch (tt) {
+        case 1:
+            return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T1(b0));
+        case 2:
+            return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T2(b0));
+        case 4:
+            return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T4(b0));
+        case 8:
+            return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T8(b0));
+        case 14:
+            return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T14(b0));
+        case 16:
+            return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T16(b0));
+        case 32:
+            return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T32(b0));
+        case 64:
+            return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_T64(b0));
+        default:
+            return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_GENERAL(tt, b0));
+        }
+    }
+    else
+    {
+        return std::unique_ptr<RS_ENCODER_BASE>(new RS_ENCODER_GENERAL_DESCENDING(tt, b0));
     }
 }
 
