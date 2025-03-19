@@ -14,10 +14,8 @@
 // Encoder Options
 #define SYMMETRICAL_GENERATOR
 #define ASSEMBLY_ENCODE
-#define ASSEMBLY_DECODE
 
 #ifdef SYMMETRICAL_GENERATOR
-//#define SYMMETRICAL_ENCODE
 #define ASCENDING_ENCODE
 #endif
 

@@ -143,23 +143,21 @@ RS_ENCODER::~RS_ENCODER(void)
 //
 void RS_ENCODER::RSGenPoly(void)
 {
-    int i, j, iMod;
-
     // Initially, g(x) = (X+@^b0)
     //
     gg[0] = Pow2Poly[b0];
     gg[1] = 1;
-    for (i = 2; i <= nn-kk; i++)
+    for (int i = 2; i <= 2*tt; ++i)
     {
         gg[i] = 1;
 
         // Below multiply (gg[0]+gg[1]*x + ... +gg[i]x^i) by (@^(b0+i-1) + x)
         //
-        for (j = i-1; j > 0; j--)
+        for (int j = i-1; j > 0; --j)
         {
             if (gg[j] != 0)
             {
-                iMod = Poly2Pow[gg[j]]+b0+i-1;
+                int iMod = Poly2Pow[gg[j]]+b0+i-1;
                 iMod = MOD_NN(iMod);
                 gg[j] = gg[j-1]^Pow2Poly[iMod];
             }
@@ -171,14 +169,14 @@ void RS_ENCODER::RSGenPoly(void)
 
         // gg[0] can never be zero
         //
-        iMod = Poly2Pow[gg[0]]+b0+i-1;
+        int iMod = Poly2Pow[gg[0]]+b0+i-1;
         iMod = MOD_NN(iMod);
         gg[0] = Pow2Poly[iMod];
     }
 
     // Convert gg[] to power form for quicker encoding
     //
-    for (i = 0; i <= 2*tt; i++)
+    for (int i = 0; i <= 2*tt; ++i)
     {
         gg[i] = Poly2Pow[gg[i]];
     }
@@ -191,38 +189,6 @@ void RS_ENCODER::RSGenPoly(void)
 void RS_ENCODER::RSGenTable(void)
 {
 #ifdef SYMMETRICAL_GENERATOR
-#ifdef SYMMETRICAL_ENCODE
-    // Could be tt-1, but we may want a little bigger for alignment.
-    //
-    int ch, iMod;
-    ptable = new GF[256*SYM_GEN_ENC_LEN];
-    for (ch = 0; ch < 256; ch++)
-    {
-        int feedback = Poly2Pow[ch];
-        // For about half the terms in symmetrical gg[]. That is, for terms
-        // x^1, ..., x^tt. The coefficient for x^0 is always 1 for
-        // symmetrical gg, and coefficients x^(tt+1), ..., x^(2*tt-1) are
-        // equal to x^tt-1, ..., x^1, respectively. x^(2*tt) is always 1 even
-        // non-symmetrical gg[], and doesn't correspond to any of the taps of
-        // the feedback register, and so doesn't affect anything. x^tt is
-        // unique.
-        //
-        int j;
-        for (j = 0; j < tt; j++)
-        {
-            if (gg[j+1] != GF_INFINITY && feedback != GF_INFINITY)
-            {
-                iMod = gg[j+1]+feedback;
-                iMod = MOD_NN(iMod);
-                ptable[ch*SYM_GEN_ENC_LEN+j] = Pow2Poly[iMod];
-            }
-            else
-            {
-                ptable[ch*SYM_GEN_ENC_LEN+j] = 0;
-            }
-        }
-    }
-#else
     // Could be 2*tt-1, but we may want a little bigger for alignment.
     //
     int ch, iMod;
@@ -253,7 +219,6 @@ void RS_ENCODER::RSGenTable(void)
             }
         }
     }
-#endif
 #else
     // Could be 2*tt+1, but we may want a little bigger for alignment.
     //
@@ -270,8 +235,7 @@ void RS_ENCODER::RSGenTable(void)
         // the feedback register, and so doesn't affect anything. x^tt is
         // unique.
         //
-        int j;
-        for (j = 0; j <= 2*tt; j++)
+        for (int j = 0; j <= 2*tt; j++)
         {
             if (gg[j] != GF_INFINITY && feedback != GF_INFINITY)
             {
@@ -358,43 +322,6 @@ void RS_ENCODER::RSEncodeGeneral(GF data[MAX_KK], GF bb[2*MAX_TT])
 {
     memset(bb, 0, 2*tt);
 
-#ifdef SYMMETRICAL_ENCODE // Symmetrical encoders
-#ifdef ASCENDING_ENCODE // Symmetrical, ascending encoder
-
-    for (int i = 0; i < kk; i++)
-    {
-        GF feedback = bb[0]^data[i];
-        GF *TableRow = ptable+SYM_GEN_ENC_LEN*feedback;
-        for (int j = 0; j < tt; j++)
-        {
-            bb[j] = bb[j+1]^TableRow[j];
-        }
-        for (int j = tt; j < 2*tt-1; j++)
-        {
-            bb[j] = bb[j+1]^TableRow[2*tt-j-2];
-        }
-        bb[2*tt-1] = feedback;
-    }
-
-#else // ASCENDING_ENCODE: Symmetrical, descending encoder
-
-    for (int i = kk-1; i >= 0; i--)
-    {
-        GF feedback = bb[2*tt-1]^data[i];
-        GF *TableRow = ptable+SYM_GEN_ENC_LEN*feedback;
-        for (int j = 2*tt-1; j > tt; j--)
-        {
-            bb[j] = bb[j-1]^TableRow[2*tt-j-1];
-        }
-        for (int j = tt; j > 0; j--)
-        {
-            bb[j] = bb[j-1]^TableRow[j-1];
-        }
-        bb[0] = feedback;
-    }
-
-#endif // ASCENDING_ENCODE
-#else // Non-Symmetrical encoders (faster, but larger lookup table
 #ifdef ASCENDING_ENCODE // Non-Symmetrical, ascending encoders
 #if defined(ASSEMBLY_ENCODE)
 
@@ -636,13 +563,12 @@ void RS_ENCODER::RSEncodeGeneral(GF data[MAX_KK], GF bb[2*MAX_TT])
 
 #endif // ASSEMBLY_ENCODE
 #endif // ASCENDING_ENCODE
-#endif // SYMMETRICAL_ENCODE
 }
 
 
 // Special Case Encoders that are selected at run-time.
 //
-#if !defined(SYMMETRICAL_ENCODE) && defined(ASCENDING_ENCODE) && defined(ASSEMBLY_ENCODE)
+#if defined(ASCENDING_ENCODE) && defined(ASSEMBLY_ENCODE)
 void RS_ENCODER::RSEncode64(GF data[MAX_KK], GF bb[2*MAX_TT])
 {
     memset(bb, 0, 128);
@@ -887,7 +813,7 @@ int RS_ENCODER::RSDecode(GF recd[nn]) {
     return count;
 }
 
-#ifdef ASSEMBLY_DECODE
+#if 1
 void RS_ENCODER::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
     syndromes.assign(2 * tt + 1, 0);
 
