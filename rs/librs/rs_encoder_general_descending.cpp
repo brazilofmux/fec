@@ -69,7 +69,7 @@ void RS_ENCODER_GENERAL_DESCENDING::RSEncode(GF data[MAX_KK], GF bb[2 * MAX_TT])
         const GF feedback = bb[2 * tt_ - 1] ^ data[i];
         GF* TableRow = ptable + NON_SYM_LEN * feedback;
         for (int j = 2 * tt_ - 1; j > 0; j--) {
-            bb[j] = bb[j - 1] ^ TableRow[j];
+            process_byte1(bb, TableRow, j);
         }
         bb[0] = TableRow[0];
     }
