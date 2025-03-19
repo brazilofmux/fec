@@ -182,7 +182,6 @@ void RS_ENCODER::RSGenPoly(void)
     }
 }
 
-#define SYM_GEN_ENC_LEN (tt-1)
 #define SYM_GEN_LEN     (2*tt)
 #define NON_SYM_LEN     (2*tt+1)
 
@@ -222,9 +221,8 @@ void RS_ENCODER::RSGenTable(void)
 #else
     // Could be 2*tt+1, but we may want a little bigger for alignment.
     //
-    int ch, iMod;
     ptable = new GF[256*NON_SYM_LEN];
-    for (ch = 0; ch < 256; ch++)
+    for (int ch = 0; ch < 256; ch++)
     {
         int feedback = Poly2Pow[ch];
         // For about half the terms in symmetrical gg[]. That is, for terms
@@ -239,7 +237,7 @@ void RS_ENCODER::RSGenTable(void)
         {
             if (gg[j] != GF_INFINITY && feedback != GF_INFINITY)
             {
-                iMod = gg[j]+feedback;
+                int iMod = gg[j]+feedback;
                 iMod = MOD_NN(iMod);
                 ptable[ch*NON_SYM_LEN+j] = Pow2Poly[iMod];
             }
@@ -322,7 +320,7 @@ void RS_ENCODER::RSEncodeGeneral(GF data[MAX_KK], GF bb[2*MAX_TT])
 {
     memset(bb, 0, 2*tt);
 
-#ifdef ASCENDING_ENCODE // Non-Symmetrical, ascending encoders
+#ifdef ASCENDING_ENCODE // Ascending encoders
 #if defined(ASSEMBLY_ENCODE)
 
     if (14 <= this->tt)
@@ -513,7 +511,7 @@ void RS_ENCODER::RSEncodeGeneral(GF data[MAX_KK], GF bb[2*MAX_TT])
         DOFB(j);
     }
 
-#else // DEFAULT non-symmetrical, ascending encoder
+#else // DEFAULT ascending encoder
 
     for (int i = 0; i < kk; i++)
     {
@@ -529,42 +527,19 @@ void RS_ENCODER::RSEncodeGeneral(GF data[MAX_KK], GF bb[2*MAX_TT])
     }
 
 #endif
-#else // ASCENDING_ENCODE: Non-Symmetrical, descending encoders
-#if defined(ASSEMBLY_ENCODE) && (tt == 64)
-
-    for (int i = kk-1; i >= 0; i--)
-    {
-        GF feedback = data[i]^bb[2*tt-1];
-        GF *TableRow = ptable+2*tt*feedback;
-
-        DO1(127); DO1(126); DO1(125);
-
-        DO4(121);
-
-        DO8(113);DO8(105);DO8( 97);
-        DO8( 89);DO8( 81);DO8( 73);DO8( 65);
-        DO8( 57);DO8( 49);DO8( 41);DO8( 33);
-        DO8( 25);DO8( 17);DO8(  9);DO8(  1);
-        DOFB(0);
-    }
-
-#else  // DEFAULT Non-symmetrical, descending encoder
-
-    for (int i = kk-1; i >= 0; i--)
+#else // Descending encoders
+    for (int i = kk-1; i >= 0; --i)
     {
         GF feedback = bb[2*tt-1]^data[i];
-        GF *TableRow = ptable+2*tt*feedback;
+        GF *TableRow = ptable+NON_SYM_LEN*feedback;
         for (int j = 2*tt-1; j > 0; j--)
         {
             DO1(j);
         }
         DOFB(0);
     }
-
-#endif // ASSEMBLY_ENCODE
 #endif // ASCENDING_ENCODE
 }
-
 
 // Special Case Encoders that are selected at run-time.
 //

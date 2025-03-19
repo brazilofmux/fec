@@ -11,11 +11,13 @@
 
 #define DLLExport   __declspec( dllexport )
 
-// Encoder Options
+// Encoder Options:
+//  - SYMMETRICAL_GENERATOR can only be used when b0 = (kk+1)/2
 #define SYMMETRICAL_GENERATOR
 #define ASSEMBLY_ENCODE
 
 #ifdef SYMMETRICAL_GENERATOR
+// The ASCENDING_ENCODE encoders depend on a symmetrical generator polynomial.
 #define ASCENDING_ENCODE
 #endif
 
