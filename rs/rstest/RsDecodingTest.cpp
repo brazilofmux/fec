@@ -18,7 +18,7 @@ void RsDecodingTest::initialize() {
     rng.seed(config.getRandomSeed());
 
     // Create encoder
-    codec = RS_FACTORY::instance().create_specialized_codec(tt, (kk+1)/2);
+    codec = RS_FACTORY::instance().create_codec(tt, (kk+1)/2);
 
     // Initialize verification
     RsVerification::init(config.getVerboseLevel() == Verbosity::Debug);

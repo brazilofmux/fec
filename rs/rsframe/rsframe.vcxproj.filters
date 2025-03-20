@@ -80,5 +80,8 @@
     <ClInclude Include="rs_tables.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="rs_encoder_general_descending.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

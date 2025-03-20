@@ -77,7 +77,7 @@ int main(int argc, char* argv[])
     }
     setvbuf(fp_out, out_file_buffer, _IOFBF, sizeof(out_file_buffer));
 
-    const auto p_encoder = RS_FACTORY::instance().create_specialized_codec(16, 0);
+    const auto p_encoder = RS_FACTORY::instance().create_codec(16, 0);
     if (mode == ENCODING)
     {
         // Initialize

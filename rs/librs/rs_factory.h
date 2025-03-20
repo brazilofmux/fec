@@ -2,6 +2,8 @@
 #define RS_FACTORY_H
 
 #include <memory>
+#include <map>
+#include <functional>
 #include "rs_codec.h"
 #include "rs_encoder_t1.h"
 #include "rs_encoder_t2.h"
@@ -40,15 +42,20 @@ public:
     static RS_FACTORY& instance();
 
     std::unique_ptr<RS_CODEC> create_codec(int tt, int b0);
-    std::unique_ptr<RS_CODEC> create_specialized_codec(int tt, int b0);
 
 private:
-    RS_FACTORY() = default;
+    RS_FACTORY();
 
-    std::shared_ptr<RS_DECODER_BASE> get_shared_decoder(int tt, int b0);
-    std::unique_ptr<RS_ENCODER_BASE> create_specialized_encoder(int tt, int b0);
-    std::shared_ptr<RS_DECODER_BASE> create_specialized_decoder(int tt, int b0);
-    std::shared_ptr<RS_DECODER_BASE> shared_decoder;
+    using EncoderCreator = std::function<std::unique_ptr<RS_ENCODER_BASE>(int b0)>;
+    std::map<int, EncoderCreator> encoder_registry;
+
+    using DecoderCreator = std::function<std::shared_ptr<RS_DECODER_BASE>(int b0)>;
+    std::map<int, DecoderCreator> decoder_registry;
+
+    void register_implementations();
+
+    std::unique_ptr<RS_ENCODER_BASE> create_best_encoder(int tt, int b0);
+    std::shared_ptr<RS_DECODER_BASE> create_best_decoder(int tt, int b0);
 };
 
 #endif // RS_FACTORY_H

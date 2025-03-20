@@ -107,7 +107,7 @@ void run_benchmarks() {
     printf("// tt  Encode  w/errors  without  w/errors  without\n");
 
     for (const int tt_val : tt_values) {
-        auto codec = RS_FACTORY::instance().create_specialized_codec(tt_val, (nn - 2 * tt_val + 1) / 2);
+        auto codec = RS_FACTORY::instance().create_codec(tt_val, (nn - 2 * tt_val + 1) / 2);
         const int kk = nn - 2 * tt_val;
         double encode_time = 0.0;
         double decode_time_clean = 0.0;
@@ -205,47 +205,4 @@ int main(int argc, char *argv[]) {
     }
 
     return 0;
-}
-
-void example_usage() {
-    // Initialize test data - use actual kk for tt=1
-    const int tt = 1;
-    const int kk = nn - 2 * tt;
-
-    GF data[MAX_KK] = { 0 };
-    for (int i = 0; i < kk; i++) {  // Only fill up to kk
-        data[i] = i & 0xFF;
-    }
-    GF parity[2 * MAX_TT] = { 0 };
-
-    auto codec1 = RS_FACTORY::instance().create_codec(tt, 1);
-    auto codec2 = RS_FACTORY::instance().create_specialized_codec(tt, 1);
-
-    GF block1[nn] = { 0 };
-    GF block2[nn] = { 0 };
-    memcpy(block1, data, kk);      // Copy kk bytes
-    memcpy(block2, data, kk);      // Copy kk bytes
-
-    codec1->RSEncode(data, parity);
-    memcpy(block1 + kk, parity, 2 * tt);  // Copy 2*tt parity bytes
-
-    codec2->RSEncode(data, parity);
-    memcpy(block2 + kk, parity, 2 * tt);  // Copy 2*tt parity bytes
-
-    // Compare results
-    if (memcmp(block1, block2, nn) == 0) {
-        printf("Both encoders give same result\n");
-    }
-
-    // Now test decoders
-    // Introduce an error in both blocks
-    block1[10] ^= 0x01;  // Flip a bit
-    block2[10] ^= 0x01;  // Same error
-
-    int result1 = codec1->RSDecode(block1);
-    int result2 = codec2->RSDecode(block2);
-
-    if (result1 == result2 && memcmp(block1, block2, nn) == 0) {
-        printf("Both decoders give same result\n");
-    }
 }

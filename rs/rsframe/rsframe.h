@@ -131,7 +131,7 @@ public:
 
         bDesigned = TRUE;
         *pDesignInfo = DesignInfo;
-        codec = RS_FACTORY::instance().create_specialized_codec(t, (nn-2*t+1)/2);
+        codec = RS_FACTORY::instance().create_codec(t, (nn-2*t+1)/2);
         return TRUE;
     }
 
