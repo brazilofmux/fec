@@ -83,9 +83,6 @@
     <ClCompile Include="crc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="rs_common.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="rs_decoder_base.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

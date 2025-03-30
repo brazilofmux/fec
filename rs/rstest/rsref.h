@@ -28,7 +28,7 @@ private:
     int forney_correction(const std::vector<GF>& omega, int deg_omega, const std::vector<GF>& lambda, int deg_lambda,
                                        const std::vector<GF>& root, int count, const std::vector<GF>& loc, GF data[nn]);
 
-    std::vector<GF> generator_poly; // Generator polynomial coefficients in power form
+    std::vector<GF> generator_poly; // Generator polynomial coefficients in index form
     int tt;  // Number of correctable errors
     int kk;  // Number of data symbols per codeword
     int b0;  // Start position for generator polynomial roots

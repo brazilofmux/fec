@@ -20,7 +20,8 @@ static const GF GF_INFINITY = nn;
 // Common initialization function
 void RS_Init();
 
-#define RS_ERROR_CHIEN_SEARCH -2 // Roots of lamda (by Chien Search) not equal to degree of lamda.
-#define RS_ERROR_LAMBDA_ERROR -3 // Degree of lamda too high to yield necessary number of roots.
+#define RS_ERROR_FORNEY_DENOMINATOR (-1)  // Forney algorithm failure: Denominator Lambda'(X_l) is zero, preventing error magnitude calculation (division by zero). Indicates an uncorrectable error pattern.
+#define RS_ERROR_CHIEN_SEARCH       (-2)  // Chien search failure: Number of roots found for Lambda(x) does not match its degree.
+#define RS_ERROR_LAMBDA_ERROR       (-3)  // Berlekamp-Massey failure: Degree of computed Lambda(x) exceeds the maximum possible (2*tt), cannot be correct.
 
 #endif // RS_COMMON_H

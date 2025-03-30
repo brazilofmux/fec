@@ -167,7 +167,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="crc.cpp" />
-    <ClCompile Include="rs_common.cpp" />
     <ClCompile Include="rs_decoder_base.cpp" />
     <ClCompile Include="rs_decoder_general.cpp" />
     <ClCompile Include="rs_decoder_t1.cpp" />
