@@ -129,26 +129,27 @@ int RS_ENCODER_REF::RSDecode(GF recd[nn]) {
 }
 
 void RS_ENCODER_REF::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
-    syndromes.assign(2 * tt + 1, GF_INFINITY); // Initialize to index form of 0
+    syndromes.assign(2 * tt + 1, 0);
 
-    for (int i = 1; i <= 2 * tt; ++i) {
-        GF syn_poly = 0; // Accumulator in polynomial form
-        int root_exponent = mod_nn(b0 + i - 1); // Exponent alpha^(b0+i-1)
+    int iPowInit = 0;
+    for (int j = 0; j < nn; j++) {
+        GF RECD = recd[j];
+        if (RECD != 0) {
+            int iPow0 = iPowInit + Poly2Pow[RECD];
+            iPow0 = mod_nn(iPow0);
 
-        // Evaluate recd(x) at x = alpha^root_exponent using direct evaluation
-        for (int j = 0; j < nn; ++j) {
-            if (recd[j] != 0) {
-                int recd_idx = Poly2Pow[recd[j]]; // Index form of recd[j]
-                // Calculate alpha^(root_exponent * j)
-                int term_exponent = mod_nn(root_exponent * j);
-                // Multiply: add exponents
-                int val_idx = mod_nn(recd_idx + term_exponent);
-                // Add (XOR) to accumulator
-                syn_poly ^= Pow2Poly[val_idx];
+            for (int i = 1; i <= 2 * tt; i++) {
+                iPow0 = mod_nn(iPow0);
+                syndromes[i] ^= Pow2Poly[iPow0];
+                iPow0 += j;
             }
         }
-        // Store syndrome in index form
-        syndromes[i] = Poly2Pow[syn_poly];
+        iPowInit += b0;
+        iPowInit = mod_nn(iPowInit);
+    }
+
+    for (int i = 1; i <= 2 * tt; i++) {
+        syndromes[i] = Poly2Pow[syndromes[i]];
     }
 }
 
