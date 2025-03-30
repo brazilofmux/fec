@@ -11,14 +11,7 @@ typedef unsigned char GF;  // Galois Field element type
 #define MAX_KK (253)    // Maximum number of data symbols (nn-2*TT_MIN)
 #define MIN_KK (1)      // Minimum number of data symbols (nn-2*TT_MAX)
 
-// Common tables used by both implementations
-extern GF Pow2Poly[n];  // Power to polynomial form conversion
-extern GF Poly2Pow[n];  // Polynomial to power form conversion
-
 static const GF GF_INFINITY = nn;
-
-// Common initialization function
-void RS_Init();
 
 #define RS_ERROR_CHIEN_SEARCH -2 // Roots of lamda (by Chien Search) not equal to degree of lamda.
 #define RS_ERROR_LAMBDA_ERROR -3 // Degree of lamda too high to yield necessary number of roots.
