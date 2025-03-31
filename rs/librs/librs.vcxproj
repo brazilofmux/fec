@@ -152,17 +152,17 @@
     <ClInclude Include="rs_decoder_general.h" />
     <ClInclude Include="rs_decoder_t1.h" />
     <ClInclude Include="rs_encoder_base.h" />
-    <ClInclude Include="rs_encoder_general.h" />
-    <ClInclude Include="rs_encoder_general_descending.h" />
-    <ClInclude Include="rs_encoder_t1.h" />
+    <ClInclude Include="rs_flipped_encoder_general.h" />
+    <ClInclude Include="rs_flipped_encoder_t1.h" />
     <ClInclude Include="rs_flipped_encoder_t14.h" />
     <ClInclude Include="rs_flipped_encoder_t16.h" />
-    <ClInclude Include="rs_encoder_t2.h" />
-    <ClInclude Include="rs_encoder_t32.h" />
-    <ClInclude Include="rs_encoder_t4.h" />
-    <ClInclude Include="rs_encoder_t64.h" />
-    <ClInclude Include="rs_encoder_t8.h" />
     <ClInclude Include="rs_factory.h" />
+    <ClInclude Include="rs_flipped_encoder_t2.h" />
+    <ClInclude Include="rs_flipped_encoder_t32.h" />
+    <ClInclude Include="rs_flipped_encoder_t4.h" />
+    <ClInclude Include="rs_flipped_encoder_t64.h" />
+    <ClInclude Include="rs_flipped_encoder_t8.h" />
+    <ClInclude Include="rs_standard_encoder_general.h" />
     <ClInclude Include="rs_tables.h" />
   </ItemGroup>
   <ItemGroup>
@@ -170,17 +170,17 @@
     <ClCompile Include="rs_decoder_base.cpp" />
     <ClCompile Include="rs_decoder_general.cpp" />
     <ClCompile Include="rs_decoder_t1.cpp" />
-    <ClCompile Include="rs_encoder_general.cpp" />
-    <ClCompile Include="rs_encoder_general_descending.cpp" />
-    <ClCompile Include="rs_encoder_t1.cpp" />
+    <ClCompile Include="rs_flipped_encoder_general.cpp" />
+    <ClCompile Include="rs_flipped_encoder_t1.cpp" />
     <ClCompile Include="rs_flipped_encoder_t14.cpp" />
     <ClCompile Include="rs_flipped_encoder_t16.cpp" />
-    <ClCompile Include="rs_encoder_t2.cpp" />
-    <ClCompile Include="rs_encoder_t32.cpp" />
-    <ClCompile Include="rs_encoder_t4.cpp" />
-    <ClCompile Include="rs_encoder_t64.cpp" />
-    <ClCompile Include="rs_encoder_t8.cpp" />
     <ClCompile Include="rs_factory.cpp" />
+    <ClCompile Include="rs_flipped_encoder_t2.cpp" />
+    <ClCompile Include="rs_flipped_encoder_t32.cpp" />
+    <ClCompile Include="rs_flipped_encoder_t4.cpp" />
+    <ClCompile Include="rs_flipped_encoder_t64.cpp" />
+    <ClCompile Include="rs_flipped_encoder_t8.cpp" />
+    <ClCompile Include="rs_standard_encoder_general.cpp" />
     <ClCompile Include="rs_tables.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

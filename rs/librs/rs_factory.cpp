@@ -19,14 +19,14 @@ std::unique_ptr<RS_CODEC> RS_FACTORY::create_codec(int tt, int b0) {
 }
 
 void RS_FACTORY::register_implementations() {
-    flipped_encoder_registry[1] = [](int b0) { return std::make_unique<RS_ENCODER_T1>(b0); };
-    flipped_encoder_registry[2] = [](int b0) { return std::make_unique<RS_ENCODER_T2>(b0); };
-    flipped_encoder_registry[4] = [](int b0) { return std::make_unique<RS_ENCODER_T4>(b0); };
-    flipped_encoder_registry[8] = [](int b0) { return std::make_unique<RS_ENCODER_T8>(b0); };
+    flipped_encoder_registry[1] = [](int b0) { return std::make_unique<RS_FLIPPED_ENCODER_T1>(b0); };
+    flipped_encoder_registry[2] = [](int b0) { return std::make_unique<RS_FLIPPED_ENCODER_T2>(b0); };
+    flipped_encoder_registry[4] = [](int b0) { return std::make_unique<RS_FLIPPED_ENCODER_T4>(b0); };
+    flipped_encoder_registry[8] = [](int b0) { return std::make_unique<RS_FLIPPED_ENCODER_T8>(b0); };
     flipped_encoder_registry[14] = [](int b0) { return std::make_unique<RS_FLIPPED_ENCODER_T14>(b0); };
     flipped_encoder_registry[16] = [](int b0) { return std::make_unique<RS_FLIPPED_ENCODER_T16>(b0); };
-    flipped_encoder_registry[32] = [](int b0) { return std::make_unique<RS_ENCODER_T32>(b0); };
-    flipped_encoder_registry[64] = [](int b0) { return std::make_unique<RS_ENCODER_T64>(b0); };
+    flipped_encoder_registry[32] = [](int b0) { return std::make_unique<RS_FLIPPED_ENCODER_T32>(b0); };
+    flipped_encoder_registry[64] = [](int b0) { return std::make_unique<RS_FLIPPED_ENCODER_T64>(b0); };
 
     decoder_registry[1] = [](int b0) { return std::make_shared<RS_DECODER_T1>(b0); };
 }
@@ -38,14 +38,14 @@ std::unique_ptr<RS_ENCODER_BASE> RS_FACTORY::create_best_encoder(int tt, int b0)
         if (it != flipped_encoder_registry.end()) {
             return it->second(b0);
         }
-        return std::make_unique<RS_ENCODER_GENERAL>(tt, b0);
+        return std::make_unique<RS_FLIPPED_ENCODER_GENERAL>(tt, b0);
     }
     else {
         auto it = standard_encoder_registry.find(tt);
         if (it != standard_encoder_registry.end()) {
             return it->second(b0);
         }
-        return std::make_unique<RS_ENCODER_GENERAL_DESCENDING>(tt, b0);
+        return std::make_unique<RS_STANDARD_ENCODER_GENERAL>(tt, b0);
     }
 }
 
