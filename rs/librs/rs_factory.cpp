@@ -23,7 +23,7 @@ void RS_FACTORY::register_implementations() {
     encoder_registry[2] = [](int b0) { return std::make_unique<RS_ENCODER_T2>(b0); };
     encoder_registry[4] = [](int b0) { return std::make_unique<RS_ENCODER_T4>(b0); };
     encoder_registry[8] = [](int b0) { return std::make_unique<RS_ENCODER_T8>(b0); };
-    encoder_registry[14] = [](int b0) { return std::make_unique<RS_ENCODER_T14>(b0); };
+    encoder_registry[14] = [](int b0) { return std::make_unique<RS_FLIPPED_ENCODER_T14>(b0); };
     encoder_registry[16] = [](int b0) { return std::make_unique<RS_ENCODER_T16>(b0); };
     encoder_registry[32] = [](int b0) { return std::make_unique<RS_ENCODER_T32>(b0); };
     encoder_registry[64] = [](int b0) { return std::make_unique<RS_ENCODER_T64>(b0); };

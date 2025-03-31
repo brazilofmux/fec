@@ -1,15 +1,15 @@
-#ifndef RS_ENCODER_T14_H
-#define RS_ENCODER_T14_H
+#ifndef RS_FLIPPED_ENCODER_T14_H
+#define RS_FLIPPED_ENCODER_T14_H
 
 #include <cstdint>
 #include <cstring>
 #include <vector>
 #include "rs_encoder_base.h"
 
-class RS_ENCODER_T14 final : public RS_ENCODER_BASE {
+class RS_FLIPPED_ENCODER_T14 final : public RS_ENCODER_BASE {
 public:
-    explicit RS_ENCODER_T14(int b0);
-    ~RS_ENCODER_T14() override;
+    explicit RS_FLIPPED_ENCODER_T14(int b0);
+    ~RS_FLIPPED_ENCODER_T14() override;
 
     void RSEncode(GF data[MAX_KK], GF bb[2 * MAX_TT]) override;
 
@@ -42,4 +42,4 @@ private:
     }
 };
 
-#endif // RS_ENCODER_T14_H
+#endif // RS_FLIPPED_ENCODER_T14_H

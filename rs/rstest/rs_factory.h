@@ -9,7 +9,7 @@
 #include "rs_encoder_t2.h"
 #include "rs_encoder_t4.h"
 #include "rs_encoder_t8.h"
-#include "rs_encoder_t14.h"
+#include "rs_flipped_encoder_t14.h"
 #include "rs_encoder_t16.h"
 #include "rs_encoder_t32.h"
 #include "rs_encoder_t64.h"

@@ -155,7 +155,7 @@
     <ClInclude Include="rs_encoder_general.h" />
     <ClInclude Include="rs_encoder_general_descending.h" />
     <ClInclude Include="rs_encoder_t1.h" />
-    <ClInclude Include="rs_encoder_t14.h" />
+    <ClInclude Include="rs_flipped_encoder_t14.h" />
     <ClInclude Include="rs_encoder_t16.h" />
     <ClInclude Include="rs_encoder_t2.h" />
     <ClInclude Include="rs_encoder_t32.h" />
@@ -173,7 +173,7 @@
     <ClCompile Include="rs_encoder_general.cpp" />
     <ClCompile Include="rs_encoder_general_descending.cpp" />
     <ClCompile Include="rs_encoder_t1.cpp" />
-    <ClCompile Include="rs_encoder_t14.cpp" />
+    <ClCompile Include="rs_flipped_encoder_t14.cpp" />
     <ClCompile Include="rs_encoder_t16.cpp" />
     <ClCompile Include="rs_encoder_t2.cpp" />
     <ClCompile Include="rs_encoder_t32.cpp" />
