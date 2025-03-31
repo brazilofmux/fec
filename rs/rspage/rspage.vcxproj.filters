@@ -71,7 +71,7 @@
     <ClInclude Include="rs_flipped_encoder_t14.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="rs_encoder_t16.h">
+    <ClInclude Include="rs_flipped_encoder_t16.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="rs_encoder_t32.h">

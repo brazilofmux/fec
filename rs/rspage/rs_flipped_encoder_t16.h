@@ -1,15 +1,30 @@
-#ifndef RS_ENCODER_T16_H
-#define RS_ENCODER_T16_H
+#ifndef RS_FLIPPED_ENCODER_T16_H
+#define RS_FLIPPED_ENCODER_T16_H
 
 #include <cstdint>
 #include <cstring>
 #include <vector>
 #include "rs_encoder_base.h"
 
-class RS_ENCODER_T16 final : public RS_ENCODER_BASE {
+/**
+ * Specialized Flipped CRC-style Reed-Solomon encoder for tt=16 (corrects 16 symbol errors)
+ * 
+ * This implementation uses a CRC-style lookup table approach for Reed-Solomon encoding
+ * with the following key characteristics:
+ * - Processes data bytes in reverse order (last data byte first)
+ * - Uses CRC-style lookup tables for optimal performance
+ * - Requires a symmetric generator polynomial (controlled by b0 = (kk+1)/2)
+ * - Specialized for exactly tt=16 with hardcoded optimizations
+ * 
+ * The name "flipped" refers to the fact that bytes are processed in reverse
+ * order compared to a traditional Reed-Solomon encoder. This approach works
+ * correctly only when the generator polynomial is symmetric, which is achieved
+ * by setting b0 = (kk+1)/2.
+ */
+class RS_FLIPPED_ENCODER_T16 final : public RS_ENCODER_BASE {
 public:
-    explicit RS_ENCODER_T16(int b0);
-    ~RS_ENCODER_T16() override;
+    explicit RS_FLIPPED_ENCODER_T16(int b0);
+    ~RS_FLIPPED_ENCODER_T16() override;
 
     void RSEncode(GF data[MAX_KK], GF bb[2 * MAX_TT]) override;
 
@@ -53,4 +68,4 @@ private:
     }
 };
 
-#endif // RS_ENCODER_T16_H
+#endif // RS_FLIPPED_ENCODER_T16_H

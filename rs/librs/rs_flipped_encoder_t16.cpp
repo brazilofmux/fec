@@ -1,7 +1,7 @@
-#include "rs_encoder_t16.h"
+#include "rs_flipped_encoder_t16.h"
 #include <memory>
 
-RS_ENCODER_T16::RS_ENCODER_T16(int b0)
+RS_FLIPPED_ENCODER_T16::RS_FLIPPED_ENCODER_T16(int b0)
     : RS_ENCODER_BASE(16, b0)  // tt is always 16
     , pow2poly_(get_pow2poly())
     , poly2pow_(get_poly2pow())
@@ -12,11 +12,11 @@ RS_ENCODER_T16::RS_ENCODER_T16(int b0)
     RSGenTable();
 }
 
-RS_ENCODER_T16::~RS_ENCODER_T16() {
+RS_FLIPPED_ENCODER_T16::~RS_FLIPPED_ENCODER_T16() {
     delete[] ptable;
 }
 
-void RS_ENCODER_T16::RSGenPoly() {
+void RS_FLIPPED_ENCODER_T16::RSGenPoly() {
     // Initially, g(x) = (X+@^b0)
     gg[0] = pow2poly_[b0_];
     gg[1] = 1;
@@ -46,7 +46,7 @@ void RS_ENCODER_T16::RSGenPoly() {
     }
 }
 
-void RS_ENCODER_T16::RSGenTable() {
+void RS_FLIPPED_ENCODER_T16::RSGenTable() {
     // Generate table entries for each possible feedback value
     for (int ch = 0; ch < 256; ch++) {
         int feedback = poly2pow_[ch];
@@ -64,7 +64,7 @@ void RS_ENCODER_T16::RSGenTable() {
     }
 }
 
-void RS_ENCODER_T16::RSEncode(GF data[MAX_KK], GF bb[2 * MAX_TT]) {
+void RS_FLIPPED_ENCODER_T16::RSEncode(GF data[MAX_KK], GF bb[2 * MAX_TT]) {
     // Clear parity buffer
     memset(bb, 0, 2 * tt_);
 
