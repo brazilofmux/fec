@@ -38,7 +38,7 @@ double erand48(unsigned short seed[3])
 // code.
 //
 // The C2 data consists of 47392 bytes of user data and a 4 byte CRC-32 to
-// guard against miscorrections. 
+// guard against miscorrections.
 //
 // The overall space utilization is 72.31%.
 //
@@ -533,7 +533,7 @@ int DecodeSegment
         {
             Section[i].Number = BestBase*NUM_SECTIONS+i;
         }
-    
+
         // Check CRC-32 again to make sure everything is wonderful.
         // BUG!: ECC doesn't protect the section numbers or the CRC-32, so
         // when errors occur, the CRC-32 may still not be correct.
@@ -572,8 +572,8 @@ int DecodeSegment
 #endif
     ULONG CRC32;
     GetClientDataAndCRC32(UserData, &CRC32);
-    
-  
+
+
     ULONG CRC32Received = lpUpdateCRC(0, SIZEOF_CLIENT_DATA, UserData,
                         pulCRCTable);
     if (CRC32Received != CRC32)
@@ -692,7 +692,7 @@ void FileWithErrors::Read(UBYTE *pBuffer, USHORT cAsk)
         //
         LONG lcc = _lseek(hFile, Offset, SEEK_SET);
         if (lcc != Offset) { Offset = NewOffset; return; }
-    
+
         // Attempt a read. If EOF, then we got as many bytes as we could
         // anyway. Sucess speaks for itself. Only errors need further
         // processing.
@@ -855,7 +855,7 @@ void main(void)
             exit(-1);
         }
     }
-    
+
     ULONG SegmentNumber = 0;
     USHORT length;
     BOOL isFirstBlock = TRUE;
@@ -925,7 +925,7 @@ void main(void)
             exit(-1);
         }
     }
-    
+
     USHORT length;
     ULONG Length;
     BOOL isFirstBlock = TRUE;

@@ -27,7 +27,7 @@ void RS_FACTORY::register_implementations() {
     encoder_registry[16] = [](int b0) { return std::make_unique<RS_ENCODER_T16>(b0); };
     encoder_registry[32] = [](int b0) { return std::make_unique<RS_ENCODER_T32>(b0); };
     encoder_registry[64] = [](int b0) { return std::make_unique<RS_ENCODER_T64>(b0); };
-    
+
     decoder_registry[1] = [](int b0) { return std::make_shared<RS_DECODER_T1>(b0); };
 }
 

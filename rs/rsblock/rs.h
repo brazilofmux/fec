@@ -83,7 +83,7 @@ private:
     // symmetrical by picking a certain starting power, b0. A symetrical generator
     // polynomial, gg, simplifies hardware implementations, and can reduce the
     // tables-sizes of table-driven software implementations by half. It will
-    // probably slow software down a little to make use of this symmetry unless 
+    // probably slow software down a little to make use of this symmetry unless
     // a smaller table is the difference between fitting or not fitting into a
     // limited cache.
     //

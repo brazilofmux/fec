@@ -130,7 +130,7 @@ int main(int argc, char* argv[])
                 memcpy(codeword + 255 - 32 - 40, step3_block + i * 40, 40);
                 p_encoder->RSEncode(codeword, codeword + 255 - 32);
                 memcpy(step4_block + i * 72, codeword + 255 - 72, 72);
-            }                        
+            }
 
             // 5. Encode 59 rows of 72 bytes (72x59) using Base-64 to produce 59 rows of 96 characters (96x59).
             //
