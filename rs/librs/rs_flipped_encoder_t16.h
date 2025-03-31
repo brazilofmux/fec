@@ -20,6 +20,23 @@
  * order compared to a traditional Reed-Solomon encoder. This approach works
  * correctly only when the generator polynomial is symmetric, which is achieved
  * by setting b0 = (kk+1)/2.
+ * 
+ * Historical note: For over 25 years, this implementation was misunderstood
+ * as a traditional Reed-Solomon encoder. However, it actually processes bytes
+ * in reverse order (CRC-style), which only produces correct results because
+ * the generator polynomial is symmetric. This renaming makes the actual behavior
+ * explicit.
+ * 
+ * The CRC-style approach offers significant performance advantages:
+ * 1. It allows using lookup tables to avoid polynomial division
+ * 2. It enables large-block (64-bit and 32-bit) operations for improved throughput
+ * 3. It eliminates the need for polynomial multiplication on each byte
+ * 
+ * Technical details:
+ * - A traditional RS encoder processes data in order from first byte to last
+ * - This implementation processes data in CRC fashion, from last byte to first
+ * - The algorithm depends on generator polynomial symmetry for correctness
+ * - The b0 parameter must be set to (kk+1)/2 to ensure polynomial symmetry
  */
 class RS_FLIPPED_ENCODER_T16 final : public RS_ENCODER_BASE {
 public:
