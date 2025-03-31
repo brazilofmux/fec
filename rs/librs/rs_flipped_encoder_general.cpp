@@ -77,6 +77,10 @@ void RS_FLIPPED_ENCODER_GENERAL::RSEncode(GF data[MAX_KK], GF bb[2 * MAX_TT]) {
     const int cDO1 = cnt & 1;
 
     // Process all data bytes
+    // The flipped encoder reads feedback from bb[0] (lowest index)
+    // and processes the parity buffer in ascending order (0 to 2*tt-1)
+    // This is the opposite of the standard encoder, which processes
+    // the parity buffer in descending order (2*tt-1 down to 0)
     const GF* data_ptr = data;
     int kk_remaining = kk_;
     while (kk_remaining--) {

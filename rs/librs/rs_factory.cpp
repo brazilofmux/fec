@@ -33,6 +33,11 @@ void RS_FACTORY::register_implementations() {
 
 std::unique_ptr<RS_ENCODER_BASE> RS_FACTORY::create_best_encoder(int tt, int b0) {
     int kk = nn - 2 * tt;
+    // Symmetrical generator polynomial check: b0 == (kk + 1) / 2
+    // When the generator polynomial is symmetrical, we can use the more efficient
+    // "flipped" encoder implementation which processes feedback in ascending order
+    // rather than descending order. This is an optimization that produces identical
+    // results to the standard encoder, but only works with symmetrical polynomials.
     if (b0 == (kk + 1) / 2) {
         auto it = flipped_encoder_registry.find(tt);
         if (it != flipped_encoder_registry.end()) {
@@ -41,6 +46,7 @@ std::unique_ptr<RS_ENCODER_BASE> RS_FACTORY::create_best_encoder(int tt, int b0)
         return std::make_unique<RS_FLIPPED_ENCODER_GENERAL>(tt, b0);
     }
     else {
+        // For non-symmetrical generator polynomials, we must use the standard encoder
         auto it = standard_encoder_registry.find(tt);
         if (it != standard_encoder_registry.end()) {
             return it->second(b0);
