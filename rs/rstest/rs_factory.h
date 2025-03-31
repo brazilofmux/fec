@@ -47,7 +47,8 @@ private:
     RS_FACTORY();
 
     using EncoderCreator = std::function<std::unique_ptr<RS_ENCODER_BASE>(int b0)>;
-    std::map<int, EncoderCreator> encoder_registry;
+    std::map<int, EncoderCreator> flipped_encoder_registry;
+    std::map<int, EncoderCreator> standard_encoder_registry;
 
     using DecoderCreator = std::function<std::shared_ptr<RS_DECODER_BASE>(int b0)>;
     std::map<int, DecoderCreator> decoder_registry;
