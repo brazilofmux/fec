@@ -12,10 +12,24 @@ RS_FACTORY::RS_FACTORY()
     register_implementations();
 }
 
-std::unique_ptr<RS_CODEC> RS_FACTORY::create_codec(int tt, int b0) {
+std::unique_ptr<RS_CODEC> RS_FACTORY::create_codec(int tt, int b0, DecoderKind decoder_kind) {
     auto encoder = create_best_encoder(tt, b0);
-    auto decoder = create_best_decoder(tt, b0);
+    auto decoder = create_decoder(tt, b0, decoder_kind);
     return std::make_unique<RS_CODEC>(std::move(encoder), decoder);
+}
+
+std::shared_ptr<RS_DECODER_BASE> RS_FACTORY::create_decoder(int tt, int b0, DecoderKind kind) {
+    switch (kind) {
+        case DecoderKind::General:
+            return std::make_shared<RS_DECODER_GENERAL>(tt, b0);
+        case DecoderKind::Direct:
+            return std::make_shared<RS_DECODER_DIRECT>(tt, b0);
+        case DecoderKind::DirectNeon:
+            return std::make_shared<RS_DECODER_DIRECT_NEON>(tt, b0);
+        case DecoderKind::Auto:
+        default:
+            return create_best_decoder(tt, b0);
+    }
 }
 
 void RS_FACTORY::register_implementations() {

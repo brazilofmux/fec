@@ -17,6 +17,8 @@
 #include "rs_standard_encoder_general.h"
 #include "rs_decoder_t1.h"
 #include "rs_decoder_general.h"
+#include "rs_decoder_direct.h"
+#include "rs_decoder_direct_neon.h"
 
 //             ---Errors Only---  -Errors+Erasures-
 //             ----Decoding-----  ----Decoding-----
@@ -39,9 +41,21 @@
 
 class RS_FACTORY {
 public:
+    enum class DecoderKind {
+        Auto,        // factory's default selection (specialized if available, else GENERAL)
+        General,     // force RS_DECODER_GENERAL      (LFSR / Horner form)
+        Direct,      // force RS_DECODER_DIRECT       (direct evaluation, scalar)
+        DirectNeon,  // force RS_DECODER_DIRECT_NEON  (direct evaluation, NEON SIMD)
+    };
+
     static RS_FACTORY& instance();
 
-    std::unique_ptr<RS_CODEC> create_codec(int tt, int b0);
+    std::unique_ptr<RS_CODEC> create_codec(int tt, int b0,
+                                           DecoderKind decoder_kind = DecoderKind::Auto);
+
+    // Direct decoder construction (used by benchmarks / experiments).
+    std::shared_ptr<RS_DECODER_BASE> create_decoder(int tt, int b0,
+                                                    DecoderKind kind = DecoderKind::Auto);
 
 private:
     RS_FACTORY();
