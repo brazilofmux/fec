@@ -19,6 +19,8 @@
 #include "rs_decoder_general.h"
 #include "rs_decoder_direct.h"
 #include "rs_decoder_direct_neon.h"
+#include "rs_decoder_direct_avx2.h"
+#include "rs_decoder_direct_avx512.h"
 
 //             ---Errors Only---  -Errors+Erasures-
 //             ----Decoding-----  ----Decoding-----
@@ -45,7 +47,9 @@ public:
         Auto,        // factory's default selection (specialized if available, else GENERAL)
         General,     // force RS_DECODER_GENERAL      (LFSR / Horner form)
         Direct,      // force RS_DECODER_DIRECT       (direct evaluation, scalar)
-        DirectNeon,  // force RS_DECODER_DIRECT_NEON  (direct evaluation, NEON SIMD)
+        DirectNeon,   // force RS_DECODER_DIRECT_NEON   (direct evaluation, NEON SIMD)
+        DirectAvx2,   // force RS_DECODER_DIRECT_AVX2   (direct evaluation, AVX2 SIMD)
+        DirectAvx512, // force RS_DECODER_DIRECT_AVX512 (direct evaluation, AVX-512 SIMD)
     };
 
     static RS_FACTORY& instance();

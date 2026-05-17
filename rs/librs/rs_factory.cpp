@@ -26,6 +26,10 @@ std::shared_ptr<RS_DECODER_BASE> RS_FACTORY::create_decoder(int tt, int b0, Deco
             return std::make_shared<RS_DECODER_DIRECT>(tt, b0);
         case DecoderKind::DirectNeon:
             return std::make_shared<RS_DECODER_DIRECT_NEON>(tt, b0);
+        case DecoderKind::DirectAvx2:
+            return std::make_shared<RS_DECODER_DIRECT_AVX2>(tt, b0);
+        case DecoderKind::DirectAvx512:
+            return std::make_shared<RS_DECODER_DIRECT_AVX512>(tt, b0);
         case DecoderKind::Auto:
         default:
             return create_best_decoder(tt, b0);
@@ -74,5 +78,15 @@ std::shared_ptr<RS_DECODER_BASE> RS_FACTORY::create_best_decoder(int tt, int b0)
     if (it != decoder_registry.end()) {
         return it->second(b0);
     }
-    return std::make_unique<RS_DECODER_GENERAL>(tt, b0);
+
+    // No hand-specialized decoder for this tt — pick the fastest Direct SIMD variant
+    // available on this machine at runtime.
+#if defined(__x86_64__) || defined(_M_X64)
+    // Prefer widest vector unit first
+    return std::make_shared<RS_DECODER_DIRECT_AVX512>(tt, b0);
+#elif defined(__aarch64__)
+    return std::make_shared<RS_DECODER_DIRECT_NEON>(tt, b0);
+#else
+    return std::make_shared<RS_DECODER_DIRECT>(tt, b0);
+#endif
 }
