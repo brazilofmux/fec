@@ -15,7 +15,7 @@ class RS_ENCODER_KARN {
 public:
     RS_ENCODER_KARN(int CorrectableErrors) : tt(CorrectableErrors) {
         // Verify parameters match Karn's implementation
-        static_assert(n == (1 << MM), "Symbol field size mismatch");
+        static_assert(GF_N == (1 << MM), "Symbol field size mismatch");
         static_assert(nn == ((1 << MM) - 1), "Block size mismatch");
         init_rs(tt);  // Initialize Karn's implementation
     }

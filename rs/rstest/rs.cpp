@@ -81,7 +81,6 @@
 
 //#define BENCHMARK
 
-#define n   256         // n  = 2^8     size of the field
 #define nn  255         // nn = 2^8-1   length of codeword
 #define MAX_TT (127)    // maximum number of correctable errors (nn/2).
 #define MIN_TT (1)      // minimum number of correctable errors (1).
