@@ -1,6 +1,7 @@
 #ifndef RS_DECODER_BASE_H
 #define RS_DECODER_BASE_H
 
+#include <chrono>
 #include <vector>
 #include "rs_common.h"
 #include "rs_tables.h"
@@ -14,6 +15,21 @@ public:
 
     int get_tt() const { return tt_; }
     int get_kk() const { return kk_; }
+
+    // Lightweight profiling helper — returns wall time (microseconds) spent in each
+    // major phase for a normal (non-erasure) decode of a codeword that has errors.
+    // Useful for identifying the next bottleneck once syndromes are fast.
+    struct DecodeProfile {
+        double total_us = 0.0;
+        double syndrome_us = 0.0;
+        double berlekamp_massey_us = 0.0;
+        double chien_search_us = 0.0;
+        double forney_us = 0.0;
+        int  errors_found = 0;
+        bool success = false;
+    };
+
+    virtual DecodeProfile profile_decode(const GF recd[nn]);
 
 protected:
     RS_DECODER_BASE(int tt, int b0) : tt_(tt), kk_(nn - 2 * tt), b0_(b0),

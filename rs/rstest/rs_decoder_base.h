@@ -15,6 +15,18 @@ public:
     int get_tt() const { return tt_; }
     int get_kk() const { return kk_; }
 
+    struct DecodeProfile {
+        double total_us = 0.0;
+        double syndrome_us = 0.0;
+        double berlekamp_massey_us = 0.0;
+        double chien_search_us = 0.0;
+        double forney_us = 0.0;
+        int  errors_found = 0;
+        bool success = false;
+    };
+
+    virtual DecodeProfile profile_decode(const GF recd[nn]);
+
 protected:
     RS_DECODER_BASE(int tt, int b0) : tt_(tt), kk_(nn - 2 * tt), b0_(b0),
         pow2poly_(RS_TABLES::instance().get_pow2poly()),

@@ -179,3 +179,79 @@ int RS_DECODER_BASE::construct_erasure_locator(std::vector<GF>& lambda, const in
 
     return no_eras; // Degree of the erasure locator polynomial
 }
+
+RS_DECODER_BASE::DecodeProfile RS_DECODER_BASE::profile_decode(const GF recd[nn]) {
+    DecodeProfile p;
+    auto t0 = std::chrono::high_resolution_clock::now();
+
+    // 1. Syndromes
+    auto t1 = std::chrono::high_resolution_clock::now();
+    std::vector<GF> syndromes;
+    calculate_syndromes(recd, syndromes);
+    auto t2 = std::chrono::high_resolution_clock::now();
+
+    // Quick check for no-error case
+    bool has_error = false;
+    for (int i = 1; i <= 2 * tt_; i++) {
+        if (syndromes[i] != 0) { has_error = true; break; }
+    }
+    if (!has_error) {
+        auto t_end = std::chrono::high_resolution_clock::now();
+        p.syndrome_us = std::chrono::duration<double, std::micro>(t2 - t1).count();
+        p.total_us    = std::chrono::duration<double, std::micro>(t_end - t0).count();
+        p.success = true;
+        p.errors_found = 0;
+        return p;
+    }
+
+    // 2. Berlekamp-Massey
+    auto t3 = std::chrono::high_resolution_clock::now();
+    std::vector<GF> lambda(2 * tt_ + 1, 0);
+    lambda[0] = 1;
+    berlekamp_massey(syndromes, lambda, 0);
+    int deg_lambda = convert_to_index_and_get_degree(lambda);
+    auto t4 = std::chrono::high_resolution_clock::now();
+
+    if (deg_lambda > 2 * tt_) {
+        auto t_end = std::chrono::high_resolution_clock::now();
+        p.syndrome_us = std::chrono::duration<double, std::micro>(t2 - t1).count();
+        p.berlekamp_massey_us = std::chrono::duration<double, std::micro>(t4 - t3).count();
+        p.total_us = std::chrono::duration<double, std::micro>(t_end - t0).count();
+        return p; // failure
+    }
+
+    // 3. Chien search
+    auto t5 = std::chrono::high_resolution_clock::now();
+    std::vector<GF> root(2 * tt_);
+    std::vector<GF> loc(2 * tt_);
+    int count = 0;
+    int root_count = chien_search(lambda, deg_lambda, root, loc, count);
+    auto t6 = std::chrono::high_resolution_clock::now();
+
+    if (deg_lambda != root_count) {
+        auto t_end = std::chrono::high_resolution_clock::now();
+        p.syndrome_us = std::chrono::duration<double, std::micro>(t2 - t1).count();
+        p.berlekamp_massey_us = std::chrono::duration<double, std::micro>(t4 - t3).count();
+        p.chien_search_us = std::chrono::duration<double, std::micro>(t6 - t5).count();
+        p.total_us = std::chrono::duration<double, std::micro>(t_end - t0).count();
+        return p;
+    }
+
+    // 4. Omega + Forney
+    auto t7 = std::chrono::high_resolution_clock::now();
+    std::vector<GF> omega(2 * tt_ + 1);
+    int deg_omega = compute_omega(syndromes, lambda, deg_lambda, omega);
+    int forney_rc = forney_correction(omega, deg_omega, lambda, deg_lambda, root, count, loc, const_cast<GF*>(recd));
+    auto t8 = std::chrono::high_resolution_clock::now();
+
+    p.syndrome_us         = std::chrono::duration<double, std::micro>(t2 - t1).count();
+    p.berlekamp_massey_us = std::chrono::duration<double, std::micro>(t4 - t3).count();
+    p.chien_search_us     = std::chrono::duration<double, std::micro>(t6 - t5).count();
+    p.forney_us           = std::chrono::duration<double, std::micro>(t8 - t7).count();
+    p.total_us            = std::chrono::duration<double, std::micro>(t8 - t0).count();
+    p.errors_found        = (forney_rc == 0) ? count : -1;
+    p.success             = (forney_rc == 0);
+
+    return p;
+}
+

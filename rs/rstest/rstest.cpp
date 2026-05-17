@@ -279,6 +279,30 @@ void run_benchmarks() {
             decode_neon_errors,    decode_neon_clean,
             decode_avx2_errors,    decode_avx2_clean,
             decode_avx512_errors,  decode_avx512_clean);
+
+        // --- Phase breakdown on the fastest ("Auto") decoder for the errored case ---
+        // This is the key data for deciding the next target while squeezing.
+        {
+            // Re-inject the same error pattern we used for timing
+            memcpy(recd, bb, 2 * tt_val);
+            memcpy(recd + nn - kk, data, kk);
+            for (int i = 0; i < tt_val / 2; i++) {
+                recd[i * 2] ^= 0xFF;
+            }
+
+            auto* dec = const_cast<RS_DECODER_BASE*>(codec_auto->get_decoder());
+            auto prof = dec->profile_decode(recd);
+            if (prof.success || prof.errors_found > 0) {
+                printf("//     [Auto phases @ tt=%d]  synd=%.2f  BM=%.2f  Chien=%.2f  Forney=%.2f  (total=%.2f)  errs=%d\n",
+                       tt_val,
+                       prof.syndrome_us,
+                       prof.berlekamp_massey_us,
+                       prof.chien_search_us,
+                       prof.forney_us,
+                       prof.total_us,
+                       prof.errors_found);
+            }
+        }
     }
 }
 
