@@ -12,9 +12,6 @@ public:
     explicit RS_DECODER_DIRECT_NEON(int tt, int b0);
     ~RS_DECODER_DIRECT_NEON() = default;
 
-    int RSDecode(GF recd[nn]) override;
-    int RSDecodeErasures(GF recd[nn], int eras_pos[2 * MAX_TT], int no_eras) override;
-
 private:
     void calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) override;
 
@@ -24,13 +21,9 @@ private:
     std::vector<GF> power_table_chunked_;
     int n_chunks_;  // = ceil(2*tt / 16)
 
-    // Split-nibble GF(256) multiply tables (poly 0x11D), 256 scalars * 32 B = 8 KB.
-    //   split_lo_[s*16 + k] = s * k         (poly form)
-    //   split_hi_[s*16 + k] = s * (k << 4)  (poly form)
-    // TODO: these depend only on the GF poly, not on (tt, b0). Hoist into
-    // RS_TABLES so all NEON decoder instances share one 8 KB copy.
-    std::vector<GF> split_lo_;
-    std::vector<GF> split_hi_;
+    // Split-nibble multiply tables come from RS_TABLES (shared across instances).
+    const GF* split_lo_;
+    const GF* split_hi_;
 };
 
 #endif // RS_DECODER_DIRECT_NEON_H

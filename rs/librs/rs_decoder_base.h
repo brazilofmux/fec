@@ -10,8 +10,13 @@ class RS_DECODER_BASE {
 public:
     virtual ~RS_DECODER_BASE() = default;
 
-    virtual int RSDecode(GF recd[nn]) = 0;
-    virtual int RSDecodeErasures(GF recd[nn], int eras_pos[2 * MAX_TT], int no_eras) = 0;
+    // Concrete decode entry points. Subclasses customize only calculate_syndromes;
+    // the shared pipeline (BM -> Chien -> Forney) lives in the base class. The
+    // functions are virtual for the rare case a subclass needs to replace the
+    // whole pipeline, but the default implementation is what every Direct/T1/
+    // GENERAL decoder uses today.
+    virtual int RSDecode(GF recd[nn]);
+    virtual int RSDecodeErasures(GF recd[nn], int eras_pos[2 * MAX_TT], int no_eras);
 
     int get_tt() const { return tt_; }
     int get_kk() const { return kk_; }
@@ -19,6 +24,8 @@ public:
     // Lightweight profiling helper — returns wall time (microseconds) spent in each
     // major phase for a normal (non-erasure) decode of a codeword that has errors.
     // Useful for identifying the next bottleneck once syndromes are fast.
+    //
+    // Note: recd is modified in place (matches RSDecode's signature).
     struct DecodeProfile {
         double total_us = 0.0;
         double syndrome_us = 0.0;
@@ -29,7 +36,7 @@ public:
         bool success = false;
     };
 
-    virtual DecodeProfile profile_decode(const GF recd[nn]);
+    virtual DecodeProfile profile_decode(GF recd[nn]);
 
 protected:
     RS_DECODER_BASE(int tt, int b0) : tt_(tt), kk_(nn - 2 * tt), b0_(b0),
@@ -37,8 +44,17 @@ protected:
         poly2pow_(RS_TABLES::instance().get_poly2pow()) {
     }
 
-    // Virtual method for syndrome calculation
+    // Virtual method for syndrome calculation - the one thing subclasses customize.
     virtual void calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) = 0;
+
+    // Shared post-syndrome pipeline: BM -> Chien -> Forney. Used by both
+    // RSDecode/RSDecodeErasures and profile_decode. Pass eras_pos=nullptr,
+    // no_eras=0 for the errors-only case. If profile != nullptr, the per-phase
+    // wall times are recorded into it (caller is responsible for syndrome_us
+    // and total_us).
+    int run_pipeline(std::vector<GF>& syndromes,
+                     const int* eras_pos, int no_eras,
+                     GF recd[nn], DecodeProfile* profile);
 
     // Shared decoding methods
     int construct_erasure_locator(std::vector<GF>& lambda, const int* eras_pos, int no_eras);

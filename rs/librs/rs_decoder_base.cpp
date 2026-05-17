@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <cstring>
-#include <memory>
 #include <vector>
 #include "rs_decoder_base.h"
 
@@ -180,78 +179,81 @@ int RS_DECODER_BASE::construct_erasure_locator(std::vector<GF>& lambda, const in
     return no_eras; // Degree of the erasure locator polynomial
 }
 
-RS_DECODER_BASE::DecodeProfile RS_DECODER_BASE::profile_decode(const GF recd[nn]) {
-    DecodeProfile p;
-    auto t0 = std::chrono::high_resolution_clock::now();
+int RS_DECODER_BASE::run_pipeline(std::vector<GF>& syndromes,
+                                  const int* eras_pos, int no_eras,
+                                  GF recd[nn], DecodeProfile* profile) {
+    using clock = std::chrono::high_resolution_clock;
+    auto elapsed_us = [](clock::time_point a, clock::time_point b) {
+        return std::chrono::duration<double, std::micro>(b - a).count();
+    };
 
-    // 1. Syndromes
-    auto t1 = std::chrono::high_resolution_clock::now();
-    std::vector<GF> syndromes;
-    calculate_syndromes(recd, syndromes);
-    auto t2 = std::chrono::high_resolution_clock::now();
-
-    // Quick check for no-error case
+    // Early-out on a clean codeword.
     bool has_error = false;
     for (int i = 1; i <= 2 * tt_; i++) {
         if (syndromes[i] != 0) { has_error = true; break; }
     }
-    if (!has_error) {
-        auto t_end = std::chrono::high_resolution_clock::now();
-        p.syndrome_us = std::chrono::duration<double, std::micro>(t2 - t1).count();
-        p.total_us    = std::chrono::duration<double, std::micro>(t_end - t0).count();
-        p.success = true;
-        p.errors_found = 0;
-        return p;
-    }
+    if (!has_error) return 0;
 
-    // 2. Berlekamp-Massey
-    auto t3 = std::chrono::high_resolution_clock::now();
+    // Berlekamp-Massey (optionally seeded from the erasure locator).
+    auto t_bm0 = clock::now();
     std::vector<GF> lambda(2 * tt_ + 1, 0);
-    lambda[0] = 1;
-    berlekamp_massey(syndromes, lambda, 0);
-    int deg_lambda = convert_to_index_and_get_degree(lambda);
-    auto t4 = std::chrono::high_resolution_clock::now();
-
-    if (deg_lambda > 2 * tt_) {
-        auto t_end = std::chrono::high_resolution_clock::now();
-        p.syndrome_us = std::chrono::duration<double, std::micro>(t2 - t1).count();
-        p.berlekamp_massey_us = std::chrono::duration<double, std::micro>(t4 - t3).count();
-        p.total_us = std::chrono::duration<double, std::micro>(t_end - t0).count();
-        return p; // failure
+    if (no_eras > 0 && eras_pos != nullptr) {
+        construct_erasure_locator(lambda, eras_pos, no_eras);
+    } else {
+        lambda[0] = 1;
     }
+    berlekamp_massey(syndromes, lambda, no_eras);
+    int deg_lambda = convert_to_index_and_get_degree(lambda);
+    if (profile) profile->berlekamp_massey_us = elapsed_us(t_bm0, clock::now());
+    if (deg_lambda > 2 * tt_) return RS_ERROR_LAMBDA_ERROR;
 
-    // 3. Chien search
-    auto t5 = std::chrono::high_resolution_clock::now();
+    // Chien search.
+    auto t_chien0 = clock::now();
     std::vector<GF> root(2 * tt_);
     std::vector<GF> loc(2 * tt_);
     int count = 0;
     int root_count = chien_search(lambda, deg_lambda, root, loc, count);
-    auto t6 = std::chrono::high_resolution_clock::now();
+    if (profile) profile->chien_search_us = elapsed_us(t_chien0, clock::now());
+    if (deg_lambda != root_count) return RS_ERROR_CHIEN_SEARCH;
 
-    if (deg_lambda != root_count) {
-        auto t_end = std::chrono::high_resolution_clock::now();
-        p.syndrome_us = std::chrono::duration<double, std::micro>(t2 - t1).count();
-        p.berlekamp_massey_us = std::chrono::duration<double, std::micro>(t4 - t3).count();
-        p.chien_search_us = std::chrono::duration<double, std::micro>(t6 - t5).count();
-        p.total_us = std::chrono::duration<double, std::micro>(t_end - t0).count();
-        return p;
-    }
-
-    // 4. Omega + Forney
-    auto t7 = std::chrono::high_resolution_clock::now();
+    // Omega + Forney correction.
+    auto t_forney0 = clock::now();
     std::vector<GF> omega(2 * tt_ + 1);
     int deg_omega = compute_omega(syndromes, lambda, deg_lambda, omega);
-    int forney_rc = forney_correction(omega, deg_omega, lambda, deg_lambda, root, count, loc, const_cast<GF*>(recd));
-    auto t8 = std::chrono::high_resolution_clock::now();
+    int forney_rc = forney_correction(omega, deg_omega, lambda, deg_lambda, root, count, loc, recd);
+    if (profile) profile->forney_us = elapsed_us(t_forney0, clock::now());
+    if (forney_rc < 0) return -1;
 
-    p.syndrome_us         = std::chrono::duration<double, std::micro>(t2 - t1).count();
-    p.berlekamp_massey_us = std::chrono::duration<double, std::micro>(t4 - t3).count();
-    p.chien_search_us     = std::chrono::duration<double, std::micro>(t6 - t5).count();
-    p.forney_us           = std::chrono::duration<double, std::micro>(t8 - t7).count();
-    p.total_us            = std::chrono::duration<double, std::micro>(t8 - t0).count();
-    p.errors_found        = (forney_rc == 0) ? count : -1;
-    p.success             = (forney_rc == 0);
+    return count;
+}
 
+int RS_DECODER_BASE::RSDecode(GF recd[nn]) {
+    std::vector<GF> syndromes;
+    calculate_syndromes(recd, syndromes);
+    return run_pipeline(syndromes, nullptr, 0, recd, nullptr);
+}
+
+int RS_DECODER_BASE::RSDecodeErasures(GF recd[nn], int eras_pos[2 * MAX_TT], int no_eras) {
+    std::vector<GF> syndromes;
+    calculate_syndromes(recd, syndromes);
+    return run_pipeline(syndromes, eras_pos, no_eras, recd, nullptr);
+}
+
+RS_DECODER_BASE::DecodeProfile RS_DECODER_BASE::profile_decode(GF recd[nn]) {
+    using clock = std::chrono::high_resolution_clock;
+    DecodeProfile p;
+    auto t_start = clock::now();
+
+    auto t_syn0 = clock::now();
+    std::vector<GF> syndromes;
+    calculate_syndromes(recd, syndromes);
+    p.syndrome_us = std::chrono::duration<double, std::micro>(clock::now() - t_syn0).count();
+
+    int rc = run_pipeline(syndromes, nullptr, 0, recd, &p);
+
+    p.total_us     = std::chrono::duration<double, std::micro>(clock::now() - t_start).count();
+    p.errors_found = (rc >= 0) ? rc : -1;
+    p.success      = (rc >= 0);
     return p;
 }
 

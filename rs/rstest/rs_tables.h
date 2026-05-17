@@ -10,6 +10,8 @@ public:
 
     const GF* get_pow2poly() const { return pow2poly_; }
     const GF* get_poly2pow() const { return poly2pow_; }
+    const GF* get_split_lo() const { return split_lo_; }
+    const GF* get_split_hi() const { return split_hi_; }
 
     void ensure_initialized();
 
@@ -26,10 +28,13 @@ private:
     RS_TABLES& operator=(const RS_TABLES&) = delete;
 
     void initialize_gf();
+    void initialize_split_tables();
 
     bool is_initialized_;
     GF* pow2poly_;
     GF* poly2pow_;
+    GF* split_lo_;
+    GF* split_hi_;
 
     void initialize_mod_table() {
         mod_table_ = new GF[4 * nn + 1];  // -nn to 3*nn range

@@ -14,9 +14,6 @@ public:
     explicit RS_DECODER_DIRECT_AVX512(int tt, int b0);
     ~RS_DECODER_DIRECT_AVX512() = default;
 
-    int RSDecode(GF recd[nn]) override;
-    int RSDecodeErasures(GF recd[nn], int eras_pos[2 * MAX_TT], int no_eras) override;
-
 private:
     void calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) override;
 
@@ -30,10 +27,11 @@ private:
     // when c*64 + lane < 2*tt; otherwise 0.
     std::vector<GF> power_table_chunked_;
 
-    // Split-nibble GF(256) multiply tables, 256 scalars * 64 B = 16 KB each.
-    // Layout matches the 64-lane chunk width for convenient broadcast + shuffle.
-    std::vector<GF> split_lo_;
-    std::vector<GF> split_hi_;
+    // Split-nibble multiply tables come from RS_TABLES (shared across instances).
+    // 16-byte rows; the SIMD path loads one row with _mm_loadu_si128 and broadcasts
+    // it to 512 bits.
+    const GF* split_lo_;
+    const GF* split_hi_;
 };
 
 #endif // RS_DECODER_DIRECT_AVX512_H

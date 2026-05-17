@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <cstddef>
-#include <cstring>
 #include <vector>
 #include "rs_decoder_direct_neon.h"
 
@@ -8,18 +7,10 @@
 #include <arm_neon.h>
 #endif
 
-namespace {
-// One-time scalar GF multiply (poly 0x11D) for table construction.
-inline GF gf_mul(GF a, GF b, const GF* pow2poly, const GF* poly2pow) {
-    if (a == 0 || b == 0) return 0;
-    int sum = poly2pow[a] + poly2pow[b];
-    if (sum >= nn) sum -= nn;
-    return pow2poly[sum];
-}
-}
-
 RS_DECODER_DIRECT_NEON::RS_DECODER_DIRECT_NEON(int tt, int b0)
-    : RS_DECODER_BASE(tt, b0) {
+    : RS_DECODER_BASE(tt, b0),
+      split_lo_(RS_TABLES::instance().get_split_lo()),
+      split_hi_(RS_TABLES::instance().get_split_hi()) {
     const int width = 2 * tt;
     n_chunks_ = (width + 15) / 16;
     power_table_chunked_.assign(static_cast<size_t>(n_chunks_) * nn * 16, 0);
@@ -34,17 +25,6 @@ RS_DECODER_DIRECT_NEON::RS_DECODER_DIRECT_NEON(int tt, int b0)
                         = pow2poly_[e];
                 }
             }
-        }
-    }
-
-    split_lo_.assign(256 * 16, 0);
-    split_hi_.assign(256 * 16, 0);
-    for (int s = 0; s < 256; s++) {
-        for (int k = 0; k < 16; k++) {
-            split_lo_[s * 16 + k] = gf_mul(static_cast<GF>(s), static_cast<GF>(k),
-                                           pow2poly_, poly2pow_);
-            split_hi_[s * 16 + k] = gf_mul(static_cast<GF>(s), static_cast<GF>(k << 4),
-                                           pow2poly_, poly2pow_);
         }
     }
 }
@@ -99,64 +79,4 @@ void RS_DECODER_DIRECT_NEON::calculate_syndromes(const GF recd[nn], std::vector<
         syndromes[i + 1] = poly2pow_[S[i]];
     }
 #endif
-}
-
-int RS_DECODER_DIRECT_NEON::RSDecode(GF recd[nn]) {
-    std::vector<GF> syndromes;
-    calculate_syndromes(recd, syndromes);
-
-    bool has_error = false;
-    for (int i = 1; i <= 2 * tt_; i++) {
-        if (syndromes[i] != 0) { has_error = true; break; }
-    }
-    if (!has_error) return 0;
-
-    std::vector<GF> lambda(2 * tt_ + 1, 0);
-    lambda[0] = 1;
-    berlekamp_massey(syndromes, lambda, 0);
-    int deg_lambda = convert_to_index_and_get_degree(lambda);
-    if (deg_lambda > 2 * tt_) return RS_ERROR_LAMBDA_ERROR;
-
-    std::vector<GF> root(2 * tt_);
-    std::vector<GF> loc(2 * tt_);
-    int count = 0;
-    int root_count = chien_search(lambda, deg_lambda, root, loc, count);
-    if (deg_lambda != root_count) return RS_ERROR_CHIEN_SEARCH;
-
-    std::vector<GF> omega(2 * tt_ + 1);
-    int deg_omega = compute_omega(syndromes, lambda, deg_lambda, omega);
-    if (forney_correction(omega, deg_omega, lambda, deg_lambda, root, count, loc, recd) < 0) {
-        return -1;
-    }
-    return count;
-}
-
-int RS_DECODER_DIRECT_NEON::RSDecodeErasures(GF recd[nn], int eras_pos[2 * MAX_TT], int no_eras) {
-    std::vector<GF> syndromes;
-    calculate_syndromes(recd, syndromes);
-
-    bool syn_error = false;
-    for (int i = 1; i <= 2 * tt_; i++) {
-        if (syndromes[i] != 0) { syn_error = true; break; }
-    }
-    if (!syn_error) return 0;
-
-    std::vector<GF> lambda(2 * tt_ + 1, 0);
-    construct_erasure_locator(lambda, eras_pos, no_eras);
-    berlekamp_massey(syndromes, lambda, no_eras);
-    int deg_lambda = convert_to_index_and_get_degree(lambda);
-    if (deg_lambda > 2 * tt_) return RS_ERROR_LAMBDA_ERROR;
-
-    std::vector<GF> root(2 * tt_);
-    std::vector<GF> loc(2 * tt_);
-    int count = 0;
-    int root_count = chien_search(lambda, deg_lambda, root, loc, count);
-    if (deg_lambda != root_count) return RS_ERROR_CHIEN_SEARCH;
-
-    std::vector<GF> omega(2 * tt_ + 1);
-    int deg_omega = compute_omega(syndromes, lambda, deg_lambda, omega);
-    if (forney_correction(omega, deg_omega, lambda, deg_lambda, root, count, loc, recd) < 0) {
-        return -1;
-    }
-    return count;
 }

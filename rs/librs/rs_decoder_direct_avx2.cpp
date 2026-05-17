@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <cstddef>
-#include <cstring>
 #include <vector>
 #include "rs_decoder_direct_avx2.h"
 
@@ -28,18 +27,12 @@ static bool cpu_has_avx2() {
 #endif
 }
 #endif
-
-// Scalar GF multiply used only during table construction (identical to NEON version).
-inline GF gf_mul(GF a, GF b, const GF* pow2poly, const GF* poly2pow) {
-    if (a == 0 || b == 0) return 0;
-    int sum = poly2pow[a] + poly2pow[b];
-    if (sum >= nn) sum -= nn;
-    return pow2poly[sum];
-}
 } // namespace
 
 RS_DECODER_DIRECT_AVX2::RS_DECODER_DIRECT_AVX2(int tt, int b0)
-    : RS_DECODER_BASE(tt, b0), avx2_usable_(false) {
+    : RS_DECODER_BASE(tt, b0), avx2_usable_(false),
+      split_lo_(RS_TABLES::instance().get_split_lo()),
+      split_hi_(RS_TABLES::instance().get_split_hi()) {
 
 #if defined(RS_HAVE_AVX2_COMPILE)
     avx2_usable_ = cpu_has_avx2();
@@ -66,25 +59,6 @@ RS_DECODER_DIRECT_AVX2::RS_DECODER_DIRECT_AVX2(int tt, int b0)
             }
         }
     }
-
-    // Split-nibble tables sized for 32 lanes (we only need 16 distinct multipliers,
-    // but 32 makes the AVX2 broadcast convenient and matches the chunk width).
-    split_lo_.assign(256 * 32, 0);
-    split_hi_.assign(256 * 32, 0);
-    for (int s = 0; s < 256; s++) {
-        for (int k = 0; k < 16; k++) {   // low nibble multipliers 0..15
-            split_lo_[s * 32 + k] = gf_mul(static_cast<GF>(s), static_cast<GF>(k),
-                                           pow2poly_, poly2pow_);
-            split_hi_[s * 32 + k] = gf_mul(static_cast<GF>(s), static_cast<GF>(k << 4),
-                                           pow2poly_, poly2pow_);
-        }
-        // Duplicate the 16-entry table into the upper half so we can treat the whole
-        // 32-byte row uniformly if desired (not strictly required with the broadcast below).
-        for (int k = 16; k < 32; k++) {
-            split_lo_[s * 32 + k] = split_lo_[s * 32 + (k - 16)];
-            split_hi_[s * 32 + k] = split_hi_[s * 32 + (k - 16)];
-        }
-    }
 }
 
 void RS_DECODER_DIRECT_AVX2::calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) {
@@ -104,8 +78,8 @@ void RS_DECODER_DIRECT_AVX2::calculate_syndromes(const GF recd[nn], std::vector<
                 const GF s = recd[j];
                 // Broadcast the 16-entry (actually 32-byte padded) split tables for this s
                 // into 256-bit registers so we can use a single 32-byte shuffle per table.
-                const __m128i lo16 = _mm_loadu_si128((const __m128i*)&split_lo_[s * 32]);
-                const __m128i hi16 = _mm_loadu_si128((const __m128i*)&split_hi_[s * 32]);
+                const __m128i lo16 = _mm_loadu_si128((const __m128i*)&split_lo_[s * 16]);
+                const __m128i hi16 = _mm_loadu_si128((const __m128i*)&split_hi_[s * 16]);
                 const __m256i lo   = _mm256_broadcastsi128_si256(lo16);
                 const __m256i hi   = _mm256_broadcastsi128_si256(hi16);
 
@@ -159,62 +133,3 @@ void RS_DECODER_DIRECT_AVX2::calculate_syndromes(const GF recd[nn], std::vector<
     }
 }
 
-int RS_DECODER_DIRECT_AVX2::RSDecode(GF recd[nn]) {
-    std::vector<GF> syndromes;
-    calculate_syndromes(recd, syndromes);
-
-    bool has_error = false;
-    for (int i = 1; i <= 2 * tt_; i++) {
-        if (syndromes[i] != 0) { has_error = true; break; }
-    }
-    if (!has_error) return 0;
-
-    std::vector<GF> lambda(2 * tt_ + 1, 0);
-    lambda[0] = 1;
-    berlekamp_massey(syndromes, lambda, 0);
-    int deg_lambda = convert_to_index_and_get_degree(lambda);
-    if (deg_lambda > 2 * tt_) return RS_ERROR_LAMBDA_ERROR;
-
-    std::vector<GF> root(2 * tt_);
-    std::vector<GF> loc(2 * tt_);
-    int count = 0;
-    int root_count = chien_search(lambda, deg_lambda, root, loc, count);
-    if (deg_lambda != root_count) return RS_ERROR_CHIEN_SEARCH;
-
-    std::vector<GF> omega(2 * tt_ + 1);
-    int deg_omega = compute_omega(syndromes, lambda, deg_lambda, omega);
-    if (forney_correction(omega, deg_omega, lambda, deg_lambda, root, count, loc, recd) < 0) {
-        return -1;
-    }
-    return count;
-}
-
-int RS_DECODER_DIRECT_AVX2::RSDecodeErasures(GF recd[nn], int eras_pos[2 * MAX_TT], int no_eras) {
-    std::vector<GF> syndromes;
-    calculate_syndromes(recd, syndromes);
-
-    bool syn_error = false;
-    for (int i = 1; i <= 2 * tt_; i++) {
-        if (syndromes[i] != 0) { syn_error = true; break; }
-    }
-    if (!syn_error) return 0;
-
-    std::vector<GF> lambda(2 * tt_ + 1, 0);
-    construct_erasure_locator(lambda, eras_pos, no_eras);
-    berlekamp_massey(syndromes, lambda, no_eras);
-    int deg_lambda = convert_to_index_and_get_degree(lambda);
-    if (deg_lambda > 2 * tt_) return RS_ERROR_LAMBDA_ERROR;
-
-    std::vector<GF> root(2 * tt_);
-    std::vector<GF> loc(2 * tt_);
-    int count = 0;
-    int root_count = chien_search(lambda, deg_lambda, root, loc, count);
-    if (deg_lambda != root_count) return RS_ERROR_CHIEN_SEARCH;
-
-    std::vector<GF> omega(2 * tt_ + 1);
-    int deg_omega = compute_omega(syndromes, lambda, deg_lambda, omega);
-    if (forney_correction(omega, deg_omega, lambda, deg_lambda, root, count, loc, recd) < 0) {
-        return -1;
-    }
-    return count;
-}
