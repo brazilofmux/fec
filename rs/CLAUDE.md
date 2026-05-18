@@ -8,6 +8,9 @@
 
 All implementations produce identical results and are verified against each other using the compare_encoders tool.
 
+## Benchmarks
+Per-platform `rstest -b` results (scalar / NEON / AVX2 / AVX-512 µs/decode, plus Auto-phase breakdown) are recorded in `BENCHMARKS.md`. Append a new dated section there when you re-run on a new box rather than editing comments in headers.
+
 ## Build Commands
 - Build library: `cd librs && make`
 - Build tests: `cd rstest && make`

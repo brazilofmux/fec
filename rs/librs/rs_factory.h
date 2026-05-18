@@ -22,24 +22,9 @@
 #include "rs_decoder_direct_avx2.h"
 #include "rs_decoder_direct_avx512.h"
 
-//             ---Errors Only---  -Errors+Erasures-
-//             ----Decoding-----  ----Decoding-----
-// tt  Encode  w/errors  without  w/errors  without
-//  1    0.51      0.69      0.70    -----    -----
-//  2    0.54      1.10      1.11    -----    -----
-//  3    1.29      1.34      1.46    -----    -----
-//  4    1.30      1.56      1.56    -----    -----
-//  5    1.28      1.82      1.83    -----    -----
-//  6    1.28      2.22      2.24    -----    -----
-//  7    1.28      2.61      2.39    -----    -----
-//  8    1.22      2.81      2.80    -----    -----
-// 16    1.19      5.08      5.24    -----    -----
-// 24    1.26      7.61      7.69    -----    -----
-// 32    1.05     10.34     10.32    -----    -----
-// 40    1.08     13.03     13.13    -----    -----
-// 48    1.00     17.32     17.30    -----    -----
-// 56    0.93     19.79     19.81    -----    -----
-// 64    0.83     23.10     23.10    -----    -----
+// Per-platform µs/decode benchmark numbers (scalar / NEON / AVX2 / AVX-512)
+// live in rs/BENCHMARKS.md. Re-run with `./rstest -b` and append a new
+// dated section there rather than editing this header.
 
 class RS_FACTORY {
 public:
