@@ -81,8 +81,8 @@ void RS_DECODER_DIRECT_AVX512::calculate_syndromes(const GF recd[nn], std::vecto
                 const __m128i hi16 = _mm_loadu_si128((const __m128i*)&split_hi_[s * 16]);
 
                 // Broadcast 128-bit table to full 512-bit register (AVX512F).
-                const __m512i lo = _mm512_broadcast_i128(lo16);
-                const __m512i hi = _mm512_broadcast_i128(hi16);
+                const __m512i lo = _mm512_broadcast_i32x4(lo16);
+                const __m512i hi = _mm512_broadcast_i32x4(hi16);
 
                 // Load 64 bytes of the power table row for this input position.
                 const __m512i x = _mm512_loadu_si512((const void*)&base[j * 64]);
