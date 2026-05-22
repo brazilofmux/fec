@@ -13,8 +13,14 @@ cd ../rstest && make && ./rstest -b
 `rstest -b` iterates `tt ∈ {1..8, 16, 24, 32, 40, 48, 56, 64}` and, for each
 `tt`, runs 100k iterations of each decoder variant on the same codeword.
 Before timing it also runs an internal cross-decoder correctness probe — if
-Auto / scalar Direct / Direct NEON / Direct AVX2 / Direct AVX-512 disagree on
-the corrected output, the run aborts with `ERROR: decoder disagreement at tt=N`.
+Auto / General (LFSR) / scalar Direct / Direct NEON / Direct AVX2 / Direct AVX-512
+disagree on the corrected output, the run aborts with
+`ERROR: decoder disagreement at tt=N`.
+
+The `General (LFSR)` column is the historical baseline: the LFSR/Horner-form
+decoder (`RS_DECODER_GENERAL`) that Auto routed to for any unspecialized `tt`
+before the Direct family landed. Same-run comparison against it is the speedup
+vs what production used to ship.
 
 All times are µs/decode (lower is better). Two columns per decoder:
 `w/err` = codeword with `tt/2` injected errors, `clean` = codeword with no errors.
@@ -127,10 +133,88 @@ RS Test Configuration:
 
 ---
 
-## aarch64 — _placeholder_
+## aarch64 — Apple M5 Max (MacBook Pro) — 2026-05-22
 
-When the M-series / Graviton box re-runs, add a section here mirroring the
-format above. The dedup commit (`721a55e`) reported partial data
-(`synd` NEON: 1.34 µs vs scalar 13.49 µs at tt=32; 3.95 µs vs 27.4 µs at tt=64)
-but not a full headline / phase table, so leaving this blank rather than
-inventing rows.
+- **Commit:** `b32ff9d` (Add General (LFSR) column to rstest -b benchmark)
+- **CPU:** Apple M5 Max, 18 cores (macOS reports `Mac17,6`)
+- **SIMD features:** NEON (always-on on aarch64; no compile flag needed)
+- **Compiler:** Apple clang 21.0.0 (clang-2100.1.1.101), target `arm64-apple-darwin25.4.0`
+- **Build flags:** `-O3 -fomit-frame-pointer` (librs) / `-O3 -finline-functions -Wall` (rstest);
+  no `-mavx2` / `-mavx512*` on aarch64 (Makefile gates those on `uname -m == x86_64`)
+- **Host:** macOS 26.4.1 on bare metal, default scheduler, single-thread run
+
+### Headline
+
+Auto routes to `RS_DECODER_T1` at `tt=1` (specialized) and to `RS_DECODER_DIRECT_NEON`
+for every other `tt`, so the Auto and NEON columns coincide for `tt ≥ 2`. The
+AVX2 / AVX-512 columns are the portable scalar fallback on this host (the
+intrinsics compile out), included for cross-decoder correctness only.
+
+Same-machine speedup of Auto over the historical General (LFSR) baseline:
+
+| tt  | General (LFSR, w/err) | Auto (w/err) | Direct NEON (w/err) | Auto vs General |
+|----:|----------------------:|-------------:|--------------------:|----------------:|
+|   1 |                  0.90 |         0.47 |                0.22 |           1.9×  |
+|   8 |                  1.43 |         0.33 |                0.33 |           4.3×  |
+|  16 |                  2.58 |         0.64 |                0.64 |           4.0×  |
+|  32 |                  5.17 |         1.40 |                1.39 |           3.7×  |
+|  64 |                 12.45 |         3.91 |                3.90 |           3.2×  |
+
+At `tt=64` the Auto-phase line shows `synd=1.67` out of `total=34.92` — syndromes
+are <5 % of total decode time once NEON has had its way with them. Further wins
+at high `tt` would have to come from BM / Chien / Forney, not syndrome calc.
+
+The encode column bounces (`tt=1: 0.42`, `tt=3: 1.10`, `tt=4: 0.56`, `tt=5: 1.07`)
+because only `tt ∈ {1, 2, 4, 8, 14, 16, 32, 64}` have hand-written
+`RS_FLIPPED_ENCODER_T*` specializations; everything else falls through to
+`RS_FLIPPED_ENCODER_GENERAL` at roughly 2× the cost. No SIMD on the encode side.
+
+### Raw output
+
+```
+RS Test Configuration:
+  Mode: Benchmark
+  Number of codewords: 10000
+  Verbosity level: Normal
+  Random seed: 1093
+  Verify correction: Yes
+//                Auto           General (LFSR)     Direct (scalar)    Direct (NEON)        Direct (AVX2)       Direct (AVX512)
+// tt  Encode  w/err   clean      w/err   clean      w/err   clean      w/err   clean      w/err   clean      w/err   clean
+//  1    0.42     0.47    0.48       0.90    0.90       0.62    0.63       0.22    0.22       0.63    0.62       0.63    0.62
+//     [Auto phases @ tt=1]  synd=0.67  BM=0.04  Chien=0.04  Forney=0.04  (total=0.88)  errs=0
+//  2    0.45     0.23    0.23       0.97    0.97       1.04    1.04       0.23    0.23       0.82    0.78       0.86    0.84
+//     [Auto phases @ tt=2]  synd=0.58  BM=0.29  Chien=0.88  Forney=0.21  (total=2.08)  errs=1
+//  3    1.10     0.25    0.26       1.11    1.11       1.41    1.40       0.26    0.26       1.00    1.01       1.05    1.05
+//     [Auto phases @ tt=3]  synd=0.58  BM=0.29  Chien=0.88  Forney=0.21  (total=2.00)  errs=1
+//  4    0.56     0.25    0.25       1.22    1.23       1.78    1.77       0.25    0.25       1.20    1.21       1.22    1.31
+//     [Auto phases @ tt=4]  synd=0.71  BM=0.46  Chien=1.00  Forney=0.17  (total=2.42)  errs=2
+//  5    1.07     0.27    0.26       1.33    1.33       2.19    2.19       0.26    0.27       1.42    1.43       1.44    1.43
+//     [Auto phases @ tt=5]  synd=0.83  BM=0.50  Chien=0.96  Forney=0.21  (total=2.50)  errs=2
+//  6    1.07     0.29    0.29       1.41    1.42       2.62    2.62       0.29    0.29       1.66    1.66       1.68    1.68
+//     [Auto phases @ tt=6]  synd=0.67  BM=0.33  Chien=0.96  Forney=0.21  (total=2.29)  errs=3
+//  7    1.06     0.32    0.32       1.43    1.44       3.08    3.08       0.32    0.32       1.93    1.94       1.94    1.95
+//     [Auto phases @ tt=7]  synd=0.58  BM=0.88  Chien=0.96  Forney=0.38  (total=2.83)  errs=3
+//  8    0.61     0.33    0.34       1.43    1.45       3.44    3.46       0.33    0.33       2.18    2.19       2.18    2.18
+//     [Auto phases @ tt=8]  synd=0.58  BM=1.00  Chien=1.12  Forney=0.25  (total=3.08)  errs=4
+// 16    0.63     0.64    0.65       2.58    2.59       7.64    7.62       0.64    0.65       4.26    4.28       4.28    4.26
+//     [Auto phases @ tt=16]  synd=0.96  BM=2.21  Chien=1.83  Forney=0.75  (total=5.88)  errs=8
+// 24    0.98     1.04    1.05       3.93    3.99      10.41   10.54       1.03    1.05       6.55    6.46       6.54    6.56
+//     [Auto phases @ tt=24]  synd=0.92  BM=4.29  Chien=3.00  Forney=1.21  (total=9.46)  errs=12
+// 32    0.57     1.40    1.41       5.17    5.18      13.74   13.74       1.39    1.38       8.61    8.62       8.70    8.71
+//     [Auto phases @ tt=32]  synd=1.08  BM=6.42  Chien=3.46  Forney=1.83  (total=12.88)  errs=16
+// 40    0.84     1.92    1.91       6.62    6.63      17.04   17.10       1.90    1.90      10.92   11.03      10.92   10.93
+//     [Auto phases @ tt=40]  synd=1.17  BM=9.12  Chien=3.92  Forney=2.83  (total=17.12)  errs=20
+// 48    0.77     2.50    2.49       8.98    8.99      20.25   20.26       2.50    2.49      13.24   13.14      13.48   13.47
+//     [Auto phases @ tt=48]  synd=1.33  BM=11.71  Chien=5.21  Forney=3.50  (total=21.88)  errs=24
+// 56    0.70     3.12    3.12       9.72    9.72      23.78   23.89       3.14    3.13      15.72   15.79      15.83   16.33
+//     [Auto phases @ tt=56]  synd=2.62  BM=16.21  Chien=5.50  Forney=4.42  (total=28.79)  errs=28
+// 64    0.52     3.91    3.93      12.45   12.47      27.34   27.54       3.90    3.90      18.21   18.24      18.31   18.46
+//     [Auto phases @ tt=64]  synd=1.67  BM=20.29  Chien=6.79  Forney=6.04  (total=34.92)  errs=32
+```
+
+### Note on the older x86_64 entry above
+
+The Cascade Lake entry from 2026-05-17 predates the `General (LFSR)` column.
+Its raw output has 10 columns instead of 12; that's a known format gap, not a
+data problem. When that box (or another x86 host) re-runs, the new layout will
+overwrite this asymmetry naturally.
