@@ -102,12 +102,13 @@ void run_benchmarks() {
         data[i] = i & 0xFF;
     }
 
-    printf("//                Auto             Direct (scalar)    Direct (NEON)        Direct (AVX2)       Direct (AVX512)\n");
-    printf("// tt  Encode  w/err   clean      w/err   clean      w/err   clean      w/err   clean      w/err   clean\n");
+    printf("//                Auto           General (LFSR)     Direct (scalar)    Direct (NEON)        Direct (AVX2)       Direct (AVX512)\n");
+    printf("// tt  Encode  w/err   clean      w/err   clean      w/err   clean      w/err   clean      w/err   clean      w/err   clean\n");
 
     for (const int tt_val : tt_values) {
         const int b0 = (nn - 2 * tt_val + 1) / 2;
         auto codec_auto    = RS_FACTORY::instance().create_codec(tt_val, b0, RS_FACTORY::DecoderKind::Auto);
+        auto codec_general = RS_FACTORY::instance().create_codec(tt_val, b0, RS_FACTORY::DecoderKind::General);
         auto codec_direct  = RS_FACTORY::instance().create_codec(tt_val, b0, RS_FACTORY::DecoderKind::Direct);
         auto codec_neon    = RS_FACTORY::instance().create_codec(tt_val, b0, RS_FACTORY::DecoderKind::DirectNeon);
         auto codec_avx2    = RS_FACTORY::instance().create_codec(tt_val, b0, RS_FACTORY::DecoderKind::DirectAvx2);
@@ -124,32 +125,36 @@ void run_benchmarks() {
             for (int i = 0; i < tt_val / 2; i++) {
                 probe[i * 2] ^= 0xFF;
             }
-            GF probe_a[nn], probe_d[nn], probe_n[nn], probe_x[nn], probe_5[nn];
+            GF probe_a[nn], probe_g[nn], probe_d[nn], probe_n[nn], probe_x[nn], probe_5[nn];
             memcpy(probe_a, probe, nn);
+            memcpy(probe_g, probe, nn);
             memcpy(probe_d, probe, nn);
             memcpy(probe_n, probe, nn);
             memcpy(probe_x, probe, nn);
             memcpy(probe_5, probe, nn);
             int ra = codec_auto->RSDecode(probe_a);
+            int rg = codec_general->RSDecode(probe_g);
             int rd = codec_direct->RSDecode(probe_d);
             int rn = codec_neon->RSDecode(probe_n);
             int rx = codec_avx2->RSDecode(probe_x);
             int r5 = codec_avx512->RSDecode(probe_5);
             const bool buf_ok = (memcmp(probe_a, golden, nn) == 0)
+                             && (memcmp(probe_g, golden, nn) == 0)
                              && (memcmp(probe_d, golden, nn) == 0)
                              && (memcmp(probe_n, golden, nn) == 0)
                              && (memcmp(probe_x, golden, nn) == 0)
                              && (memcmp(probe_5, golden, nn) == 0);
-            if (ra != rd || ra != rn || ra != rx || ra != r5 || !buf_ok) {
-                fprintf(stderr, "ERROR: decoder disagreement at tt=%d (ra=%d rd=%d rn=%d rx=%d r5=%d, bufs=%d)\n",
-                    tt_val, ra, rd, rn, rx, r5, buf_ok);
+            if (ra != rg || ra != rd || ra != rn || ra != rx || ra != r5 || !buf_ok) {
+                fprintf(stderr, "ERROR: decoder disagreement at tt=%d (ra=%d rg=%d rd=%d rn=%d rx=%d r5=%d, bufs=%d)\n",
+                    tt_val, ra, rg, rd, rn, rx, r5, buf_ok);
                 return;
             }
         }
         const int kk = nn - 2 * tt_val;
         double encode_time = 0.0;
-        double decode_auto_clean = 0.0,   decode_auto_errors = 0.0;
-        double decode_direct_clean = 0.0, decode_direct_errors = 0.0;
+        double decode_auto_clean = 0.0,    decode_auto_errors = 0.0;
+        double decode_general_clean = 0.0, decode_general_errors = 0.0;
+        double decode_direct_clean = 0.0,  decode_direct_errors = 0.0;
         double decode_neon_clean = 0.0,    decode_neon_errors = 0.0;
         double decode_avx2_clean = 0.0,    decode_avx2_errors = 0.0;
         double decode_avx512_clean = 0.0,  decode_avx512_errors = 0.0;
@@ -183,6 +188,28 @@ void run_benchmarks() {
         }
         end = std::chrono::high_resolution_clock::now();
         decode_auto_errors = std::chrono::duration<double, std::micro>(end - start).count() / iterations;
+
+        // --- General (LFSR) decoder --- baseline that Auto used to route to pre-SIMD
+        memcpy(recd, bb, 2 * tt_val);
+        memcpy(recd + nn - kk, data, kk);
+        start = std::chrono::high_resolution_clock::now();
+        for (int i = 0; i < iterations; i++) {
+            codec_general->RSDecode(recd);
+        }
+        end = std::chrono::high_resolution_clock::now();
+        decode_general_clean = std::chrono::duration<double, std::micro>(end - start).count() / iterations;
+
+        memcpy(recd, bb, 2 * tt_val);
+        memcpy(recd + nn - kk, data, kk);
+        for (int i = 0; i < tt_val / 2; i++) {
+            recd[i * 2] ^= 0xFF;
+        }
+        start = std::chrono::high_resolution_clock::now();
+        for (int i = 0; i < iterations; i++) {
+            codec_general->RSDecode(recd);
+        }
+        end = std::chrono::high_resolution_clock::now();
+        decode_general_errors = std::chrono::duration<double, std::micro>(end - start).count() / iterations;
 
         // --- Direct decoder ---
         memcpy(recd, bb, 2 * tt_val);
@@ -272,9 +299,10 @@ void run_benchmarks() {
         end = std::chrono::high_resolution_clock::now();
         decode_avx512_errors = std::chrono::duration<double, std::micro>(end - start).count() / iterations;
 
-        printf("//%3d  %6.2f  %7.2f %7.2f    %7.2f %7.2f    %7.2f %7.2f    %7.2f %7.2f    %7.2f %7.2f\n",
+        printf("//%3d  %6.2f  %7.2f %7.2f    %7.2f %7.2f    %7.2f %7.2f    %7.2f %7.2f    %7.2f %7.2f    %7.2f %7.2f\n",
             tt_val, encode_time,
             decode_auto_errors,    decode_auto_clean,
+            decode_general_errors, decode_general_clean,
             decode_direct_errors,  decode_direct_clean,
             decode_neon_errors,    decode_neon_clean,
             decode_avx2_errors,    decode_avx2_clean,
