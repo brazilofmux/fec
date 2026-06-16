@@ -24,14 +24,20 @@ std::shared_ptr<RS_DECODER_BASE> RS_FACTORY::create_decoder(int tt, int b0, Deco
             return std::make_shared<RS_DECODER_GENERAL>(tt, b0);
         case DecoderKind::Direct:
             return std::make_shared<RS_DECODER_DIRECT>(tt, b0);
+#if defined(__aarch64__)
         case DecoderKind::DirectNeon:
             return std::make_shared<RS_DECODER_DIRECT_NEON>(tt, b0);
+#endif
+#if defined(__x86_64__) || defined(_M_X64)
         case DecoderKind::DirectAvx2:
             return std::make_shared<RS_DECODER_DIRECT_AVX2>(tt, b0);
         case DecoderKind::DirectAvx512:
             return std::make_shared<RS_DECODER_DIRECT_AVX512>(tt, b0);
+#endif
         case DecoderKind::Auto:
         default:
+            // Includes any SIMD kind not available on this architecture, which
+            // falls through to the arch-guarded best-decoder selection.
             return create_best_decoder(tt, b0);
     }
 }
