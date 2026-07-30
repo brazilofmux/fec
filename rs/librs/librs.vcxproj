@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -149,6 +149,10 @@
     <ClInclude Include="rs_codec.h" />
     <ClInclude Include="rs_common.h" />
     <ClInclude Include="rs_decoder_base.h" />
+    <ClInclude Include="rs_decoder_direct.h" />
+    <ClInclude Include="rs_decoder_direct_avx2.h" />
+    <ClInclude Include="rs_decoder_direct_avx512.h" />
+    <ClInclude Include="rs_decoder_direct_neon.h" />
     <ClInclude Include="rs_decoder_general.h" />
     <ClInclude Include="rs_decoder_t1.h" />
     <ClInclude Include="rs_encoder_base.h" />
@@ -168,6 +172,10 @@
   <ItemGroup>
     <ClCompile Include="crc.cpp" />
     <ClCompile Include="rs_decoder_base.cpp" />
+    <ClCompile Include="rs_decoder_direct.cpp" />
+    <ClCompile Include="rs_decoder_direct_avx2.cpp" />
+    <ClCompile Include="rs_decoder_direct_avx512.cpp" />
+    <ClCompile Include="rs_decoder_direct_neon.cpp" />
     <ClCompile Include="rs_decoder_general.cpp" />
     <ClCompile Include="rs_decoder_t1.cpp" />
     <ClCompile Include="rs_flipped_encoder_general.cpp" />

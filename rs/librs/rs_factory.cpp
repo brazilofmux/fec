@@ -12,13 +12,26 @@ RS_FACTORY::RS_FACTORY()
     register_implementations();
 }
 
+bool RS_FACTORY::valid_params(int tt, int b0) {
+    // tt outside [MIN_TT, MAX_TT] overflows fixed-size pipeline buffers, and
+    // b0 outside [0, nn) indexes the GF tables out of bounds during generator
+    // polynomial construction.
+    return MIN_TT <= tt && tt <= MAX_TT && 0 <= b0 && b0 < nn;
+}
+
 std::unique_ptr<RS_CODEC> RS_FACTORY::create_codec(int tt, int b0, DecoderKind decoder_kind) {
+    if (!valid_params(tt, b0)) {
+        return nullptr;
+    }
     auto encoder = create_best_encoder(tt, b0);
     auto decoder = create_decoder(tt, b0, decoder_kind);
     return std::make_unique<RS_CODEC>(std::move(encoder), decoder);
 }
 
 std::shared_ptr<RS_DECODER_BASE> RS_FACTORY::create_decoder(int tt, int b0, DecoderKind kind) {
+    if (!valid_params(tt, b0)) {
+        return nullptr;
+    }
     switch (kind) {
         case DecoderKind::General:
             return std::make_shared<RS_DECODER_GENERAL>(tt, b0);
@@ -88,8 +101,16 @@ std::shared_ptr<RS_DECODER_BASE> RS_FACTORY::create_best_decoder(int tt, int b0)
     // No hand-specialized decoder for this tt — pick the fastest Direct SIMD variant
     // available on this machine at runtime.
 #if defined(__x86_64__) || defined(_M_X64)
-    // Prefer widest vector unit first
-    return std::make_shared<RS_DECODER_DIRECT_AVX512>(tt, b0);
+    // Prefer the widest vector unit the CPU actually has; each class falls
+    // back to scalar internally, so without the runtime check an AVX2-only
+    // host would get the AVX-512 class's scalar fallback instead of AVX2.
+    if (RS_DECODER_DIRECT_AVX512::cpu_supported()) {
+        return std::make_shared<RS_DECODER_DIRECT_AVX512>(tt, b0);
+    }
+    if (RS_DECODER_DIRECT_AVX2::cpu_supported()) {
+        return std::make_shared<RS_DECODER_DIRECT_AVX2>(tt, b0);
+    }
+    return std::make_shared<RS_DECODER_DIRECT>(tt, b0);
 #elif defined(__aarch64__)
     return std::make_shared<RS_DECODER_DIRECT_NEON>(tt, b0);
 #else

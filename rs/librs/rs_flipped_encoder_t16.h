@@ -61,9 +61,13 @@ private:
         // #define DO8(x) {
         //     *((UINT64 *)(bb+x)) = *((UINT64 *)(bb+x+1))
         //                         ^ (*((UINT64 *)(TableRow+x))); }
-        uint64_t next_block = *reinterpret_cast<uint64_t*>(bb + 1);
-        uint64_t table_block = *reinterpret_cast<const uint64_t*>(TableRow);
-        *reinterpret_cast<uint64_t*>(bb) = next_block ^ table_block;
+        // memcpy compiles to single unaligned load/store instructions at -O1+
+        // while staying alignment- and aliasing-clean.
+        uint64_t next_block, table_block;
+        memcpy(&next_block, bb + 1, sizeof(next_block));
+        memcpy(&table_block, TableRow, sizeof(table_block));
+        next_block ^= table_block;
+        memcpy(bb, &next_block, sizeof(next_block));
     }
 
     // Helper for 32-bit operations - processes 4 bytes at once
@@ -72,9 +76,13 @@ private:
         // #define DO4(x) {
         //     *((UINT32 *)(bb+x)) = *((UINT32 *)(bb+x+1))
         //                         ^ (*((UINT32 *)(TableRow+x))); }
-        uint32_t next_block = *reinterpret_cast<uint32_t*>(bb + 1);
-        uint32_t table_block = *reinterpret_cast<const uint32_t*>(TableRow);
-        *reinterpret_cast<uint32_t*>(bb) = next_block ^ table_block;
+        // memcpy compiles to single unaligned load/store instructions at -O1+
+        // while staying alignment- and aliasing-clean.
+        uint32_t next_block, table_block;
+        memcpy(&next_block, bb + 1, sizeof(next_block));
+        memcpy(&table_block, TableRow, sizeof(table_block));
+        next_block ^= table_block;
+        memcpy(bb, &next_block, sizeof(next_block));
     }
 
     // Helper for single byte operations

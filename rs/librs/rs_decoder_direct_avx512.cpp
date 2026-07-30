@@ -27,6 +27,14 @@ static bool cpu_has_avx512() {
 #endif
 } // namespace
 
+bool RS_DECODER_DIRECT_AVX512::cpu_supported() {
+#if defined(RS_HAVE_AVX512_COMPILE)
+    return cpu_has_avx512();
+#else
+    return false;
+#endif
+}
+
 RS_DECODER_DIRECT_AVX512::RS_DECODER_DIRECT_AVX512(int tt, int b0)
     : RS_DECODER_BASE(tt, b0), avx512_usable_(false),
       split_lo_(RS_TABLES::instance().get_split_lo()),

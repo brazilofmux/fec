@@ -8,6 +8,11 @@ class RS_ENCODER_BASE {
 public:
     virtual ~RS_ENCODER_BASE() = default;
 
+    // Concrete encoders own raw lookup-table allocations; copying would
+    // double-free them.
+    RS_ENCODER_BASE(const RS_ENCODER_BASE&) = delete;
+    RS_ENCODER_BASE& operator=(const RS_ENCODER_BASE&) = delete;
+
     virtual void RSEncode(GF data[MAX_KK], GF bb[2 * MAX_TT]) = 0;
 
     int get_tt() const { return tt_; }

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -84,6 +84,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
+      <AdditionalIncludeDirectories>..\librs;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -96,6 +97,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
+      <AdditionalIncludeDirectories>..\librs;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level3</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -112,6 +114,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
+      <AdditionalIncludeDirectories>..\librs;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -124,6 +127,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
+      <AdditionalIncludeDirectories>..\librs;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level3</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -142,27 +146,8 @@
     <ClCompile Include="rsframe.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="crc.h" />
-    <ClInclude Include="projdefs.h" />
     <ClInclude Include="rsframe.h" />
-    <ClInclude Include="rs_codec.h" />
-    <ClInclude Include="rs_common.h" />
-    <ClInclude Include="rs_decoder_base.h" />
-    <ClInclude Include="rs_decoder_general.h" />
-    <ClInclude Include="rs_decoder_t1.h" />
-    <ClInclude Include="rs_encoder_base.h" />
-    <ClInclude Include="rs_encoder_general.h" />
-    <ClInclude Include="rs_encoder_general_descending.h" />
-    <ClInclude Include="rs_encoder_t1.h" />
-    <ClInclude Include="rs_flipped_encoder_t14.h" />
-    <ClInclude Include="rs_flipped_encoder_t16.h" />
-    <ClInclude Include="rs_encoder_t2.h" />
-    <ClInclude Include="rs_encoder_t32.h" />
-    <ClInclude Include="rs_encoder_t4.h" />
-    <ClInclude Include="rs_encoder_t64.h" />
-    <ClInclude Include="rs_encoder_t8.h" />
-    <ClInclude Include="rs_factory.h" />
-    <ClInclude Include="rs_tables.h" />
+    <ClInclude Include="rsframe_processor.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\librs\librs.vcxproj">

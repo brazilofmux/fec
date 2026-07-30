@@ -42,15 +42,23 @@ private:
 
     // Helpers for block operations
     static inline void process_block8(GF* bb, const GF* TableRow) {
-        uint64_t next_block = *reinterpret_cast<uint64_t*>(bb + 1);
-        uint64_t table_block = *reinterpret_cast<const uint64_t*>(TableRow);
-        *reinterpret_cast<uint64_t*>(bb) = next_block ^ table_block;
+        // memcpy compiles to single unaligned load/store instructions at -O1+
+        // while staying alignment- and aliasing-clean.
+        uint64_t next_block, table_block;
+        memcpy(&next_block, bb + 1, sizeof(next_block));
+        memcpy(&table_block, TableRow, sizeof(table_block));
+        next_block ^= table_block;
+        memcpy(bb, &next_block, sizeof(next_block));
     }
 
     static inline void process_block4(GF* bb, const GF* TableRow) {
-        uint32_t next_block = *reinterpret_cast<uint32_t*>(bb + 1);
-        uint32_t table_block = *reinterpret_cast<const uint32_t*>(TableRow);
-        *reinterpret_cast<uint32_t*>(bb) = next_block ^ table_block;
+        // memcpy compiles to single unaligned load/store instructions at -O1+
+        // while staying alignment- and aliasing-clean.
+        uint32_t next_block, table_block;
+        memcpy(&next_block, bb + 1, sizeof(next_block));
+        memcpy(&table_block, TableRow, sizeof(table_block));
+        next_block ^= table_block;
+        memcpy(bb, &next_block, sizeof(next_block));
     }
 
     // Process a single byte in the flipped encoder

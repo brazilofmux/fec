@@ -67,34 +67,43 @@ void RS_FLIPPED_ENCODER_T2::RSGenTable() {
 void RS_FLIPPED_ENCODER_T2::RSEncode(GF data[MAX_KK], GF bb[2 * MAX_TT]) {
     // Initialize LFSR to 0
     uint32_t LFSR = 0;
-    uint32_t* pul = reinterpret_cast<uint32_t*>(data);
-    uint32_t* plongtable = reinterpret_cast<uint32_t*>(ptable);
+    const GF* pdata = data;
+
+    // Loads a 4-byte ptable row as one word. memcpy compiles to a single
+    // load instruction at -O1+ while staying alignment- and aliasing-clean.
+    auto table_row32 = [this](GF idx) {
+        uint32_t row;
+        memcpy(&row, ptable + 4 * idx, sizeof(row));
+        return row;
+    };
 
     // Process data in 4-byte chunks for most of the data
     int remaining = kk_;
     while (remaining >= 4) {
-        LFSR ^= *pul++;  // XOR in next 4 bytes of data
+        uint32_t chunk;
+        memcpy(&chunk, pdata, sizeof(chunk));  // XOR in next 4 bytes of data
+        pdata += 4;
+        LFSR ^= chunk;
 
         // Process each byte through the LFSR
-        LFSR ^= plongtable[(GF)LFSR] << 8;
+        LFSR ^= table_row32((GF)LFSR) << 8;
         LFSR = rotr32(LFSR, 8);
-        LFSR ^= plongtable[(GF)LFSR] << 8;
+        LFSR ^= table_row32((GF)LFSR) << 8;
         LFSR = rotr32(LFSR, 8);
-        LFSR ^= plongtable[(GF)LFSR] << 8;
+        LFSR ^= table_row32((GF)LFSR) << 8;
         LFSR = rotr32(LFSR, 8);
-        LFSR ^= plongtable[(GF)LFSR] << 8;
+        LFSR ^= table_row32((GF)LFSR) << 8;
         LFSR = rotr32(LFSR, 8);
 
         remaining -= 4;
     }
 
     // Store current LFSR state into output
-    *reinterpret_cast<uint32_t*>(bb) = LFSR;
+    memcpy(bb, &LFSR, sizeof(LFSR));
 
     // Handle remaining bytes one at a time
-    GF* remaining_data = reinterpret_cast<GF*>(pul);
     while (remaining > 0) {
-        const GF feedback = bb[0] ^ *remaining_data++;
+        const GF feedback = bb[0] ^ *pdata++;
         bb[0] = bb[1] ^ ptable[4 * feedback];
         bb[1] = bb[2] ^ ptable[4 * feedback + 1];
         bb[2] = bb[3] ^ ptable[4 * feedback + 2];

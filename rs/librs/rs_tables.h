@@ -21,6 +21,8 @@ public:
     const GF* get_split_lo() const { return split_lo_; }
     const GF* get_split_hi() const { return split_hi_; }
 
+    // Tables are fully initialized by the constructor; this remains for
+    // callers that predate that guarantee.
     void ensure_initialized();
 
     GF mod_nn(int x) const {

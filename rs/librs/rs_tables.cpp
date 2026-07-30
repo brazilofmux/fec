@@ -13,6 +13,14 @@ RS_TABLES::RS_TABLES()
     , split_hi_(new GF[GF_N * 16])
     , mod_table_(nullptr)
 {
+    // Initialize in the constructor so any entry point — including direct
+    // construction of an encoder/decoder without going through RS_FACTORY —
+    // sees populated tables. The function-local static in instance() makes
+    // this thread-safe; a lazy ensure_initialized() from multiple threads
+    // would not be.
+    initialize_gf();
+    initialize_split_tables();
+    is_initialized_ = true;
 }
 
 RS_TABLES::~RS_TABLES() {
