@@ -15,5 +15,6 @@ static const GF GF_INFINITY = nn;
 
 #define RS_ERROR_CHIEN_SEARCH -2 // Roots of lamda (by Chien Search) not equal to degree of lamda.
 #define RS_ERROR_LAMBDA_ERROR -3 // Degree of lamda too high to yield necessary number of roots.
+#define RS_ERROR_INVALID_ERASURES -4 // Erasure count outside [0, 2*tt] or position outside [0, nn).
 
 #endif // RS_COMMON_H

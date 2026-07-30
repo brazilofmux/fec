@@ -293,6 +293,20 @@ int RS_DECODER_BASE::RSDecode(GF recd[nn]) {
 }
 
 int RS_DECODER_BASE::RSDecodeErasures(GF recd[nn], int eras_pos[2 * MAX_TT], int no_eras) {
+    // Validate erasure inputs before any work: positions index the GF tables
+    // directly in construct_erasure_locator, and a count above 2*tt would
+    // walk the locator polynomial past its bounds.
+    if (no_eras < 0 || no_eras > 2 * tt_)
+        return RS_ERROR_INVALID_ERASURES;
+    if (no_eras > 0) {
+        if (eras_pos == nullptr)
+            return RS_ERROR_INVALID_ERASURES;
+        for (int i = 0; i < no_eras; i++) {
+            if (static_cast<unsigned int>(eras_pos[i]) >= nn)
+                return RS_ERROR_INVALID_ERASURES;
+        }
+    }
+
     std::vector<GF> syndromes;
     calculate_syndromes(recd, syndromes);
     return run_pipeline(syndromes, eras_pos, no_eras, recd, nullptr);
