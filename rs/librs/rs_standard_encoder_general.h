@@ -37,17 +37,26 @@ private:
     std::vector<GF> gg;     // Generator polynomial coefficients
     GF* ptable;             // Lookup table for encoding
 
-    // Helpers for block operations
+    // Helpers for block operations. memcpy compiles to single unaligned
+    // load/store instructions at -O1+ while staying alignment- and
+    // aliasing-clean, unlike the reinterpret_cast loads they replace.
+    // Note the backward-looking read window: the block written at bb[0..7]
+    // is computed from bb[-1..6], so callers must never place a block at
+    // the bottom of the parity buffer.
     static inline void process_block8(GF* bb, const GF* TableRow) {
-        uint64_t next_block = *reinterpret_cast<uint64_t*>(bb - 1);
-        uint64_t table_block = *reinterpret_cast<const uint64_t*>(TableRow);
-        *reinterpret_cast<uint64_t*>(bb) = next_block ^ table_block;
+        uint64_t next_block, table_block;
+        memcpy(&next_block, bb - 1, sizeof(next_block));
+        memcpy(&table_block, TableRow, sizeof(table_block));
+        next_block ^= table_block;
+        memcpy(bb, &next_block, sizeof(next_block));
     }
 
     static inline void process_block4(GF* bb, const GF* TableRow) {
-        uint32_t next_block = *reinterpret_cast<uint32_t*>(bb - 1);
-        uint32_t table_block = *reinterpret_cast<const uint32_t*>(TableRow);
-        *reinterpret_cast<uint32_t*>(bb) = next_block ^ table_block;
+        uint32_t next_block, table_block;
+        memcpy(&next_block, bb - 1, sizeof(next_block));
+        memcpy(&table_block, TableRow, sizeof(table_block));
+        next_block ^= table_block;
+        memcpy(bb, &next_block, sizeof(next_block));
     }
 
     // Process a single byte in the standard encoder

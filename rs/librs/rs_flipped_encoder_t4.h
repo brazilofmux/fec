@@ -29,9 +29,13 @@ private:
         // #define DO4(x) {
         //     *((UINT32 *)(bb+x)) = *((UINT32 *)(bb+x+1))
         //                         ^ (*((UINT32 *)(TableRow+x))); }
-        uint32_t next_block = *reinterpret_cast<uint32_t*>(bb + 1);
-        uint32_t table_block = *reinterpret_cast<const uint32_t*>(TableRow);
-        *reinterpret_cast<uint32_t*>(bb) = next_block ^ table_block;
+        // memcpy compiles to single unaligned load/store instructions at -O1+
+        // while staying alignment- and aliasing-clean.
+        uint32_t next_block, table_block;
+        memcpy(&next_block, bb + 1, sizeof(next_block));
+        memcpy(&table_block, TableRow, sizeof(table_block));
+        next_block ^= table_block;
+        memcpy(bb, &next_block, sizeof(next_block));
     }
 
     // Helper for single byte operations - processes one byte

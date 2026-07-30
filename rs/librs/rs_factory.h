@@ -39,6 +39,8 @@ public:
 
     static RS_FACTORY& instance();
 
+    // Both creators return nullptr when tt is outside [MIN_TT, MAX_TT] or
+    // b0 is outside [0, nn).
     std::unique_ptr<RS_CODEC> create_codec(int tt, int b0,
                                            DecoderKind decoder_kind = DecoderKind::Auto);
 
@@ -57,6 +59,8 @@ private:
     std::map<int, DecoderCreator> decoder_registry;
 
     void register_implementations();
+
+    static bool valid_params(int tt, int b0);
 
     std::unique_ptr<RS_ENCODER_BASE> create_best_encoder(int tt, int b0);
     std::shared_ptr<RS_DECODER_BASE> create_best_decoder(int tt, int b0);

@@ -29,6 +29,14 @@ static bool cpu_has_avx2() {
 #endif
 } // namespace
 
+bool RS_DECODER_DIRECT_AVX2::cpu_supported() {
+#if defined(RS_HAVE_AVX2_COMPILE)
+    return cpu_has_avx2();
+#else
+    return false;
+#endif
+}
+
 RS_DECODER_DIRECT_AVX2::RS_DECODER_DIRECT_AVX2(int tt, int b0)
     : RS_DECODER_BASE(tt, b0), avx2_usable_(false),
       split_lo_(RS_TABLES::instance().get_split_lo()),

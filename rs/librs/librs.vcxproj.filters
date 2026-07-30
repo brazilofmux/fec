@@ -33,6 +33,18 @@
     <ClInclude Include="rs_decoder_base.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="rs_decoder_direct.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="rs_decoder_direct_avx2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="rs_decoder_direct_avx512.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="rs_decoder_direct_neon.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="rs_decoder_general.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -84,6 +96,18 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="rs_decoder_base.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="rs_decoder_direct.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="rs_decoder_direct_avx2.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="rs_decoder_direct_avx512.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="rs_decoder_direct_neon.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="rs_decoder_general.cpp">

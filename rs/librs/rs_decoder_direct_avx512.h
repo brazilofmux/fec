@@ -14,6 +14,11 @@ public:
     explicit RS_DECODER_DIRECT_AVX512(int tt, int b0);
     ~RS_DECODER_DIRECT_AVX512() = default;
 
+    // True when this build has the AVX-512 code path compiled in AND the CPU
+    // supports it — i.e. an instance would use SIMD rather than the scalar
+    // fallback. Used by the factory's best-decoder selection.
+    static bool cpu_supported();
+
 private:
     void calculate_syndromes(const GF recd[nn], std::vector<GF>& syndromes) override;
 
