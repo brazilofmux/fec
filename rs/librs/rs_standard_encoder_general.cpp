@@ -1,4 +1,5 @@
 #include "rs_standard_encoder_general.h"
+#include <cstring>
 
 RS_STANDARD_ENCODER_GENERAL::RS_STANDARD_ENCODER_GENERAL(int tt, int b0)
     : RS_ENCODER_BASE(tt, b0)

@@ -1,4 +1,5 @@
 #include "rs_flipped_encoder_t16.h"
+#include <cstring>
 #include <memory>
 
 RS_FLIPPED_ENCODER_T16::RS_FLIPPED_ENCODER_T16(int b0)

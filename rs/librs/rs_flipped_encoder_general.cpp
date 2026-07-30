@@ -1,4 +1,5 @@
 #include "rs_flipped_encoder_general.h"
+#include <cstring>
 #include <memory>
 
 RS_FLIPPED_ENCODER_GENERAL::RS_FLIPPED_ENCODER_GENERAL(int tt, int b0)

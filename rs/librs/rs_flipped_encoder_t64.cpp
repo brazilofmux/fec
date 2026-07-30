@@ -1,4 +1,5 @@
 #include "rs_flipped_encoder_t64.h"
+#include <cstring>
 #include <memory>
 
 RS_FLIPPED_ENCODER_T64::RS_FLIPPED_ENCODER_T64(int b0)
