@@ -179,11 +179,12 @@ void run_benchmarks() {
 
         memcpy(recd, bb, 2 * tt_val);
         memcpy(recd + nn - kk, data, kk);
-        for (int i = 0; i < tt_val / 2; i++) {
-            recd[i * 2] ^= 0xFF;
-        }
         start = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < iterations; i++) {
+            // Re-inject errors every pass: RSDecode corrects recd in place,
+            // so a one-time corruption would leave iterations 2..N measuring
+            // a clean codeword.
+            for (int e = 0; e < tt_val / 2; e++) recd[e * 2] ^= 0xFF;
             codec_auto->RSDecode(recd);
         }
         end = std::chrono::high_resolution_clock::now();
@@ -201,11 +202,9 @@ void run_benchmarks() {
 
         memcpy(recd, bb, 2 * tt_val);
         memcpy(recd + nn - kk, data, kk);
-        for (int i = 0; i < tt_val / 2; i++) {
-            recd[i * 2] ^= 0xFF;
-        }
         start = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < iterations; i++) {
+            for (int e = 0; e < tt_val / 2; e++) recd[e * 2] ^= 0xFF;
             codec_general->RSDecode(recd);
         }
         end = std::chrono::high_resolution_clock::now();
@@ -223,11 +222,9 @@ void run_benchmarks() {
 
         memcpy(recd, bb, 2 * tt_val);
         memcpy(recd + nn - kk, data, kk);
-        for (int i = 0; i < tt_val / 2; i++) {
-            recd[i * 2] ^= 0xFF;
-        }
         start = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < iterations; i++) {
+            for (int e = 0; e < tt_val / 2; e++) recd[e * 2] ^= 0xFF;
             codec_direct->RSDecode(recd);
         }
         end = std::chrono::high_resolution_clock::now();
@@ -245,11 +242,9 @@ void run_benchmarks() {
 
         memcpy(recd, bb, 2 * tt_val);
         memcpy(recd + nn - kk, data, kk);
-        for (int i = 0; i < tt_val / 2; i++) {
-            recd[i * 2] ^= 0xFF;
-        }
         start = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < iterations; i++) {
+            for (int e = 0; e < tt_val / 2; e++) recd[e * 2] ^= 0xFF;
             codec_neon->RSDecode(recd);
         }
         end = std::chrono::high_resolution_clock::now();
@@ -267,11 +262,9 @@ void run_benchmarks() {
 
         memcpy(recd, bb, 2 * tt_val);
         memcpy(recd + nn - kk, data, kk);
-        for (int i = 0; i < tt_val / 2; i++) {
-            recd[i * 2] ^= 0xFF;
-        }
         start = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < iterations; i++) {
+            for (int e = 0; e < tt_val / 2; e++) recd[e * 2] ^= 0xFF;
             codec_avx2->RSDecode(recd);
         }
         end = std::chrono::high_resolution_clock::now();
@@ -289,11 +282,9 @@ void run_benchmarks() {
 
         memcpy(recd, bb, 2 * tt_val);
         memcpy(recd + nn - kk, data, kk);
-        for (int i = 0; i < tt_val / 2; i++) {
-            recd[i * 2] ^= 0xFF;
-        }
         start = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < iterations; i++) {
+            for (int e = 0; e < tt_val / 2; e++) recd[e * 2] ^= 0xFF;
             codec_avx512->RSDecode(recd);
         }
         end = std::chrono::high_resolution_clock::now();

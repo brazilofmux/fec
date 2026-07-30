@@ -1,6 +1,7 @@
 #include <vector>
 #include "rs_decoder_general.h"
 #include <cstdlib>
+#include <cstring>
 #include <stdio.h>
 
 RS_DECODER_GENERAL::RS_DECODER_GENERAL(int tt, int b0) : RS_DECODER_BASE(tt, b0) {
@@ -18,7 +19,8 @@ void RS_DECODER_GENERAL::calculate_syndromes(const GF recd[nn], std::vector<GF>&
     syndromes.assign(2 * tt_ + 1, 0);
 
     // Initialize LFSR states
-    std::vector<GF> lfsr(2 * tt_ + 1, 0);
+    GF lfsr[2 * MAX_TT + 1];
+    memset(lfsr, 0, (2 * tt_ + 1) * sizeof(GF));
 
     // Process each byte through all LFSRs
     for (int j = nn - 1; j >= 0; j--) {

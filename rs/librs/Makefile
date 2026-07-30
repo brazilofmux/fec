@@ -1,5 +1,10 @@
 all: librs.a
 
+.PHONY: all clean
+
+clean:
+	rm -f *.o librs.a
+
 # Architecture detection for optional SIMD compilation (AVX2 + AVX-512)
 ifeq ($(shell uname -m),x86_64)
 AVX2_FLAG    = -mavx2

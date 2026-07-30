@@ -6,9 +6,13 @@ sessions on other boxes can sanity-check their numbers against a known baseline.
 ## How to reproduce
 
 ```
-cd rs/librs && make
-cd ../rstest && make && ./rstest -b
+cd rs/librs && make clean && make
+cd ../rstest && make clean && make && ./rstest -b
 ```
+
+Always build from clean. The librs Makefile's header dependencies are not
+exhaustive, and stale objects have produced misleading entries in this file
+before (see the 2026-07-29 section).
 
 `rstest -b` iterates `tt ∈ {1..8, 16, 24, 32, 40, 48, 56, 64}` and, for each
 `tt`, runs 100k iterations of each decoder variant on the same codeword.
@@ -218,3 +222,120 @@ The Cascade Lake entry from 2026-05-17 predates the `General (LFSR)` column.
 Its raw output has 10 columns instead of 12; that's a known format gap, not a
 data problem. When that box (or another x86 host) re-runs, the new layout will
 overwrite this asymmetry naturally.
+
+---
+
+## aarch64 — Apple M5 Max (MacBook Pro) — 2026-07-29 — decode-pipeline optimization pass
+
+- **Commit:** `13864de` + uncommitted decode-pipeline optimizations (this session)
+- **CPU / host / compiler:** same box as the 2026-05-22 entry (Apple M5 Max,
+  macOS bare metal, Apple clang 21.0.0, `-O3 -fomit-frame-pointer`)
+
+### Benchmark semantics changed in this run
+
+`rstest -b` previously corrupted the codeword once before the `w/err` timing
+loop, but `RSDecode` corrects in place, so iterations 2..N measured a *clean*
+codeword — that's why `w/err ≈ clean` in every older entry. The loops now
+re-inject the errors on every iteration, so `w/err` finally means what the
+header says. **Do not compare `w/err` columns against entries dated before
+this one.** `clean` columns remain comparable.
+
+### Two data-integrity warnings for historical entries
+
+1. **The 2026-05-22 entry was built from stale objects.** A clean rebuild of
+   the identical source (`13864de`) on the same machine gives
+   `BM=9.42 Chien=5.58 Forney=4.50 (total=20.92)` at tt=64, vs the recorded
+   `BM=20.29 ... total=34.92`. The librs Makefile had no `clean` target (one
+   exists now) and the tree carried `.o` files predating the committed
+   pipeline work. Treat the 2026-05-22 phase numbers as ~2× inflated.
+2. **`rstest -d` reads `cws.txt`, which is written by `rstest -e` at a
+   specific tt.** Running `-d` against a stale `cws.txt` from a different tt
+   produces spurious "miscorrected"/decoder-error reports. Regenerate with
+   `-e <tt>` immediately before `-d <tt>`.
+
+### What changed in librs (all decoders share this pipeline)
+
+- **Berlekamp–Massey:** track the degrees of lambda and b and bound the
+  discrepancy/update loops by them — O(2t·ν) instead of O(4t²) table lookups;
+  table-lookup modular reduction instead of iterative folds; stack scratch
+  instead of per-call heap vectors.
+- **Chien search:** compact the non-zero lambda coefficients once (zero terms
+  never change), branch-free inner loop, early exit once deg(lambda) roots
+  are found.
+- **Forney/omega:** exponents `i*root[j] mod nn` stepped incrementally with a
+  conditional subtract instead of multiply + iterative fold per term.
+- **Clean-codeword early-out fixed:** syndromes are in index (pow) form, so
+  the old `!= 0` test never detected a clean codeword (zero syndrome is
+  GF_INFINITY) and every clean decode ran the full BM→Chien→omega pipeline.
+- **run_pipeline:** all scratch polynomials on the stack — no heap allocation
+  in the decode path after syndrome calculation.
+
+### Same-machine comparison (clean builds, fixed w/err loops, Direct NEON)
+
+| tt  | committed w/err | optimized w/err | speedup | committed clean | optimized clean |
+|----:|----------------:|----------------:|--------:|----------------:|----------------:|
+|   8 |            1.34 |            1.00 |   1.3×  |            0.30 |            0.13 |
+|  16 |            2.66 |            1.69 |   1.6×  |            0.59 |            0.24 |
+|  32 |            6.52 |            3.55 |   1.8×  |            1.30 |            0.46 |
+|  64 |           20.49 |            9.64 |   2.1×  |            3.77 |            0.93 |
+
+Auto-phase breakdown at tt=64 (errored decode): committed
+`synd=1.25 BM=9.42 Chien=5.58 Forney=4.50 (total=20.92)` → optimized
+`synd=1.29 BM=3.00 Chien=2.79 Forney=3.08 (total=10.25)`.
+
+A standalone loop harness (isolating the codec from rstest) confirms the
+trend and extends it above the benchmark's tt range: tt=100 45.6→19.9 µs,
+tt=127 61.8→27.3 µs (~2.3×). One 3140 µs Auto w/err outlier appeared in a
+single committed-baseline `rstest -b` run at tt=64; it did not reproduce in
+50k isolated iterations of the same codec path (20.35 µs avg) and was a
+transient system stall, not a code path.
+
+Correctness for this run: `rstest -b` cross-decoder probe clean; `-c` sweep
+PASS at tt ∈ {2,4,8,16,24,32,64,100}; fresh `-e`/`-d` pairs clean at
+tt ∈ {1,4,8,16,24,32,64,100}; plus a 21k-case randomized stress harness
+(random error/erasure mixes up to capacity, byte-for-byte content check,
+4 seeds × 13 tt values incl. max-error/max-erasure boundaries) — zero
+failures, and identical outputs from the committed and optimized libraries.
+
+### Raw output
+
+```
+RS Test Configuration:
+  Mode: Benchmark
+  Number of codewords: 10000
+  Verbosity level: Normal
+  Random seed: 1093
+  Verify correction: Yes
+//                Auto           General (LFSR)     Direct (scalar)    Direct (NEON)        Direct (AVX2)       Direct (AVX512)
+// tt  Encode  w/err   clean      w/err   clean      w/err   clean      w/err   clean      w/err   clean      w/err   clean
+//  1    0.47     0.35    0.36       0.76    0.76       0.50    0.50       0.12    0.12       0.35    0.35       0.35    0.35
+//     [Auto phases @ tt=1]  synd=0.38  BM=0.00  Chien=0.00  Forney=0.00  (total=0.46)  errs=0
+//  2    0.43     0.35    0.12       0.89    0.65       1.09    0.86       0.35    0.12       0.35    0.12       0.35    0.12
+//     [Auto phases @ tt=2]  synd=0.12  BM=0.04  Chien=0.17  Forney=0.04  (total=0.46)  errs=1
+//  3    1.04     0.37    0.12       0.94    0.69       1.46    1.21       0.37    0.12       0.37    0.12       0.37    0.12
+//     [Auto phases @ tt=3]  synd=0.33  BM=0.04  Chien=0.17  Forney=0.04  (total=0.67)  errs=1
+//  4    0.53     0.43    0.12       1.00    0.70       1.88    1.57       0.42    0.12       0.42    0.12       0.42    0.12
+//     [Auto phases @ tt=4]  synd=0.21  BM=0.04  Chien=0.21  Forney=0.04  (total=0.62)  errs=2
+//  5    1.04     0.44    0.12       1.13    0.81       2.39    1.98       0.44    0.13       0.45    0.12       0.44    0.12
+//     [Auto phases @ tt=5]  synd=0.29  BM=0.08  Chien=0.21  Forney=0.04  (total=0.67)  errs=2
+//  6    1.02     0.92    0.13       1.71    0.90       3.18    2.37       0.93    0.12       0.93    0.12       0.92    0.12
+//     [Auto phases @ tt=6]  synd=0.25  BM=0.08  Chien=0.79  Forney=0.04  (total=1.33)  errs=3
+//  7    1.02     0.94    0.13       1.79    0.97       3.55    2.73       0.95    0.12       0.95    0.12       0.94    0.12
+//     [Auto phases @ tt=7]  synd=0.46  BM=0.17  Chien=0.88  Forney=0.08  (total=1.62)  errs=3
+//  8    0.58     1.00    0.13       1.89    1.02       4.02    3.16       1.00    0.13       1.00    0.12       1.00    0.13
+//     [Auto phases @ tt=8]  synd=0.50  BM=0.12  Chien=0.67  Forney=0.12  (total=1.50)  errs=4
+// 16    0.60     1.70    0.24       3.37    1.93       8.43    6.97       1.69    0.24       1.69    0.24       1.68    0.24
+//     [Auto phases @ tt=16]  synd=0.46  BM=0.33  Chien=0.92  Forney=0.29  (total=2.04)  errs=8
+// 24    0.94     2.46    0.35       4.93    2.85      11.33    9.23       2.46    0.35       2.44    0.35       2.46    0.35
+//     [Auto phases @ tt=24]  synd=0.54  BM=0.58  Chien=0.96  Forney=0.58  (total=2.79)  errs=12
+// 32    0.54     3.54    0.46       6.91    3.80      15.33   12.18       3.55    0.46       3.53    0.46       3.55    0.46
+//     [Auto phases @ tt=32]  synd=0.71  BM=0.96  Chien=1.29  Forney=0.88  (total=3.88)  errs=16
+// 40    0.80     4.96    0.57       9.12    4.75      19.34   14.92       4.97    0.58       4.96    0.58       4.98    0.57
+//     [Auto phases @ tt=40]  synd=0.83  BM=1.54  Chien=1.58  Forney=1.21  (total=5.29)  errs=20
+// 48    0.74     6.41    0.69      11.51    5.69      23.46   17.75       6.41    0.70       6.42    0.70       6.41    0.69
+//     [Auto phases @ tt=48]  synd=1.04  BM=2.12  Chien=2.04  Forney=1.75  (total=7.00)  errs=24
+// 56    0.68     8.07    0.81      13.97    6.67      27.90   20.80       7.86    0.81       7.89    0.80       7.86    0.81
+//     [Auto phases @ tt=56]  synd=1.12  BM=2.46  Chien=2.50  Forney=2.38  (total=8.58)  errs=28
+// 64    0.50     9.60    0.93      16.34    7.67      32.39   23.76       9.64    0.93       9.63    0.93       9.73    0.93
+//     [Auto phases @ tt=64]  synd=1.29  BM=3.00  Chien=2.79  Forney=3.08  (total=10.25)  errs=32
+```

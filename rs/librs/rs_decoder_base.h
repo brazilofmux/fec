@@ -56,18 +56,19 @@ protected:
                      const int* eras_pos, int no_eras,
                      GF recd[nn], DecodeProfile* profile);
 
-    // Shared decoding methods
-    int construct_erasure_locator(std::vector<GF>& lambda, const int* eras_pos, int no_eras);
-    void berlekamp_massey(const std::vector<GF>& syndromes, std::vector<GF>& lambda, int no_eras);
-    int convert_to_index_and_get_degree(std::vector<GF>& poly);
-    int chien_search(const std::vector<GF>& lambda, int deg_lambda,
-        std::vector<GF>& root, std::vector<GF>& loc, int& count);
-    int compute_omega(const std::vector<GF>& syndromes, const std::vector<GF>& lambda,
-        int deg_lambda, std::vector<GF>& omega);
-    int forney_correction(const std::vector<GF>& omega, int deg_omega,
-        const std::vector<GF>& lambda, int deg_lambda,
-        const std::vector<GF>& root, int count,
-        const std::vector<GF>& loc, GF data[nn]);
+    // Shared decoding methods. Polynomials are raw arrays sized 2*tt+1
+    // (bounded by 2*MAX_TT+1) so the pipeline can keep them on the stack.
+    int construct_erasure_locator(GF* lambda, int len, const int* eras_pos, int no_eras);
+    void berlekamp_massey(const GF* syndromes, GF* lambda, int no_eras);
+    int convert_to_index_and_get_degree(GF* poly, int len);
+    int chien_search(const GF* lambda, int deg_lambda,
+        GF* root, GF* loc, int& count);
+    int compute_omega(const GF* syndromes, const GF* lambda,
+        int deg_lambda, GF* omega);
+    int forney_correction(const GF* omega, int deg_omega,
+        const GF* lambda, int deg_lambda,
+        const GF* root, int count,
+        const GF* loc, GF data[nn]);
 
     // Protected data
     const int tt_;

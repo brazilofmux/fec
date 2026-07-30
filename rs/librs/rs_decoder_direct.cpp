@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstring>
 #include <vector>
 #include "rs_decoder_direct.h"
 
@@ -21,7 +22,8 @@ void RS_DECODER_DIRECT::calculate_syndromes(const GF recd[nn], std::vector<GF>& 
     syndromes.assign(2 * tt_ + 1, 0);
 
     const int width = 2 * tt_;
-    std::vector<GF> S(width, 0);
+    GF S[2 * MAX_TT];
+    memset(S, 0, width * sizeof(GF));
 
     for (int j = 0; j < nn; j++) {
         const GF s = recd[j];
